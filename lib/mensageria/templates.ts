@@ -1,7 +1,7 @@
 /**
  * As quatro famílias de mensagem, e o modo discreto (D3).
  *
- * Duas coisas que precisam ficar claras antes de ler o código:
+ * Quatro coisas que precisam ficar claras antes de ler o código:
  *
  * **1. Discrição é template diferente, não texto trocado em tempo de execução.**
  * A Meta aprova o corpo do template, não o valor das variáveis. Então "discreto"
@@ -13,8 +13,15 @@
  * mensagem (`params.modo`, congelado pelo gatilho da 0017). Quem editar o
  * cadastro depois não muda o que já foi enfileirado.
  *
- * A regra do modo discreto está escrita como teste em `templates.test.ts`, e é
- * ela que impede a boa intenção de "só desta vez põe o nome da clínica".
+ * **3. Nenhum corpo começa ou termina em variável, e o número de variáveis é
+ * fixo por template.** As duas são regras da Meta, e desrespeitá-las é
+ * reprovação — que reinicia dias de espera (risco R4).
+ *
+ * **4. Na dúvida, cai para o mais discreto.** Faltou o nome do profissional
+ * numa mensagem em modo completo? Sai a discreta. O erro de revelar de menos se
+ * conserta com um telefonema; o de revelar demais, não.
+ *
+ * A regra do modo discreto está escrita como teste em `templates.test.ts`.
  */
 
 import { FUSO } from "@/lib/tempo";
@@ -37,13 +44,14 @@ export type Parametros = {
   inicio?: string;
   /** Até quando a oferta vale, em ISO. */
   expira_em?: string;
-  /** Nome do profissional — só aparece no modo completo. */
+  /** Nome do profissional. Sem ele, o modo completo não acontece. */
   profissional?: string;
   [k: string]: unknown;
 };
 
 export type Renderizado = {
   familia: Familia;
+  /** O modo **efetivo** — pode ser mais discreto do que o pedido. */
   modo: Modo;
   /** O nome aprovado na Meta. Discreto e completo são templates distintos. */
   nomeDoTemplate: string;
@@ -74,10 +82,6 @@ function ehFamilia(v: string): v is Familia {
   return (FAMILIAS as readonly string[]).includes(v);
 }
 
-function modoDe(params: Parametros): Modo {
-  return params.modo === "completo" ? "completo" : "discreto";
-}
-
 const DIA_E_HORA = new Intl.DateTimeFormat("pt-BR", {
   timeZone: FUSO,
   weekday: "long",
@@ -104,19 +108,53 @@ function quando(iso: string | undefined): string {
   return DIA_E_HORA.format(d);
 }
 
-function ate(iso: string | undefined): string {
-  if (!iso) return "";
+/** O prazo já vem como sintagma pronto: "às 16:20" ou "o fim do dia". */
+function prazo(iso: string | undefined): string {
+  if (!iso) return "o fim do dia";
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return SO_HORA.format(d);
+  if (Number.isNaN(d.getTime())) return "o fim do dia";
+  return `às ${SO_HORA.format(d)}`;
 }
 
 /** Só o primeiro nome. Mensagem não é cadastro. */
 function primeiroNome(nome: string | undefined): string {
   const limpo = (nome ?? "").trim();
-  if (!limpo) return "Oi";
+  if (!limpo) return "tudo bem";
   return limpo.split(/\s+/)[0];
 }
+
+/**
+ * Os corpos, exatamente como vão para a Meta.
+ *
+ * `{{1}}` é sempre quem recebe, `{{2}}` sempre o horário. No modo completo,
+ * `{{n}}` final é o profissional. Nenhum começa nem termina em variável.
+ */
+export const CORPOS: Record<Modo, Record<Familia, string>> = {
+  discreto: {
+    oferta_de_vaga:
+      "Oi, {{1}}. Abriu um horário {{2}}. Quer ficar com ele? " +
+      "Responda SIM até {{3}} para confirmar. " +
+      "Sem resposta, o horário segue para a próxima pessoa da lista.",
+    encaixe_confirmado: "Oi, {{1}}. Seu horário {{2}} está confirmado. Até lá.",
+    lembrete_de_sessao:
+      "Oi, {{1}}. Passando para lembrar do seu horário {{2}}. Até lá.",
+    aviso_de_desmarque:
+      "Oi, {{1}}. Precisei desmarcar o horário {{2}}. Entro em contato para remarcar.",
+  },
+  completo: {
+    oferta_de_vaga:
+      "Oi, {{1}}. Abriu um horário {{2}} na agenda de {{4}}. Quer ficar com ele? " +
+      "Responda SIM até {{3}} para confirmar. " +
+      "Sem resposta, a vaga segue para a próxima pessoa da lista de espera.",
+    encaixe_confirmado:
+      "Oi, {{1}}. Sua sessão {{2}} com {{3}} está confirmada. Até lá.",
+    lembrete_de_sessao:
+      "Oi, {{1}}. Passando para lembrar da sua sessão {{2}} com {{3}}. Até lá.",
+    aviso_de_desmarque:
+      "Oi, {{1}}. A sessão {{2}} com {{3}} precisou ser desmarcada. " +
+      "Entro em contato para remarcar.",
+  },
+};
 
 /**
  * Monta a mensagem.
@@ -130,83 +168,41 @@ export function renderizar(template: string, params: Parametros): Renderizado {
     throw new Error(`Template desconhecido: ${template}`);
   }
 
-  const modo = modoDe(params);
   const nome = primeiroNome(params.nome);
   const hora = quando(params.inicio);
-  const limite = ate(params.expira_em);
+  const limite = prazo(params.expira_em);
   const prof = (params.profissional ?? "").trim();
 
-  const nomeDoTemplate = `sessoes_${template}_${modo}`;
-
-  // As variáveis posicionais que o template aprovado espera. O modo completo
-  // acrescenta o profissional como última variável.
-  const base: Record<Familia, string[]> = {
-    oferta_de_vaga: [nome, hora, limite || "o fim do dia"],
-    encaixe_confirmado: [nome, hora],
-    lembrete_de_sessao: [nome, hora],
-    aviso_de_desmarque: [nome, hora],
-  };
+  // O modo pedido só vale se houver com que preenchê-lo. Sem o nome do
+  // profissional, o template completo ficaria com variável vazia — que a Meta
+  // recusa — e a saída certa é a mais discreta, nunca a menos.
+  const modo: Modo = params.modo === "completo" && prof ? "completo" : "discreto";
 
   const variaveis =
-    modo === "completo" && prof ? [...base[template], prof] : base[template];
-
-  const texto = corpo(template, modo, { nome, hora, limite, prof });
+    modo === "discreto"
+      ? template === "oferta_de_vaga"
+        ? [nome, hora, limite]
+        : [nome, hora]
+      : template === "oferta_de_vaga"
+        ? [nome, hora, limite, prof]
+        : [nome, hora, prof];
 
   return {
     familia: template,
     modo,
-    nomeDoTemplate,
+    nomeDoTemplate: `sessoes_${template}_${modo}`,
     variaveis,
-    texto,
+    texto: preencher(CORPOS[modo][template], variaveis),
     assunto: assunto(template, modo),
   };
 }
 
-function corpo(
-  familia: Familia,
-  modo: Modo,
-  v: { nome: string; hora: string; limite: string; prof: string },
-): string {
-  const com = modo === "completo" && v.prof ? ` com ${v.prof}` : "";
-  const prazo = v.limite ? ` até às ${v.limite}` : "";
-
-  if (modo === "discreto") {
-    switch (familia) {
-      case "oferta_de_vaga":
-        return (
-          `${v.nome}, abriu um horário ${v.hora}. ` +
-          `Quer ficar com ele? Responda SIM${prazo}. ` +
-          `Sem resposta, ele segue para a próxima pessoa da lista.`
-        );
-      case "encaixe_confirmado":
-        return `${v.nome}, confirmado: ${v.hora}. Até lá.`;
-      case "lembrete_de_sessao":
-        return `${v.nome}, lembrete do seu horário ${v.hora}.`;
-      case "aviso_de_desmarque":
-        return (
-          `${v.nome}, precisei desmarcar o horário ${v.hora}. ` +
-          `Já já falo com você para remarcar.`
-        );
-    }
-  }
-
-  switch (familia) {
-    case "oferta_de_vaga":
-      return (
-        `${v.nome}, abriu um horário${com} ${v.hora}. ` +
-        `Quer ficar com ele? Responda SIM${prazo}. ` +
-        `Sem resposta, a vaga segue para a próxima pessoa da lista de espera.`
-      );
-    case "encaixe_confirmado":
-      return `${v.nome}, sua sessão${com} está confirmada para ${v.hora}. Até lá.`;
-    case "lembrete_de_sessao":
-      return `${v.nome}, lembrete da sua sessão${com} ${v.hora}.`;
-    case "aviso_de_desmarque":
-      return (
-        `${v.nome}, a sessão${com} ${v.hora} precisou ser desmarcada. ` +
-        `Entro em contato para remarcar.`
-      );
-  }
+/** Troca `{{n}}` pelo n-ésimo valor. É a mesma substituição que a Meta faz. */
+function preencher(corpo: string, variaveis: string[]): string {
+  return corpo.replace(/\{\{(\d+)\}\}/g, (inteiro, n: string) => {
+    const valor = variaveis[Number(n) - 1];
+    return valor ?? inteiro;
+  });
 }
 
 function assunto(familia: Familia, modo: Modo): string {
