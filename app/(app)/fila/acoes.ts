@@ -6,6 +6,7 @@ import { db, ErroDeBanco } from "@/lib/db";
 import { supabaseSessao } from "@/lib/supabase/server";
 import { sessaoAtual } from "@/lib/conta";
 import { montarJanela } from "@/lib/janela";
+import { cutucarDespacho } from "@/lib/mensageria/worker";
 
 export type Resultado =
   | { estado: "inicial" }
@@ -117,6 +118,11 @@ export async function oferecerEmCascata(_anterior: Resultado, form: FormData): P
   try {
     const oferta = await db("vaga.abrir", supabase.rpc("abrir_vaga", { p_sessao: sessaoId }));
 
+    // A oferta já está no banco e a mensagem já está na fila de envio. Isto só
+    // tenta fazê-la sair agora em vez de esperar o cron; falhar aqui não
+    // desfaz nada.
+    await cutucarDespacho();
+
     revalidatePath(`/fila/${sessaoId}`);
     revalidatePath("/fila");
 
@@ -148,6 +154,10 @@ export async function responderPorEla(_anterior: Resultado, form: FormData): Pro
       "oferta.responder",
       supabase.rpc("responder_oferta", { p_oferta: ofertaId, p_resposta: resposta }),
     );
+
+    // Uma recusa faz a fila andar, e a próxima oferta já nasceu na fila de
+    // envio. Sair agora é a diferença entre a cascata parecer viva ou lenta.
+    await cutucarDespacho();
   } catch (e) {
     return { estado: "erro", erros: [traduzir(e)] };
   }

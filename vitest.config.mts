@@ -8,6 +8,10 @@ export default defineConfig({
     exclude: ["node_modules/**", ".next/**"],
   },
   resolve: {
-    alias: { "@": path.resolve(import.meta.dirname, ".") },
+    alias: {
+      "@": path.resolve(import.meta.dirname, "."),
+      // `server-only` só existe dentro do build do Next (ver testes/server-only.ts).
+      "server-only": path.resolve(import.meta.dirname, "testes/server-only.ts"),
+    },
   },
 });
