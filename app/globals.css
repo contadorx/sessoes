@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------
+   Tokens da identidade — doc 09-identidade-e-nome.md
+   Tema claro fixo: a marca é o caderno de horários em papel.
+   --------------------------------------------------------------- */
+@theme {
+  --color-papel: #ECEEE9;
+  --color-folha: #FFFFFF;
+  --color-folha2: #F5F7F3;
+  --color-tinta: #1F262A;
+  --color-tinta2: #57625F;
+  --color-tinta3: #87918D;
+  --color-linha: #D9DED6;
+  --color-linha2: #C0C7BC;
+
+  /* rosa profundo: exclusivo da hora vazia. nunca decorativo */
+  --color-vaga: #AB2758;
+  --color-vaga-bg: #FBE8EF;
+  --color-vaga-linha: #EDBFD1;
+
+  /* verde-pinheiro: horário preenchido, dinheiro que volta */
+  --color-cheia: #1C6B58;
+  --color-cheia-bg: #E2EFEA;
+  --color-cheia-linha: #B4D6C9;
+
+  --color-aviso: #8A5712;
+  --color-aviso-bg: #F9EFDA;
+  --color-aviso-linha: #E5CFA3;
+
+  --font-serif: var(--fonte-serif), Georgia, "Times New Roman", serif;
+  --font-sans: var(--fonte-sans), "Helvetica Neue", Arial, sans-serif;
+  --font-mono: var(--fonte-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --radius-cartao: 6px;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-papel);
+  color: var(--color-tinta);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--color-vaga-bg);
+  color: var(--color-vaga);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-vaga);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* números tabulares em tudo que é hora e dinheiro */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.rotulo {
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--color-tinta3);
+}
+
+@keyframes pulsa {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(171, 39, 88, 0); }
+  50%      { box-shadow: 0 0 0 3px var(--color-vaga-linha); }
+}
+.pulsa { animation: pulsa 2.4s ease-in-out infinite; }
+
+@keyframes sobe {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+.sobe { animation: sobe 0.32s ease both; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
