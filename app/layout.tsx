@@ -42,6 +42,20 @@ export const metadata: Metadata = {
     type: "website",
   },
   robots: { index: true, follow: true },
+  // Instalado na tela inicial, o nome curto é o que cabe embaixo do ícone.
+  applicationName: "Sessões",
+  appleWebApp: {
+    capable: true,
+    title: "Sessões",
+    statusBarStyle: "default",
+  },
+  icons: {
+    icon: [
+      { url: "/icone-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icone-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/apple-icon.png",
+  },
 };
 
 export const viewport: Viewport = {

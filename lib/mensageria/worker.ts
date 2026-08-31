@@ -34,6 +34,7 @@ type LinhaDeMensagem = {
 };
 
 export type Relatorio = {
+  expiradas: number;
   destravadas: number;
   reservadas: number;
   enviadas: number;
@@ -43,6 +44,16 @@ export type Relatorio = {
 
 export async function despacharPendentes(limite = 20): Promise<Relatorio> {
   const supabase = supabaseServico();
+
+  // **Primeiro expira, depois envia.** Uma oferta que venceu faz a fila andar e
+  // enfileira a próxima — se o envio viesse antes, a nova oferta esperaria o
+  // tick seguinte, e cinco minutos numa vaga de amanhã é tempo demais.
+  //
+  // Isto rodava só quando alguém clicava num botão da tela da fila. A promessa
+  // da B7 ("a oferta expira em 40 minutos e a fila anda") dependia de haver
+  // alguém olhando — e o motor da fila, que está certo, levaria a culpa.
+  const expiradas =
+    (await db<number>("mensageria.expirar", supabase.rpc("expirar_ofertas"))) ?? 0;
 
   const destravadas =
     (await db<number>("mensageria.destravar", supabase.rpc("destravar_mensagens", {
@@ -56,6 +67,7 @@ export async function despacharPendentes(limite = 20): Promise<Relatorio> {
     )) ?? [];
 
   const relatorio: Relatorio = {
+    expiradas,
     destravadas,
     reservadas: lote.length,
     enviadas: 0,

@@ -93,3 +93,51 @@ body {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* ------------------------------------------------------------------ impressão
+ *
+ * O documento da B17 é feito para virar papel ou PDF. Aqui some tudo o que é
+ * navegação — cabeçalho, menu, botões — e o que sobra é o documento, com
+ * margem de folha e sem borda de cartão.
+ *
+ * Fundo colorido fica de fora de propósito: gasta tinta e não acrescenta nada.
+ * Papel é branco.
+ */
+@media print {
+  .nao-imprime,
+  header,
+  nav {
+    display: none !important;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .papel {
+    border: 0 !important;
+    background: #fff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+  }
+
+  /* Uma tabela de sessões não deve quebrar uma linha ao meio. */
+  tr,
+  td,
+  th {
+    break-inside: avoid;
+  }
+
+  @page {
+    margin: 2cm;
+  }
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import type { SessaoLinha, CobrancaLinha } from "@/app/(app)/agenda/dados";
@@ -9,6 +9,7 @@ import {
   marcarSessao,
   perdoarCobranca,
   marcarCobrancaPaga,
+  gerarPix,
   type Resultado,
 } from "@/app/(app)/agenda/acoes";
 import { rotuloPolitica, multaDeFalta } from "@/lib/enquadre";
@@ -75,6 +76,51 @@ function Cancelar({ id, por, rotulo }: { id: string; por: string; rotulo: string
 }
 
 /**
+ * O copia e cola.
+ *
+ * Um botão que copia, e o código visível abaixo — porque em celular o botão
+ * resolve, e no computador nem sempre a área de transferência está disponível.
+ * Deixar o texto à mostra é o plano B que não depende de permissão do navegador.
+ */
+function Pix({ codigo }: { codigo: string }) {
+  const [copiado, setCopiado] = useState(false);
+
+  async function copiar() {
+    try {
+      await navigator.clipboard.writeText(codigo);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 1800);
+    } catch {
+      // Sem permissão: o código está logo abaixo, dá para selecionar à mão.
+    }
+  }
+
+  return (
+    <div className="mt-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={copiar}
+          className={`rounded-full border px-4 py-2 text-[12.5px] font-medium transition-colors ${
+            copiado
+              ? "border-cheia-linha text-cheia"
+              : "border-linha2 text-tinta2 hover:bg-folha2"
+          }`}
+        >
+          {copiado ? "copiado" : "Copiar PIX"}
+        </button>
+        <span className="text-[11.5px] text-tinta3">
+          cola no WhatsApp; o valor já vai junto
+        </span>
+      </div>
+      <p className="mt-2 break-all rounded-cartao border border-linha bg-folha px-3 py-2 font-mono text-[10.5px] leading-relaxed text-tinta3">
+        {codigo}
+      </p>
+    </div>
+  );
+}
+
+/**
  * A cobrança que nasceu sozinha.
  *
  * Duas coisas de desenho, e as duas são sobre postura:
@@ -89,6 +135,7 @@ function Cancelar({ id, por, rotulo }: { id: string; por: string; rotulo: string
 function Cobranca({ cobranca }: { cobranca: CobrancaLinha }) {
   const [, perdoar] = useActionState(perdoarCobranca, INICIAL);
   const [, pagar] = useActionState(marcarCobrancaPaga, INICIAL);
+  const [rPix, gerar] = useActionState(gerarPix, INICIAL);
 
   const valor = formatar(paraCentavos(cobranca.valor));
 
@@ -116,6 +163,18 @@ function Cobranca({ cobranca }: { cobranca: CobrancaLinha }) {
         <b className="font-semibold text-vaga">{valor}</b> a cobrar. O aviso sai
         sozinho daqui a pouco, no texto neutro — você não precisa escrever nada.
       </p>
+
+      {cobranca.pix_copia_cola ? (
+        <Pix codigo={cobranca.pix_copia_cola} />
+      ) : (
+        <form action={gerar} className="mt-3">
+          <input type="hidden" name="cobranca_id" value={cobranca.id} />
+          <Acao rotulo="Gerar PIX" />
+          {rPix.estado === "erro" && (
+            <p className="mt-2 text-[12px] leading-relaxed text-vaga">{rPix.erros[0]}</p>
+          )}
+        </form>
+      )}
 
       <div className="mt-3 flex flex-wrap gap-2">
         <form action={perdoar}>

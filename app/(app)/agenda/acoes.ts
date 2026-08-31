@@ -5,6 +5,8 @@ import { db, ErroDeBanco } from "@/lib/db";
 import { supabaseSessao } from "@/lib/supabase/server";
 import { sessaoAtual } from "@/lib/conta";
 import { inicioDoDiaSP } from "@/lib/tempo";
+import { paraCentavos } from "@/lib/dinheiro";
+import { adaptadorPara } from "@/lib/pagamentos/adaptadores";
 
 /** O instante exato de um "dia + hora" no fuso de São Paulo. */
 function inicioDaSessao(dia: string, hora: string): Date {
@@ -275,4 +277,91 @@ function traduzirCobranca(e: unknown): string {
     if (/aberta/i.test(e.message)) return "Esta cobrança já foi resolvida.";
   }
   return "Não consegui completar agora. Tente de novo em instantes.";
+}
+
+/**
+ * Gera o PIX da cobrança.
+ *
+ * O código sai da chave **dela** e é guardado na cobrança — não regerado a cada
+ * abertura de tela. O motivo é o mesmo do retrato da sessão: o que foi mandado
+ * para o paciente tem de continuar existindo igual, mesmo que ela troque a chave
+ * PIX amanhã. Um copia-e-cola que muda debaixo de quem já recebeu é uma
+ * cobrança que não pode ser paga.
+ */
+export async function gerarPix(_anterior: Resultado, form: FormData): Promise<Resultado> {
+  const id = String(form.get("cobranca_id") ?? "");
+  if (!id) return { estado: "erro", erros: ["Cobrança não identificada."] };
+
+  const supabase = await supabaseSessao();
+  const sessao = await sessaoAtual();
+
+  try {
+    const contas = (await db(
+      "cobranca.pix.conta",
+      supabase
+        .from("contas")
+        .select("pix_chave, pix_nome, pix_cidade, provedor_pagamento, provedor_estado")
+        .eq("id", sessao.contaId)
+        .limit(1),
+    )) as unknown as {
+      pix_chave: string | null;
+      pix_nome: string | null;
+      pix_cidade: string | null;
+      provedor_pagamento: string | null;
+      provedor_estado: string | null;
+    }[];
+
+    const conta = contas[0];
+
+    const cobrancas = (await db(
+      "cobranca.pix.ler",
+      supabase.from("cobrancas").select("id, valor, estado").eq("id", id).limit(1),
+    )) as unknown as { id: string; valor: string; estado: string }[];
+
+    const cobranca = cobrancas[0];
+    if (!cobranca) return { estado: "erro", erros: ["Esta cobrança não existe mais."] };
+    if (cobranca.estado !== "aberta") {
+      return { estado: "erro", erros: ["Esta cobrança já foi resolvida."] };
+    }
+
+    const txid = await db<string>(
+      "cobranca.txid",
+      supabase.rpc("txid_da_cobranca", { p_cobranca: id }),
+    );
+
+    const adaptador = adaptadorPara(conta?.provedor_pagamento ?? null, conta?.provedor_estado ?? null);
+
+    const criada = await adaptador.criar(
+      { cobrancaId: id, valorCentavos: paraCentavos(cobranca.valor), txid },
+      {
+        pixChave: conta?.pix_chave ?? null,
+        pixNome: conta?.pix_nome ?? null,
+        pixCidade: conta?.pix_cidade ?? null,
+      },
+    );
+
+    await db(
+      "cobranca.pix.salvar",
+      supabase
+        .from("cobrancas")
+        .update({
+          txid,
+          provedor: criada.provedor,
+          pix_copia_cola: criada.pixCopiaCola,
+          link_pagamento: criada.link,
+          provedor_cobranca_id: criada.provedorCobrancaId,
+        })
+        .eq("id", id)
+        .select("id"),
+    );
+  } catch (e) {
+    console.error("[cobranca] falhou gerar pix", e);
+    return {
+      estado: "erro",
+      erros: [e instanceof Error ? e.message : "Não consegui gerar o PIX agora."],
+    };
+  }
+
+  revalidatePath("/agenda");
+  return { estado: "ok", mensagem: "PIX gerado." };
 }

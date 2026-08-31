@@ -19,9 +19,31 @@ import { createServerClient } from "@supabase/ssr";
  */
 
 const PUBLICAS = new Set(["/", "/entrar"]);
-const PREFIXOS_PUBLICOS = ["/p/"]; // portal do paciente por link mágico (D18)
 
-function ehPublica(caminho: string): boolean {
+const PREFIXOS_PUBLICOS = [
+  "/p/", // portal do paciente por link mágico (D18)
+
+  // **Rotas de máquina.** Quem bate nelas é o cron da Vercel e o provedor de
+  // WhatsApp — nunca alguém com cookie de sessão. Sem esta linha, o proxy
+  // mandava os dois para /entrar com um 307, e as rotas nunca respondiam:
+  // o cron acusaria sucesso (307 não é erro), a fila não andaria, as mensagens
+  // não sairiam, e a agenda pararia de se estender. Tudo em silêncio.
+  //
+  // Elas não ficam desprotegidas por isso: cada uma exige o próprio segredo e
+  // devolve 404 sem ele. A tranca é delas, e é mais forte do que a daqui.
+  "/api/",
+
+  // O outro lado do link de confirmação de e-mail. Quem chega aqui **ainda não
+  // tem sessão** — é justamente esta rota que cria a sessão. Barrá-la é impedir
+  // a confirmação de funcionar, para sempre.
+  "/auth/",
+];
+
+/**
+ * Exportada para ser testável. É a regra que decide quem entra sem sessão, e
+ * uma regra dessas não pode ser conferida só por leitura.
+ */
+export function ehPublica(caminho: string): boolean {
   return (
     PUBLICAS.has(caminho) || PREFIXOS_PUBLICOS.some((p) => caminho.startsWith(p))
   );

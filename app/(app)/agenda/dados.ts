@@ -196,6 +196,7 @@ export type CobrancaLinha = {
   politica_horas: number | null;
   politica_percentual: number | null;
   criado_em: string;
+  pix_copia_cola: string | null;
 };
 
 /**
@@ -220,7 +221,7 @@ export async function cobrancasDaSemana(
     "cobrancas.da_semana",
     supabase
       .from("cobrancas")
-      .select("id, sessao_id, valor, motivo, estado, politica_horas, politica_percentual, criado_em")
+      .select("id, sessao_id, valor, motivo, estado, politica_horas, politica_percentual, criado_em, pix_copia_cola")
       .in("sessao_id", ids)
       .neq("estado", "cancelada"),
   )) as unknown as CobrancaLinha[] | null;
@@ -239,7 +240,7 @@ export async function cobrancaDaSessao(sessaoId: string): Promise<CobrancaLinha 
     "cobrancas.da_sessao",
     supabase
       .from("cobrancas")
-      .select("id, sessao_id, valor, motivo, estado, politica_horas, politica_percentual, criado_em")
+      .select("id, sessao_id, valor, motivo, estado, politica_horas, politica_percentual, criado_em, pix_copia_cola")
       .eq("sessao_id", sessaoId)
       .neq("estado", "cancelada")
       .order("criado_em", { ascending: false })
@@ -247,4 +248,38 @@ export async function cobrancaDaSessao(sessaoId: string): Promise<CobrancaLinha 
   );
 
   return ((linhas ?? []) as unknown as CobrancaLinha[])[0] ?? null;
+}
+
+import type { LinhaRetorno } from "@/components/app/Retorno";
+
+/**
+ * O retorno do mês corrente, em datas civis de São Paulo.
+ *
+ * Um mês é a janela certa: semana é ruído (uma psicóloga pode passar sete dias
+ * sem nenhum cancelamento) e ano esconde a piora. O mês é também o período em
+ * que ela pensa o próprio dinheiro.
+ */
+export async function retornoDoMes(hojeStr: string): Promise<LinhaRetorno> {
+  const supabase = await supabaseSessao();
+
+  const primeiro = `${hojeStr.slice(0, 7)}-01`;
+
+  const linhas = (await db(
+    "agenda.retorno",
+    supabase.rpc("retorno", { p_de: primeiro, p_ate: hojeStr }),
+  )) as unknown as LinhaRetorno[] | null;
+
+  return (
+    linhas?.[0] ?? {
+      canceladas: 0,
+      oferecidas: 0,
+      preenchidas: 0,
+      taxa: null,
+      valor_preenchido: "0",
+      valor_recebido: "0",
+      valor_em_aberto: "0",
+      valor_perdoado: "0",
+      horas_recuperadas: "0",
+    }
+  );
 }

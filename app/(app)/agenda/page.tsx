@@ -7,8 +7,10 @@ import {
   horizonte,
   pacientesParaEncaixe,
   cobrancasDaSemana,
+  retornoDoMes,
 } from "./dados";
 import { Semana } from "@/components/app/Semana";
+import { Retorno } from "@/components/app/Retorno";
 import { Ausencias } from "@/components/app/Ausencias";
 import { Encaixe } from "@/components/app/Encaixe";
 import { semanaDe, rotuloSemana, somarDias } from "@/lib/semana";
@@ -30,12 +32,13 @@ export default async function Agenda({
   const referencia = /^\d{4}-\d{2}-\d{2}$/.test(pedida ?? "") ? pedida! : hojeStr;
   const semana = semanaDe(referencia);
 
-  const [sessao, sessoes, ausencias, ate, pacientes] = await Promise.all([
+  const [sessao, sessoes, ausencias, ate, pacientes, retorno] = await Promise.all([
     sessaoAtual(),
     sessoesDaSemana(semana.inicio),
     listarAusencias(),
     horizonte(),
     pacientesParaEncaixe(),
+    retornoDoMes(hojeStr),
   ]);
 
   // Depois das sessões, porque depende delas — e só busca se houver alguma
@@ -96,6 +99,10 @@ export default async function Agenda({
       </div>
 
       <div className="mt-8">
+        <Retorno r={retorno} rotulo={mesPorExtenso(hojeStr)} />
+      </div>
+
+      <div className="mt-8">
         <Encaixe pacientes={pacientes} dias={semana.dias} />
       </div>
 
@@ -104,6 +111,13 @@ export default async function Agenda({
       </div>
     </div>
   );
+}
+
+/** "março de 2026", do dia civil de São Paulo — nunca do relógio do servidor. */
+function mesPorExtenso(dia: string): string {
+  const [ano, mes] = dia.split("-").map(Number);
+  return new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" })
+    .format(new Date(Date.UTC(ano, mes - 1, 15)));
 }
 
 function Semaninha({ para, rotulo }: { para: string; rotulo: string }) {
