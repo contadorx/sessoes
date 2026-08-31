@@ -146,6 +146,15 @@ export function PainelSessao({
 
         {terminal && <Marcar id={sessao.id} estado="prevista" rotulo="Desfazer" />}
 
+        {cancelada && new Date(sessao.inicio) > new Date() && (
+          <Link
+            href={`/fila/${sessao.id}`}
+            className="rounded-full bg-vaga px-4 py-2 text-[12.5px] font-semibold text-white transition-opacity hover:opacity-90"
+          >
+            Oferecer em cascata →
+          </Link>
+        )}
+
         {sessao.pacientes && (
           <Link
             href={`/pacientes/${sessao.pacientes.id}`}

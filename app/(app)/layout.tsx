@@ -23,6 +23,9 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
             <Link href="/agenda" className="text-tinta2 hover:text-vaga">
               Agenda
             </Link>
+            <Link href="/fila" className="text-tinta2 hover:text-vaga">
+              Fila
+            </Link>
             <Link href="/pacientes" className="text-tinta2 hover:text-vaga">
               Pacientes
             </Link>
