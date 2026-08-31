@@ -36,8 +36,14 @@ export function supabaseServer() {
  * quem está perguntando — `conta_atual()` depende do `auth.uid()` deste cliente.
  */
 export async function supabaseSessao() {
-  const { url, chave } = ambiente();
+  // `cookies()` PRIMEIRO, de propósito. É esta chamada que marca a rota como
+  // dinâmica; se a leitura do ambiente viesse antes e falhasse, o Next nunca
+  // descobriria isso e tentaria pré-renderizar a página no build — quebrando a
+  // compilação por falta de variável em vez de dar erro na requisição.
+  //
+  // Nenhuma página autenticada pode depender de configuração para *compilar*.
   const jar = await cookies();
+  const { url, chave } = ambiente();
 
   return createServerClient(url, chave, {
     cookies: {

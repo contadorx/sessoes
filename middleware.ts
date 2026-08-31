@@ -27,9 +27,21 @@ function ehPublica(caminho: string): boolean {
 export async function middleware(req: NextRequest) {
   let resposta = NextResponse.next({ request: req });
 
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const chave = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  // Sem configuração, o middleware sai da frente em vez de derrubar o site
+  // inteiro: a landing continua no ar e a área logada falha na própria página,
+  // com erro legível. Deixar passar aqui não abre porta nenhuma — quem barra de
+  // verdade é o `sessaoAtual()` da página e, depois dele, a RLS.
+  if (!url || !chave) {
+    console.error("[middleware] faltam as variáveis do Supabase no ambiente");
+    return resposta;
+  }
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    url,
+    chave,
     {
       cookies: {
         getAll: () => req.cookies.getAll(),
