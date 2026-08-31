@@ -5,6 +5,7 @@ import {
   FAMILIAS,
   PROIBIDAS_NO_DISCRETO,
   PROIBIDAS_NA_COBRANCA,
+  PROIBIDAS_NA_REGUA,
   type Familia,
   type Modo,
 } from "./templates";
@@ -154,6 +155,71 @@ describe("a cobrança não constrange (D2)", () => {
   });
 });
 
+describe("a régua não endurece (D6)", () => {
+  const REGUA = MODOS.map((modo) =>
+    renderizar("lembrete_de_pagamento", {
+      nome: "Maria",
+      modo,
+      profissional: "Ana Paula",
+      valor_centavos: 30_000,
+      quantidade: 3,
+    }),
+  );
+
+  it.each(REGUA)("$modo: nenhuma ameaça, nenhum prazo final", (r) => {
+    const texto = `${r.texto} ${r.assunto}`.toLowerCase();
+    for (const palavra of [...PROIBIDAS_NA_REGUA, ...PROIBIDAS_NA_COBRANCA]) {
+      expect(texto, `achei "${palavra}"`).not.toContain(palavra);
+    }
+  });
+
+  it.each(REGUA)("$modo: o total é um só, e os horários vêm por extenso", (r) => {
+    expect(r.texto).toContain(formatar(30_000));
+    expect(r.texto).toContain("três horários");
+  });
+
+  it.each(REGUA)("$modo: termina devolvendo a palavra", (r) => {
+    expect(r.texto).toContain("responder aqui");
+  });
+
+  it("o passo do lembrete não aparece no texto — o tom não muda", () => {
+    const primeiro = renderizar("lembrete_de_pagamento", {
+      nome: "Maria", valor_centavos: 10_000, quantidade: 1, passo: 1,
+    });
+    const terceiro = renderizar("lembrete_de_pagamento", {
+      nome: "Maria", valor_centavos: 10_000, quantidade: 1, passo: 3,
+    });
+    // Esta é a regra inteira da B18 numa asserção: o terceiro lembrete é
+    // idêntico ao primeiro. Escalonar é o que cobrador faz.
+    expect(terceiro.texto).toBe(primeiro.texto);
+  });
+
+  it("um horário fica no singular", () => {
+    const r = renderizar("lembrete_de_pagamento", {
+      nome: "Maria", valor_centavos: 10_000, quantidade: 1,
+    });
+    expect(r.texto).toContain("um horário");
+    expect(r.texto).not.toContain("horários");
+  });
+
+  it("quantidade estranha não vira texto estranho", () => {
+    for (const quantidade of [0, -3, 2.5, undefined, "muitos"]) {
+      const r = renderizar("lembrete_de_pagamento", {
+        nome: "Maria", valor_centavos: 10_000, quantidade: quantidade as number,
+      });
+      expect(r.texto).not.toMatch(/undefined|null|NaN|-\d/);
+      expect(r.texto).toContain("horário");
+    }
+  });
+
+  it("muitos horários usam o número, não uma palavra inventada", () => {
+    const r = renderizar("lembrete_de_pagamento", {
+      nome: "Maria", valor_centavos: 10_000, quantidade: 12,
+    });
+    expect(r.texto).toContain("12 horários");
+  });
+});
+
 describe("as regras da Meta (reprovar aqui é barato; lá custa dias)", () => {
   it.each(MODOS)("nenhum corpo %s começa ou termina em variável", (modo) => {
     for (const familia of FAMILIAS) {
@@ -219,7 +285,12 @@ describe("as regras da Meta (reprovar aqui é barato; lá custa dias)", () => {
 });
 
 describe("o horário é sempre de São Paulo (lei nº 3)", () => {
-  it.each(FAMILIAS)("%s mostra 15:00, não 18:00 UTC", (familia) => {
+  // O lembrete de pagamento fica de fora: ele cobre vários horários de uma vez,
+  // então não nomeia nenhum. É a mesma decisão que faz dele uma mensagem só em
+  // vez de três.
+  const COM_HORARIO = FAMILIAS.filter((f) => f !== "lembrete_de_pagamento");
+
+  it.each(COM_HORARIO)("%s mostra 15:00, não 18:00 UTC", (familia) => {
     const r = renderizar(familia, { nome: "Maria", inicio: INICIO });
     expect(r.texto).toContain("15:00");
     expect(r.texto).not.toContain("18:00");

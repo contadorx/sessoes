@@ -168,3 +168,45 @@ export async function salvarAssinatura(
   revalidatePath("/documentos");
   return { estado: "ok", mensagem: "Salvo. Os próximos documentos já saem assim." };
 }
+
+/**
+ * O ritmo da régua.
+ *
+ * Os degraus são poucos e o teto é do banco (no máximo três). Isto não é
+ * limitação de interface: uma régua com sete degraus não é lembrete, é
+ * perseguição — e o produto existe para tirar o constrangimento da relação, não
+ * para transferi-lo do lado dela para o lado do paciente.
+ */
+export async function salvarRegua(_anterior: Resultado, form: FormData): Promise<Resultado> {
+  const sessao = await sessaoAtual();
+  if (sessao.papel !== "dona") {
+    return { estado: "erro", erros: ["Só a dona da conta muda estes ajustes."] };
+  }
+
+  const ativa = String(form.get("regua_ativa") ?? "") === "1";
+  const escolha = String(form.get("regua_dias") ?? "7,21");
+
+  const dias = escolha
+    .split(",")
+    .map((d) => Number(d.trim()))
+    .filter((d) => Number.isInteger(d) && d >= 1 && d <= 180);
+
+  if (dias.length === 0 || dias.length > 3) {
+    return { estado: "erro", erros: ["Escolha de um a três lembretes."] };
+  }
+
+  const supabase = await supabaseSessao();
+
+  await db(
+    "conta.regua",
+    supabase
+      .from("contas")
+      .update({ regua_ativa: ativa, regua_dias: dias })
+      .eq("id", sessao.contaId)
+      .select("id"),
+  );
+
+  revalidatePath("/conta");
+  revalidatePath("/em-aberto");
+  return { estado: "ok", mensagem: "Ajustado." };
+}

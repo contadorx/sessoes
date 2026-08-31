@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { supabaseSessao } from "@/lib/supabase/server";
 import type { Canal, Estado } from "@/lib/paciente";
+import type { AceiteLinha } from "@/lib/contrato";
 
 export type EnquadreLinha = {
   id: string;
@@ -106,4 +107,47 @@ export async function obterPaciente(id: string): Promise<PacienteLinha | null> {
 
 export function enquadreAberto(p: PacienteLinha): EnquadreLinha | null {
   return p.enquadres?.find((e) => e.vigencia_fim === null) ?? null;
+}
+
+/**
+ * O lastro do combinado vigente (B19).
+ *
+ * Duas perguntas numa ida só: a conta já tem um texto publicado, e este
+ * combinado já tem um aceite vivo. A segunda é filtrada pelo `enquadre_id` e
+ * não pelo paciente — um aceite pertence ao combinado que estava valendo, e um
+ * reajuste (que fecha um enquadre e abre outro) **perde o lastro de propósito**.
+ * Perguntar por paciente responderia "sim, tem contrato" para um valor que
+ * ninguém viu.
+ */
+export async function lastroDoPaciente(
+  _pacienteId: string,
+  enquadreId: string | null,
+): Promise<{ temContrato: boolean; aceite: AceiteLinha | null }> {
+  const supabase = await supabaseSessao();
+
+  const contratos = (await db(
+    "lastro.contrato",
+    supabase.from("contratos").select("id").not("publicado_em", "is", null).limit(1),
+  )) as unknown as { id: string }[];
+
+  if (!enquadreId) {
+    return { temContrato: (contratos ?? []).length > 0, aceite: null };
+  }
+
+  const aceites = (await db(
+    "lastro.aceite",
+    supabase
+      .from("aceites")
+      .select(
+        "id, token, aceito_em, aceito_por, parentesco, origem, criado_em, expira_em, revogado_em, retrato",
+      )
+      .eq("enquadre_id", enquadreId)
+      .is("revogado_em", null)
+      .limit(1),
+  )) as unknown as AceiteLinha[];
+
+  return {
+    temContrato: (contratos ?? []).length > 0,
+    aceite: (aceites ?? [])[0] ?? null,
+  };
 }

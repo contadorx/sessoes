@@ -6,6 +6,7 @@ import {
   salvarPix,
   salvarRitmo,
   salvarAssinatura,
+  salvarRegua,
   type Resultado,
 } from "@/app/(app)/conta/acoes";
 import { tipoDaChave } from "@/lib/pix";
@@ -290,6 +291,75 @@ export function FormAssinatura({
         </div>
 
         {podeEditar && <Salvar />}
+      </fieldset>
+
+      <Recado r={r} />
+    </form>
+  );
+}
+
+const RITMOS = [
+  { valor: "7", rotulo: "um lembrete, uma semana depois" },
+  { valor: "7,21", rotulo: "dois: uma semana e três semanas" },
+  { valor: "5,15,30", rotulo: "três: cinco dias, quinze e trinta" },
+];
+
+export function FormRegua({
+  ativa,
+  dias,
+  podeEditar,
+}: {
+  ativa: boolean;
+  dias: number[];
+  podeEditar: boolean;
+}) {
+  const [r, despachar] = useActionState(salvarRegua, INICIAL);
+  const atual = (dias ?? [7, 21]).join(",");
+
+  return (
+    <form action={despachar} className="rounded-cartao border border-linha bg-folha2 px-5 py-4">
+      <fieldset disabled={!podeEditar} className="space-y-4">
+        <label className="flex items-start gap-2.5">
+          <input
+            type="checkbox"
+            name="regua_ativa"
+            value="1"
+            defaultChecked={ativa}
+            className="mt-0.5"
+          />
+          <span className="text-[12.5px] leading-relaxed text-tinta">
+            Lembrar quem ficou com cobrança em aberto
+            <span className="mt-0.5 block text-[12px] text-tinta2">
+              Desmarcado, nenhum lembrete sai — as cobranças continuam
+              registradas e visíveis em Em aberto.
+            </span>
+          </span>
+        </label>
+
+        <div>
+          <label htmlFor="regua_dias" className="text-[12.5px] font-medium text-tinta">
+            Quantos, e quando
+          </label>
+          <select
+            id="regua_dias"
+            name="regua_dias"
+            defaultValue={RITMOS.some((x) => x.valor === atual) ? atual : "7,21"}
+            className="mt-1.5 w-full rounded border border-linha2 bg-folha px-2 py-1.5 text-[12.5px] text-tinta"
+          >
+            {RITMOS.map((x) => (
+              <option key={x.valor} value={x.valor}>
+                {x.rotulo}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1.5 text-[11.5px] leading-relaxed text-tinta3">
+            Três é o teto, e é do banco, não da tela. Uma régua com sete degraus
+            não é lembrete — é perseguição, e o produto existe para tirar o
+            constrangimento da relação, não para trocá-lo de lado.
+          </p>
+        </div>
+
+        {podeEditar && <Salvar rotulo="Salvar" />}
       </fieldset>
 
       <Recado r={r} />

@@ -19,6 +19,7 @@ import { supabaseServico } from "@/lib/supabase/servico";
 export type RelatorioDiario = {
   materializadas: number;
   lembretes: number;
+  regua: number;
   expurgadas: number;
 };
 
@@ -34,10 +35,17 @@ export async function passadaDiaria(): Promise<RelatorioDiario> {
   const lembretes =
     (await db<number>("diario.lembretes", supabase.rpc("agendar_lembretes"))) ?? 0;
 
+  // A régua depois dos lembretes de sessão, e as duas antes do expurgo. Ordem
+  // sem consequência hoje — mas o expurgo apaga mensagens antigas, e a régua
+  // conta quantos lembretes já saíram. Deixar a contagem acontecer antes de
+  // qualquer apagamento evita que um expurgo futuro reabra uma régua encerrada.
+  const regua =
+    (await db<number>("diario.regua", supabase.rpc("agendar_regua"))) ?? 0;
+
   const expurgadas =
     (await db<number>("diario.expurgar", supabase.rpc("expurgar_mensagens", {
       p_dias: DIAS_DE_RETENCAO,
     }))) ?? 0;
 
-  return { materializadas, lembretes, expurgadas };
+  return { materializadas, lembretes, regua, expurgadas };
 }

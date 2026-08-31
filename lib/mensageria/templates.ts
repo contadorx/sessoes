@@ -33,6 +33,7 @@ export const FAMILIAS = [
   "lembrete_de_sessao",
   "aviso_de_desmarque",
   "aviso_de_cobranca",
+  "lembrete_de_pagamento",
 ] as const;
 
 export type Familia = (typeof FAMILIAS)[number];
@@ -48,6 +49,8 @@ export type Parametros = {
   expira_em?: string;
   /** Nome do profissional. Sem ele, o modo completo não acontece. */
   profissional?: string;
+  /** Quantos horários o lembrete de pagamento cobre. */
+  quantidade?: number;
   /**
    * O valor vem em centavos inteiros, e é `lib/dinheiro` que o formata — a
    * mesma função que a tela usa. Mandar a string pronta do banco criaria uma
@@ -132,6 +135,18 @@ function dinheiro(centavos: unknown): string {
   return formatar(Math.round(centavos));
 }
 
+/** "um horário", "dois horários"… — número por extenso lê melhor que dígito. */
+function horarios(quantidade: unknown): string {
+  const n =
+    typeof quantidade === "number" && Number.isInteger(quantidade) && quantidade > 0
+      ? quantidade
+      : 1;
+
+  const extenso = ["", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove"];
+  const numero = n < extenso.length ? extenso[n] : String(n);
+  return n === 1 ? "um horário" : `${numero} horários`;
+}
+
 /** Só o primeiro nome. Mensagem não é cadastro. */
 function primeiroNome(nome: string | undefined): string {
   const limpo = (nome ?? "").trim();
@@ -155,6 +170,31 @@ export const PROIBIDAS_NA_COBRANCA = [
   "dívida",
   "em aberto",
   "atraso",
+] as const;
+
+/**
+ * Palavras que jamais entram num lembrete de pagamento.
+ *
+ * Além das da cobrança: nada de ameaça, nada de prazo final, nada de
+ * consequência. Uma régua que endurece a cada passo é cobrador; o que se repete
+ * aqui é o fato, nunca a intensidade.
+ */
+export const PROIBIDAS_NA_REGUA = [
+  "urgente",
+  "última",
+  "ultimo aviso",
+  "último aviso",
+  "prazo final",
+  "regulariz",
+  "negativ",
+  "spc",
+  "serasa",
+  "protesto",
+  "juros",
+  "suspens",
+  "cancelaremos",
+  "providências",
+  "cobrança judicial",
 ] as const;
 
 /**
@@ -188,6 +228,9 @@ export const CORPOS: Record<Modo, Record<Familia, string>> = {
     aviso_de_cobranca:
       "Oi, {{1}}. Sobre o horário {{2}}: pelo combinado, fica {{3}} referente a ele. " +
       "Se quiser conversar sobre isso, é só responder aqui.",
+    lembrete_de_pagamento:
+      "Oi, {{1}}. Passando para lembrar do combinado de {{2}}, referente a {{3}}. " +
+      "Se quiser conversar sobre isso, é só responder aqui.",
   },
   completo: {
     oferta_de_vaga:
@@ -203,6 +246,9 @@ export const CORPOS: Record<Modo, Record<Familia, string>> = {
       "Entro em contato para remarcar.",
     aviso_de_cobranca:
       "Oi, {{1}}. Sobre a sessão {{2}} com {{3}}: pelo combinado, fica {{4}} referente a ela. " +
+      "Se quiser conversar sobre isso, é só responder aqui.",
+    lembrete_de_pagamento:
+      "Oi, {{1}}. Passando para lembrar do combinado de {{2}} com {{3}}, referente a {{4}}. " +
       "Se quiser conversar sobre isso, é só responder aqui.",
   },
 };
@@ -222,6 +268,7 @@ const VARIAVEIS: Record<Modo, Record<Familia, (c: Campos) => string[]>> = {
     lembrete_de_sessao: (c) => [c.nome, c.hora],
     aviso_de_desmarque: (c) => [c.nome, c.hora],
     aviso_de_cobranca: (c) => [c.nome, c.hora, c.valor],
+    lembrete_de_pagamento: (c) => [c.nome, c.valor, c.quantos],
   },
   completo: {
     oferta_de_vaga: (c) => [c.nome, c.hora, c.limite, c.prof],
@@ -229,6 +276,7 @@ const VARIAVEIS: Record<Modo, Record<Familia, (c: Campos) => string[]>> = {
     lembrete_de_sessao: (c) => [c.nome, c.hora, c.prof],
     aviso_de_desmarque: (c) => [c.nome, c.hora, c.prof],
     aviso_de_cobranca: (c) => [c.nome, c.hora, c.prof, c.valor],
+    lembrete_de_pagamento: (c) => [c.nome, c.valor, c.prof, c.quantos],
   },
 };
 
@@ -238,6 +286,7 @@ type Campos = {
   limite: string;
   prof: string;
   valor: string;
+  quantos: string;
 };
 
 /**
@@ -263,7 +312,8 @@ export function renderizar(template: string, params: Parametros): Renderizado {
   const modo: Modo = params.modo === "completo" && prof ? "completo" : "discreto";
 
   const valor = dinheiro(params.valor_centavos);
-  const variaveis = VARIAVEIS[modo][template]({ nome, hora, limite, prof, valor });
+  const quantos = horarios(params.quantidade);
+  const variaveis = VARIAVEIS[modo][template]({ nome, hora, limite, prof, valor, quantos });
 
   return {
     familia: template,
@@ -291,6 +341,7 @@ function assunto(familia: Familia, modo: Modo): string {
       lembrete_de_sessao: "Lembrete de horário",
       aviso_de_desmarque: "Mudança no horário",
       aviso_de_cobranca: "Sobre um horário",
+      lembrete_de_pagamento: "Sobre o combinado",
     }[familia];
   }
 
@@ -300,5 +351,6 @@ function assunto(familia: Familia, modo: Modo): string {
     lembrete_de_sessao: "Lembrete da sua sessão",
     aviso_de_desmarque: "Sua sessão precisou ser desmarcada",
     aviso_de_cobranca: "Sobre uma sessão",
+    lembrete_de_pagamento: "Sobre o combinado",
   }[familia];
 }

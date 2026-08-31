@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { obterPaciente, enquadreAberto } from "../dados";
+import { obterPaciente, enquadreAberto, lastroDoPaciente } from "../dados";
 import { atualizarPaciente } from "../acoes";
 import { FormPaciente } from "@/components/app/FormPaciente";
 import { NovoEnquadre } from "@/components/app/NovoEnquadre";
 import { rotuloHorario, rotuloPolitica } from "@/lib/enquadre";
 import { Privacidade } from "@/components/app/Privacidade";
+import { Lastro } from "@/components/app/Lastro";
 
 const brl = (v: string) =>
   Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -23,6 +24,7 @@ export default async function Paciente({ params }: { params: Promise<{ id: strin
 
   const aberto = enquadreAberto(paciente);
   const historico = paciente.enquadres.filter((e) => e.vigencia_fim !== null);
+  const lastro = await lastroDoPaciente(paciente.id, aberto?.id ?? null);
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -62,6 +64,26 @@ export default async function Paciente({ params }: { params: Promise<{ id: strin
         )}
 
         <NovoEnquadre pacienteId={paciente.id} aberto={aberto} />
+      </section>
+
+      {/* o lastro: o combinado por escrito, aceito com data */}
+      <section className="mt-8">
+        <h2 className="rotulo">O combinado por escrito</h2>
+        <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-tinta2">
+          É o que dá lastro à cobrança automática: quando o sistema cobra uma
+          falta, ele aplica uma regra que a pessoa leu e aceitou — com data e
+          hora, no texto que estava na tela naquele instante.
+        </p>
+        <div className="mt-3">
+          <Lastro
+            pacienteId={paciente.id}
+            pacienteNome={paciente.nome}
+            telefone={paciente.telefone}
+            enquadreId={aberto?.id ?? null}
+            temContrato={lastro.temContrato}
+            aceite={lastro.aceite}
+          />
+        </div>
       </section>
 
       {historico.length > 0 && (

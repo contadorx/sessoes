@@ -29,6 +29,10 @@ describe("o que precisa passar sem sessão", () => {
     ["/", "a landing"],
     ["/entrar", "a tela de entrar"],
     ["/p/abc123", "o portal do paciente por link mágico"],
+    [
+      `/p/contrato/${"a".repeat(32)}`,
+      "o link do contrato: quem chega para aceitar não tem — e não vai criar — conta aqui",
+    ],
   ])("%s — %s", (caminho) => {
     expect(ehPublica(caminho)).toBe(true);
   });

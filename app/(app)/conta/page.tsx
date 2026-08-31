@@ -2,7 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { supabaseSessao } from "@/lib/supabase/server";
 import { sessaoAtual } from "@/lib/conta";
-import { FormPix, FormRitmo, FormAssinatura } from "@/components/app/Conta";
+import { FormPix, FormRitmo, FormAssinatura, FormRegua } from "@/components/app/Conta";
 
 export const metadata = { title: "Conta" };
 
@@ -17,6 +17,8 @@ type ContaLinha = {
   silencio_fim: string;
   retencao_anos: number;
   cidade: string | null;
+  regua_ativa: boolean;
+  regua_dias: number[];
 };
 
 type ProfLinha = {
@@ -35,7 +37,7 @@ export default async function Conta() {
     supabase
       .from("contas")
       .select(
-        "nome, pix_chave, pix_nome, pix_cidade, cobranca_atraso_min, lembrete_horas, silencio_inicio, silencio_fim, retencao_anos, cidade",
+        "nome, pix_chave, pix_nome, pix_cidade, cobranca_atraso_min, lembrete_horas, silencio_inicio, silencio_fim, retencao_anos, cidade, regua_ativa, regua_dias",
       )
       .eq("id", sessao.contaId)
       .limit(1),
@@ -114,6 +116,40 @@ export default async function Conta() {
           {conta.silencio_fim.slice(0, 5)}. Uma mensagem que cairia nesse
           intervalo espera o dia começar.
         </p>
+      </section>
+
+      {/* -------------------------------------------------------- o contrato */}
+      <section className="mt-10">
+        <h2 className="rotulo">O combinado por escrito</h2>
+        <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-tinta2">
+          Um texto só, escrito uma vez, que vira o documento de cada pessoa com
+          os números dela dentro — e que a pessoa aceita com data e hora. É o
+          lastro da cobrança automática: sem ele, a regra de falta é um combinado
+          de boca que você precisa relembrar na hora mais difícil.
+        </p>
+        <Link
+          href="/contratos"
+          className="mt-3 inline-block rounded-full border border-linha2 px-4 py-2 text-[12.5px] font-medium text-tinta2 transition-colors hover:bg-folha2"
+        >
+          Escrever o combinado
+        </Link>
+      </section>
+
+      {/* ----------------------------------------------------------- régua */}
+      <section className="mt-10">
+        <h2 className="rotulo">Os lembretes de pagamento</h2>
+        <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-tinta2">
+          Quando alguém fica com uma cobrança em aberto, o sistema lembra — no
+          mesmo texto neutro, sem endurecer, e parando sozinho. É para você não
+          precisar puxar o assunto.
+        </p>
+        <div className="mt-3">
+          <FormRegua
+            ativa={conta.regua_ativa}
+            dias={conta.regua_dias}
+            podeEditar={sessao.papel === "dona"}
+          />
+        </div>
       </section>
 
       {/* -------------------------------------------------------- seus dados */}

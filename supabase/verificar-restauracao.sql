@@ -20,7 +20,8 @@ begin
     from unnest(array[
       'contas','usuarios','profissionais','pacientes','enquadres','sessoes',
       'excecoes_agenda','fila_encaixe','ofertas','eventos_fila','mensagens',
-      'mensagens_recebidas','cobrancas','trilha_acesso','interessados'
+      'mensagens_recebidas','cobrancas','trilha_acesso','interessados',
+      'documentos','contratos','aceites'
     ]) as t
    where to_regclass('public.' || t) is null;
 
@@ -46,7 +47,8 @@ begin
   select string_agg(t, ', ') into faltando
     from unnest(array[
       'pacientes','enquadres','sessoes','fila_encaixe','ofertas',
-      'eventos_fila','mensagens','cobrancas','trilha_acesso'
+      'eventos_fila','mensagens','cobrancas','trilha_acesso',
+      'documentos','contratos','aceites'
     ]) as t
    where not exists (
      select 1 from pg_policies p
@@ -69,7 +71,12 @@ begin
       'responder_do_whatsapp','interpretar_resposta','marcar_entregue',
       'multa_da_politica','perdoar_cobranca','marcar_cobranca_paga',
       'registrar_acesso','arquivar_paciente','esquecer_contato',
-      'exportar_paciente','exportar_conta','expurgar_mensagens'
+      'exportar_paciente','exportar_conta','expurgar_mensagens',
+      'emitir_documento','cancelar_documento','conciliar_pagamento',
+      'agendar_lembretes','agendar_regua','regua_pendente',
+      'publicar_contrato','preparar_aceite','montar_contrato',
+      'contrato_por_token','aceitar_contrato','registrar_aceite_presencial',
+      'revogar_aceite','reais','rotulo_horario','rotulo_politica'
     ]) as f
    where not exists (
      select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -88,7 +95,9 @@ begin
       'sessoes_transicao','sessoes_retrato','sessoes_geram_cobranca',
       'mensagens_retrato','trilha_carimbada','pacientes_arquivados',
       'pacientes_conta','enquadres_conta','enquadres_materializa',
-      'excecoes_materializa','fila_conta_derivada'
+      'excecoes_materializa','fila_conta_derivada',
+      'documentos_imutaveis','contratos_imutaveis','contratos_carimbo',
+      'aceites_montagem','aceites_congelamento'
     ]) as g
    where not exists (
      select 1 from pg_trigger t
@@ -103,7 +112,8 @@ begin
   select string_agg(i, ', ') into faltando
     from unnest(array[
       'enquadre_aberto_unico','mensagens_idem','cobranca_viva_por_sessao',
-      'recebidas_do_provedor'
+      'recebidas_do_provedor','documentos_numero','contratos_versao',
+      'contrato_rascunho_unico','aceite_vivo_do_enquadre'
     ]) as i
    where to_regclass('public.' || i) is null;
 
@@ -143,6 +153,8 @@ union all select 'ofertas', count(*) from public.ofertas
 union all select 'eventos_fila', count(*) from public.eventos_fila
 union all select 'mensagens', count(*) from public.mensagens
 union all select 'cobrancas', count(*) from public.cobrancas
+union all select 'contratos', count(*) from public.contratos
+union all select 'aceites', count(*) from public.aceites
 union all select 'trilha_acesso', count(*) from public.trilha_acesso
 union all select 'auth.users', count(*) from auth.users
 order by 1;
