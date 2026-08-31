@@ -21,7 +21,8 @@ begin
       'contas','usuarios','profissionais','pacientes','enquadres','sessoes',
       'excecoes_agenda','fila_encaixe','ofertas','eventos_fila','mensagens',
       'mensagens_recebidas','cobrancas','trilha_acesso','interessados',
-      'documentos','contratos','aceites'
+      'documentos','contratos','aceites','pacotes','pacote_consumos','remarcacoes',
+      'fila_entrada','vagas_fixas','ofertas_fixas'
     ]) as t
    where to_regclass('public.' || t) is null;
 
@@ -48,7 +49,8 @@ begin
     from unnest(array[
       'pacientes','enquadres','sessoes','fila_encaixe','ofertas',
       'eventos_fila','mensagens','cobrancas','trilha_acesso',
-      'documentos','contratos','aceites'
+      'documentos','contratos','aceites','pacotes','pacote_consumos','remarcacoes',
+      'fila_entrada','vagas_fixas','ofertas_fixas'
     ]) as t
    where not exists (
      select 1 from pg_policies p
@@ -76,7 +78,16 @@ begin
       'agendar_lembretes','agendar_regua','regua_pendente',
       'publicar_contrato','preparar_aceite','montar_contrato',
       'contrato_por_token','aceitar_contrato','registrar_aceite_presencial',
-      'revogar_aceite','reais','rotulo_horario','rotulo_politica'
+      'revogar_aceite','reais','rotulo_horario','rotulo_politica',
+      'ocorrencias_do_dia_no_mes','sessoes_do_mes','valor_da_mensalidade',
+      'agendar_mensalidades','vender_pacote','cancelar_pacote',
+      'saldo_do_pacote','pacote_para_sessao',
+      'opcoes_de_remarcacao','abrir_remarcacao','cancelar_remarcacao',
+      'remarcacao_por_token','escolher_remarcacao','remarcar_presencial',
+      'custo_da_remarcacao',
+      'abrir_vaga_fixa','fechar_vaga_fixa','elegiveis_para_vaga_fixa',
+      'avancar_fila_fixa','responder_oferta_fixa','expirar_ofertas_fixas',
+      'ao_encerrar_enquadre'
     ]) as f
    where not exists (
      select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -97,7 +108,9 @@ begin
       'pacientes_conta','enquadres_conta','enquadres_materializa',
       'excecoes_materializa','fila_conta_derivada',
       'documentos_imutaveis','contratos_imutaveis','contratos_carimbo',
-      'aceites_montagem','aceites_congelamento'
+      'aceites_montagem','aceites_congelamento',
+      'remarcacoes_montagem','remarcacoes_congelamento',
+      'enquadres_abrem_vaga_fixa','fila_entrada_conta_derivada'
     ]) as g
    where not exists (
      select 1 from pg_trigger t
@@ -113,7 +126,10 @@ begin
     from unnest(array[
       'enquadre_aberto_unico','mensagens_idem','cobranca_viva_por_sessao',
       'recebidas_do_provedor','documentos_numero','contratos_versao',
-      'contrato_rascunho_unico','aceite_vivo_do_enquadre'
+      'contrato_rascunho_unico','aceite_vivo_do_enquadre',
+      'mensalidade_por_competencia','consumo_unico_por_sessao',
+      'remarcacao_viva_por_sessao',
+      'vaga_fixa_viva','oferta_fixa_viva','oferta_fixa_por_pessoa'
     ]) as i
    where to_regclass('public.' || i) is null;
 
@@ -155,6 +171,11 @@ union all select 'mensagens', count(*) from public.mensagens
 union all select 'cobrancas', count(*) from public.cobrancas
 union all select 'contratos', count(*) from public.contratos
 union all select 'aceites', count(*) from public.aceites
+union all select 'pacotes', count(*) from public.pacotes
+union all select 'pacote_consumos', count(*) from public.pacote_consumos
+union all select 'remarcacoes', count(*) from public.remarcacoes
+union all select 'fila_entrada', count(*) from public.fila_entrada
+union all select 'vagas_fixas', count(*) from public.vagas_fixas
 union all select 'trilha_acesso', count(*) from public.trilha_acesso
 union all select 'auth.users', count(*) from auth.users
 order by 1;

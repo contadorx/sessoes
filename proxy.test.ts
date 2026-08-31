@@ -33,6 +33,10 @@ describe("o que precisa passar sem sessão", () => {
       `/p/contrato/${"a".repeat(32)}`,
       "o link do contrato: quem chega para aceitar não tem — e não vai criar — conta aqui",
     ],
+    [
+      `/p/remarcar/${"b".repeat(32)}`,
+      "o link da remarcação: idem — e é o link que faz a troca acontecer",
+    ],
   ])("%s — %s", (caminho) => {
     expect(ehPublica(caminho)).toBe(true);
   });

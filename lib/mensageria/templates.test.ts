@@ -285,10 +285,13 @@ describe("as regras da Meta (reprovar aqui é barato; lá custa dias)", () => {
 });
 
 describe("o horário é sempre de São Paulo (lei nº 3)", () => {
-  // O lembrete de pagamento fica de fora: ele cobre vários horários de uma vez,
-  // então não nomeia nenhum. É a mesma decisão que faz dele uma mensagem só em
-  // vez de três.
-  const COM_HORARIO = FAMILIAS.filter((f) => f !== "lembrete_de_pagamento");
+  // Duas famílias ficam de fora, por motivos opostos. O lembrete de pagamento
+  // cobre vários horários de uma vez, então não nomeia nenhum — é a mesma
+  // decisão que faz dele uma mensagem só em vez de três. A oferta de vaga fixa
+  // não fala de um instante: fala de "às terças, 15h", que se repete. Uma data
+  // ali seria a promessa errada.
+  const SEM_INSTANTE = ["lembrete_de_pagamento", "oferta_de_vaga_fixa"];
+  const COM_HORARIO = FAMILIAS.filter((f) => !SEM_INSTANTE.includes(f));
 
   it.each(COM_HORARIO)("%s mostra 15:00, não 18:00 UTC", (familia) => {
     const r = renderizar(familia, { nome: "Maria", inicio: INICIO });
@@ -338,5 +341,51 @@ describe("o nome do template segue o modo", () => {
     });
     expect(d.nomeDoTemplate).toBe(`sessoes_${familia}_discreto`);
     expect(c.nomeDoTemplate).toBe(`sessoes_${familia}_completo`);
+  });
+});
+
+describe("a sétima família: o horário que se repete", () => {
+  it("diz o dia no plural — é um compromisso, não uma hora", () => {
+    const r = renderizar("oferta_de_vaga_fixa", {
+      nome: "Maria Reis",
+      horario_fixo: "terça, 15h",
+      expira_em: "2026-03-04T13:00:00Z",
+    });
+    expect(r.texto).toContain("às terças, 15h");
+    expect(r.texto).toContain("toda semana");
+  });
+
+  it("promete a conversa que vem depois — ninguém fica esperando confirmação", () => {
+    // O aceite reserva a vaga e **não** cria combinado (0036). Se o texto
+    // dissesse "está confirmado", a pessoa esperaria uma agenda que ainda não
+    // existe; dizendo "eu falo com você", o silêncio seguinte é o combinado.
+    const r = renderizar("oferta_de_vaga_fixa", { nome: "Maria", horario_fixo: "quinta, 9h" });
+    expect(r.texto).toContain("falo com você");
+    expect(r.texto).not.toContain("confirmado");
+  });
+
+  it("um dia que já termina em s não vira 'sábados s'", () => {
+    const r = renderizar("oferta_de_vaga_fixa", { nome: "Maria", horario_fixo: "sábados, 10h" });
+    expect(r.texto).toContain("às sábados, 10h");
+    expect(r.texto).not.toContain("sábadoss");
+  });
+
+  it("sem rótulo, não inventa um dia", () => {
+    const r = renderizar("oferta_de_vaga_fixa", { nome: "Maria" });
+    expect(r.texto).toContain("no dia e hora combinados");
+  });
+
+  it("no modo discreto não nomeia a profissional nem a natureza do encontro", () => {
+    const r = renderizar("oferta_de_vaga_fixa", {
+      nome: "Maria",
+      horario_fixo: "terça, 15h",
+      modo: "discreto",
+      profissional: "Ana Ferreira",
+    });
+    expect(r.modo).toBe("discreto");
+    expect(r.texto).not.toContain("Ana Ferreira");
+    for (const p of PROIBIDAS_NO_DISCRETO) {
+      expect(r.texto.toLowerCase()).not.toContain(p);
+    }
   });
 });

@@ -19,6 +19,7 @@ import { supabaseServico } from "@/lib/supabase/servico";
 export type RelatorioDiario = {
   materializadas: number;
   lembretes: number;
+  mensalidades: number;
   regua: number;
   expurgadas: number;
 };
@@ -39,6 +40,16 @@ export async function passadaDiaria(): Promise<RelatorioDiario> {
   // sem consequência hoje — mas o expurgo apaga mensagens antigas, e a régua
   // conta quantos lembretes já saíram. Deixar a contagem acontecer antes de
   // qualquer apagamento evita que um expurgo futuro reabra uma régua encerrada.
+  // A mensalidade do mês (B20). Vem antes da régua para que, no dia 1º, a
+  // cobrança já esteja na tela "Em aberto" quando ela abrir o sistema — e não
+  // só no dia seguinte.
+  //
+  // Nascer no mesmo dia não a coloca na régua de hoje: a régua conta os dias a
+  // partir da abertura da cobrança, e o primeiro degrau é de uma semana. Quem
+  // acabou de ser cobrado não é lembrado no mesmo minuto.
+  const mensalidades =
+    (await db<number>("diario.mensalidades", supabase.rpc("agendar_mensalidades"))) ?? 0;
+
   const regua =
     (await db<number>("diario.regua", supabase.rpc("agendar_regua"))) ?? 0;
 
@@ -47,5 +58,5 @@ export async function passadaDiaria(): Promise<RelatorioDiario> {
       p_dias: DIAS_DE_RETENCAO,
     }))) ?? 0;
 
-  return { materializadas, lembretes, regua, expurgadas };
+  return { materializadas, lembretes, mensalidades, regua, expurgadas };
 }

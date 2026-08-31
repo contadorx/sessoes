@@ -4,6 +4,14 @@ import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ESTADOS, ROTULO_ESTADO, CANAIS, ROTULO_CANAL } from "@/lib/paciente";
 import { DIAS } from "@/lib/enquadre";
+import {
+  MODELOS,
+  previsaoDoMes,
+  explicacaoDoMesDeCinco,
+  proximoMesDeCinco,
+  type Modelo,
+} from "@/lib/cobranca";
+import { paraCentavos } from "@/lib/dinheiro";
 import type { Resultado } from "@/app/(app)/pacientes/acoes";
 import type { PacienteLinha, EnquadreLinha } from "@/app/(app)/pacientes/dados";
 import { Campo, Erros, Secao, ENTRADA } from "./campos";
@@ -133,6 +141,13 @@ export function FormPaciente({
 }
 
 export function CamposEnquadre({ base }: { base?: EnquadreLinha }) {
+  const [modelo, setModelo] = useState<Modelo>(
+    (base?.modelo_cobranca as Modelo) ?? "avulso",
+  );
+  const [dia, setDia] = useState<number>(base?.dia_semana ?? 2);
+  const [valor, setValor] = useState(base?.valor ?? "");
+  const [mensal, setMensal] = useState(base?.mensalidade_valor ?? "");
+
   return (
     <Secao
       titulo="O combinado"
@@ -140,7 +155,12 @@ export function CamposEnquadre({ base }: { base?: EnquadreLinha }) {
     >
       <div className="grid gap-3 sm:grid-cols-3">
         <Campo rotulo="Dia">
-          <select name="dia_semana" defaultValue={base?.dia_semana ?? 2} className={ENTRADA}>
+          <select
+            name="dia_semana"
+            value={dia}
+            onChange={(e) => setDia(Number(e.target.value))}
+            className={ENTRADA}
+          >
             {DIAS.map((d, i) => (
               <option key={d} value={i}>
                 {d}
@@ -162,20 +182,28 @@ export function CamposEnquadre({ base }: { base?: EnquadreLinha }) {
             className={ENTRADA}
           />
         </Campo>
-        <Campo rotulo="Valor (R$)">
+        <Campo rotulo="Valor da sessão (R$)">
           <input
             name="valor"
             inputMode="decimal"
             placeholder="200,00"
-            defaultValue={base?.valor ?? ""}
+            value={valor}
+            onChange={(e) => setValor(e.target.value)}
             className={ENTRADA}
           />
         </Campo>
         <Campo rotulo="Cobrança">
-          <select name="modelo_cobranca" defaultValue={base?.modelo_cobranca ?? "avulso"} className={ENTRADA}>
-            <option value="avulso">por sessão</option>
-            <option value="mensal">mensalidade</option>
-            <option value="pacote">pacote</option>
+          <select
+            name="modelo_cobranca"
+            value={modelo}
+            onChange={(e) => setModelo(e.target.value as Modelo)}
+            className={ENTRADA}
+          >
+            {MODELOS.map((m) => (
+              <option key={m.valor} value={m.valor}>
+                {m.rotulo}
+              </option>
+            ))}
           </select>
         </Campo>
         <label className="flex items-end gap-2 pb-2.5 text-[13px] text-tinta2">
@@ -206,6 +234,111 @@ export function CamposEnquadre({ base }: { base?: EnquadreLinha }) {
           />
         </Campo>
       </div>
+
+      <p className="mt-3 text-[12px] leading-relaxed text-tinta3">
+        {MODELOS.find((m) => m.valor === modelo)?.explica}
+      </p>
+
+      {modelo === "mensal" && (
+        <Mensalidade
+          dia={dia}
+          valor={valor}
+          mensal={mensal}
+          setMensal={setMensal}
+        />
+      )}
+
+      {modelo !== "avulso" && (
+        <label className="mt-4 flex items-start gap-2.5 text-[13px] text-tinta2">
+          <input
+            type="checkbox"
+            name="falta_cobra_a_parte"
+            defaultChecked={base?.falta_cobra_a_parte ?? false}
+            className="mt-0.5 accent-vaga"
+          />
+          <span>
+            Cobrar a falta à parte, mesmo assim
+            <span className="mt-0.5 block text-[12px] text-tinta3">
+              Desmarcado — e é o padrão —, a hora que já foi paga não é cobrada
+              duas vezes.
+            </span>
+          </span>
+        </label>
+      )}
     </Secao>
+  );
+}
+
+/**
+ * O mês de cinco terças, respondido enquanto ela decide.
+ *
+ * Esta é a pergunta que todo mensalista responde de um jeito e que nenhum
+ * sistema faz. Deixar em branco é uma resposta legítima ("cobro por sessão do
+ * mês") — e a frase abaixo diz o que isso significa em reais, com o mês real
+ * mais próximo que tem cinco, para ela não descobrir na conta.
+ */
+function Mensalidade({
+  dia,
+  valor,
+  mensal,
+  setMensal,
+}: {
+  dia: number;
+  valor: string;
+  mensal: string;
+  setMensal: (v: string) => void;
+}) {
+  let centavos = 0;
+  try {
+    centavos = valor.trim() === "" ? 0 : paraCentavos(valor.trim().replace(",", "."));
+  } catch {
+    centavos = 0;
+  }
+
+  let fixo: number | null = null;
+  try {
+    fixo = mensal.trim() === "" ? null : paraCentavos(mensal.trim().replace(",", "."));
+  } catch {
+    fixo = null;
+  }
+
+  const cinco = proximoMesDeCinco(dia);
+  const previsao =
+    cinco && centavos > 0
+      ? previsaoDoMes(
+          { modelo: "mensal", diaSemana: dia, valorCentavos: centavos, mensalidadeCentavos: fixo },
+          cinco.ano,
+          cinco.mes,
+        )
+      : null;
+
+  return (
+    <div className="mt-4 rounded-cartao border border-linha bg-folha2 px-4 py-3">
+      <Campo
+        rotulo="Valor fixo do mês (R$)"
+        dica="Em branco, o mês é a soma das sessões dele."
+      >
+        <input
+          name="mensalidade_valor"
+          inputMode="decimal"
+          placeholder="deixe em branco para cobrar por sessão do mês"
+          value={mensal}
+          onChange={(e) => setMensal(e.target.value)}
+          className={ENTRADA}
+        />
+      </Campo>
+
+      <p className="mt-2 text-[12.5px] leading-relaxed text-tinta">
+        {explicacaoDoMesDeCinco(fixo)}
+      </p>
+      {previsao && previsao.frase && (
+        <p className="mt-1 text-[12.5px] leading-relaxed text-tinta2">{previsao.frase}</p>
+      )}
+      <p className="mt-2 text-[11.5px] leading-relaxed text-tinta3">
+        A mensalidade nasce sozinha uma vez por mês. Sessão desmarcada com
+        antecedência dentro do mensal é conversa de reposição — o sistema não
+        estorna por conta própria.
+      </p>
+    </div>
   );
 }

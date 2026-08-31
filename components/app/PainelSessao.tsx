@@ -15,6 +15,7 @@ import {
 import { rotuloPolitica, multaDeFalta } from "@/lib/enquadre";
 import { paraCentavos, formatar } from "@/lib/dinheiro";
 import { ROTULO_ESTADO } from "./Semana";
+import { Remarcar } from "./Remarcar";
 
 const INICIAL: Resultado = { estado: "inicial" };
 
@@ -287,6 +288,16 @@ export function PainelSessao({
             <Cancelar id={sessao.id} por="paciente" rotulo="Paciente desmarcou" />
             <Cancelar id={sessao.id} por="profissional" rotulo="Eu desmarquei" />
           </>
+        )}
+
+        {/* Remarcar vem antes de desmarcar na leitura da tela porque é o que
+            se quer que aconteça: desmarcar abre buraco, remarcar tapa um. */}
+        {!terminal && !jaComecou && (
+          <Remarcar
+            sessaoId={sessao.id}
+            pacienteNome={sessao.pacientes?.nome ?? ""}
+            telefone={sessao.pacientes?.telefone ?? null}
+          />
         )}
 
         {terminal && <Marcar id={sessao.id} estado="prevista" rotulo="Desfazer" />}

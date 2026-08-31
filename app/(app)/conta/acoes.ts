@@ -86,12 +86,19 @@ export async function salvarRitmo(_anterior: Resultado, form: FormData): Promise
 
   const atraso = Number(form.get("cobranca_atraso_min") ?? 60);
   const lembrete = Number(form.get("lembrete_horas") ?? 24);
+  const dia = Number(form.get("mensalidade_dia") ?? 1);
+  const cobraSessao = String(form.get("cobra_sessao") ?? "") === "1";
 
   if (!Number.isInteger(atraso) || atraso < 0 || atraso > 1440) {
     return { estado: "erro", erros: ["A espera antes do aviso de cobrança vai de 0 a 1440 minutos."] };
   }
   if (!Number.isInteger(lembrete) || lembrete < 0 || lembrete > 72) {
     return { estado: "erro", erros: ["O lembrete vai de 0 (desligado) a 72 horas."] };
+  }
+  // Até 28 porque fevereiro existe: um "dia 30" nunca chegaria em fevereiro, e a
+  // mensalidade daquele mês simplesmente não sairia — em silêncio.
+  if (!Number.isInteger(dia) || dia < 1 || dia > 28) {
+    return { estado: "erro", erros: ["O dia da mensalidade vai de 1 a 28."] };
   }
 
   const supabase = await supabaseSessao();
@@ -100,7 +107,12 @@ export async function salvarRitmo(_anterior: Resultado, form: FormData): Promise
     "conta.ritmo",
     supabase
       .from("contas")
-      .update({ cobranca_atraso_min: atraso, lembrete_horas: lembrete })
+      .update({
+        cobranca_atraso_min: atraso,
+        lembrete_horas: lembrete,
+        mensalidade_dia: dia,
+        cobra_sessao: cobraSessao,
+      })
       .eq("id", sessao.contaId)
       .select("id"),
   );

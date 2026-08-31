@@ -20,7 +20,7 @@ export type SessaoLinha = {
   valor: string;
   politica_horas: number;
   politica_percentual: number;
-  pacientes: { id: string; nome: string } | null;
+  pacientes: { id: string; nome: string; telefone: string | null } | null;
 };
 
 export type Ausencia = {
@@ -43,7 +43,7 @@ export async function sessoesDaSemana(segunda: string): Promise<SessaoLinha[]> {
     supabase
       .from("sessoes")
       .select(
-        "id, inicio, fim, origem, estado, valor, politica_horas, politica_percentual, pacientes ( id, nome )",
+        "id, inicio, fim, origem, estado, valor, politica_horas, politica_percentual, pacientes ( id, nome, telefone )",
       )
       .gte("inicio", de.toISOString())
       .lt("inicio", ate.toISOString())
@@ -135,7 +135,7 @@ export async function proximasSessoes(dias = 14): Promise<SessaoLinha[]> {
     supabase
       .from("sessoes")
       .select(
-        "id, inicio, fim, origem, estado, valor, politica_horas, politica_percentual, pacientes ( id, nome )",
+        "id, inicio, fim, origem, estado, valor, politica_horas, politica_percentual, pacientes ( id, nome, telefone )",
       )
       .gte("inicio", de.toISOString())
       .lt("inicio", ate.toISOString())

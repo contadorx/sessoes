@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { supabaseSessao } from "@/lib/supabase/server";
 import type { Canal, Estado } from "@/lib/paciente";
 import type { AceiteLinha } from "@/lib/contrato";
+import type { PacoteLinha } from "@/lib/cobranca";
 
 export type EnquadreLinha = {
   id: string;
@@ -17,6 +18,8 @@ export type EnquadreLinha = {
   vigencia_inicio: string;
   vigencia_fim: string | null;
   motivo_fim: string | null;
+  mensalidade_valor: string | null;
+  falta_cobra_a_parte: boolean;
 };
 
 export type PacienteLinha = {
@@ -38,7 +41,9 @@ export type PacienteLinha = {
 };
 
 const CAMPOS_ENQUADRE =
-  "id, dia_semana, hora, duracao_min, valor, social, modelo_cobranca, politica_horas, politica_percentual, vigencia_inicio, vigencia_fim, motivo_fim";
+  "id, dia_semana, hora, duracao_min, valor, social, modelo_cobranca, politica_horas, " +
+  "politica_percentual, vigencia_inicio, vigencia_fim, motivo_fim, mensalidade_valor, " +
+  "falta_cobra_a_parte";
 
 const CAMPOS_PACIENTE =
   "id, nome, telefone, email, cpf, estado, msg_canal, msg_modo, observacao, criado_em, " +
@@ -150,4 +155,57 @@ export async function lastroDoPaciente(
     temContrato: (contratos ?? []).length > 0,
     aceite: (aceites ?? [])[0] ?? null,
   };
+}
+
+/**
+ * Os pacotes do paciente, com o saldo já derivado.
+ *
+ * O saldo vem de contar os consumos, e não de uma coluna: é a decisão da 0033.
+ * Aqui isso custa um `count` embutido no `select` — e paga com um número que
+ * não tem como estar errado sem que exista um consumo errado, com data e sessão.
+ */
+export async function pacotesDoPaciente(pacienteId: string): Promise<PacoteLinha[]> {
+  const supabase = await supabaseSessao();
+
+  const linhas = (await db(
+    "pacotes.listar",
+    supabase
+      .from("pacotes")
+      .select(
+        "id, quantidade, valor, validade, vendido_em, cancelado_em, pacote_consumos(count)",
+      )
+      .eq("paciente_id", pacienteId)
+      .order("vendido_em", { ascending: false }),
+  )) as unknown as (Omit<PacoteLinha, "consumidos"> & {
+    pacote_consumos: { count: number }[];
+  })[];
+
+  return (linhas ?? []).map((p) => ({
+    id: p.id,
+    quantidade: p.quantidade,
+    valor: p.valor,
+    validade: p.validade,
+    vendido_em: p.vendido_em,
+    cancelado_em: p.cancelado_em,
+    consumidos: p.pacote_consumos?.[0]?.count ?? 0,
+  }));
+}
+
+/** Está na fila de entrada — a de quem espera um horário fixo (B22)? */
+export async function filaDeEntradaDoPaciente(
+  pacienteId: string,
+): Promise<{ naFila: boolean; desde: string | null }> {
+  const supabase = await supabaseSessao();
+
+  const linhas = (await db(
+    "filaentrada.do_paciente",
+    supabase
+      .from("fila_entrada")
+      .select("ativo, entrou_em")
+      .eq("paciente_id", pacienteId)
+      .limit(1),
+  )) as unknown as { ativo: boolean; entrou_em: string }[];
+
+  const f = (linhas ?? [])[0];
+  return { naFila: Boolean(f?.ativo), desde: f?.entrou_em ?? null };
 }

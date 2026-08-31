@@ -1,5 +1,5 @@
 /**
- * As quatro famílias de mensagem, e o modo discreto (D3).
+ * As sete famílias de mensagem, e o modo discreto (D3).
  *
  * Quatro coisas que precisam ficar claras antes de ler o código:
  *
@@ -34,6 +34,7 @@ export const FAMILIAS = [
   "aviso_de_desmarque",
   "aviso_de_cobranca",
   "lembrete_de_pagamento",
+  "oferta_de_vaga_fixa",
 ] as const;
 
 export type Familia = (typeof FAMILIAS)[number];
@@ -51,6 +52,13 @@ export type Parametros = {
   profissional?: string;
   /** Quantos horários o lembrete de pagamento cobre. */
   quantidade?: number;
+  /**
+   * O rótulo do horário recorrente — "terça, 15h" —, já montado pelo banco
+   * (`rotulo_horario`, da 0031). Vem pronto de propósito: quem decide como um
+   * horário fixo se escreve é uma função só, e ela é a mesma que monta o
+   * contrato.
+   */
+  horario_fixo?: string;
   /**
    * O valor vem em centavos inteiros, e é `lib/dinheiro` que o formata — a
    * mesma função que a tela usa. Mandar a string pronta do banco criaria uma
@@ -147,6 +155,23 @@ function horarios(quantidade: unknown): string {
   return n === 1 ? "um horário" : `${numero} horários`;
 }
 
+/**
+ * "às terças, 15h" — o horário que se repete.
+ *
+ * O banco manda "terça, 15h" e aqui vira plural: a diferença entre "terça, 15h"
+ * e "às terças, 15h" é a diferença entre uma hora e um compromisso semanal, e é
+ * exatamente o que esta família de mensagem precisa deixar claro.
+ */
+function horarioFixo(rotulo: string | undefined): string {
+  const limpo = (rotulo ?? "").trim();
+  // Sem rótulo não se inventa um dia. O banco sempre manda o dele; esta saída
+  // existe para o texto continuar legível se um dia não mandar.
+  if (!limpo) return "no dia e hora combinados";
+  const [dia, ...resto] = limpo.split(", ");
+  const plural = dia.endsWith("s") ? dia : `${dia}s`;
+  return resto.length > 0 ? `às ${plural}, ${resto.join(", ")}` : `às ${plural}`;
+}
+
 /** Só o primeiro nome. Mensagem não é cadastro. */
 function primeiroNome(nome: string | undefined): string {
   const limpo = (nome ?? "").trim();
@@ -231,6 +256,10 @@ export const CORPOS: Record<Modo, Record<Familia, string>> = {
     lembrete_de_pagamento:
       "Oi, {{1}}. Passando para lembrar do combinado de {{2}}, referente a {{3}}. " +
       "Se quiser conversar sobre isso, é só responder aqui.",
+    oferta_de_vaga_fixa:
+      "Oi, {{1}}. Abriu um horário fixo {{2}}, toda semana. Quer ficar com ele? " +
+      "Responda SIM até {{3}} e eu falo com você para combinar o começo. " +
+      "Sem resposta, o horário segue para a próxima pessoa da lista.",
   },
   completo: {
     oferta_de_vaga:
@@ -250,6 +279,10 @@ export const CORPOS: Record<Modo, Record<Familia, string>> = {
     lembrete_de_pagamento:
       "Oi, {{1}}. Passando para lembrar do combinado de {{2}} com {{3}}, referente a {{4}}. " +
       "Se quiser conversar sobre isso, é só responder aqui.",
+    oferta_de_vaga_fixa:
+      "Oi, {{1}}. Abriu um horário fixo {{2}}, toda semana, na agenda de {{4}}. " +
+      "Quer ficar com ele? Responda SIM até {{3}} e eu falo com você para combinar " +
+      "o começo. Sem resposta, o horário segue para a próxima pessoa da lista.",
   },
 };
 
@@ -269,6 +302,7 @@ const VARIAVEIS: Record<Modo, Record<Familia, (c: Campos) => string[]>> = {
     aviso_de_desmarque: (c) => [c.nome, c.hora],
     aviso_de_cobranca: (c) => [c.nome, c.hora, c.valor],
     lembrete_de_pagamento: (c) => [c.nome, c.valor, c.quantos],
+    oferta_de_vaga_fixa: (c) => [c.nome, c.fixo, c.limite],
   },
   completo: {
     oferta_de_vaga: (c) => [c.nome, c.hora, c.limite, c.prof],
@@ -277,6 +311,7 @@ const VARIAVEIS: Record<Modo, Record<Familia, (c: Campos) => string[]>> = {
     aviso_de_desmarque: (c) => [c.nome, c.hora, c.prof],
     aviso_de_cobranca: (c) => [c.nome, c.hora, c.prof, c.valor],
     lembrete_de_pagamento: (c) => [c.nome, c.valor, c.prof, c.quantos],
+    oferta_de_vaga_fixa: (c) => [c.nome, c.fixo, c.limite, c.prof],
   },
 };
 
@@ -287,6 +322,7 @@ type Campos = {
   prof: string;
   valor: string;
   quantos: string;
+  fixo: string;
 };
 
 /**
@@ -313,7 +349,10 @@ export function renderizar(template: string, params: Parametros): Renderizado {
 
   const valor = dinheiro(params.valor_centavos);
   const quantos = horarios(params.quantidade);
-  const variaveis = VARIAVEIS[modo][template]({ nome, hora, limite, prof, valor, quantos });
+  const fixo = horarioFixo(params.horario_fixo);
+  const variaveis = VARIAVEIS[modo][template]({
+    nome, hora, limite, prof, valor, quantos, fixo,
+  });
 
   return {
     familia: template,
@@ -342,6 +381,7 @@ function assunto(familia: Familia, modo: Modo): string {
       aviso_de_desmarque: "Mudança no horário",
       aviso_de_cobranca: "Sobre um horário",
       lembrete_de_pagamento: "Sobre o combinado",
+      oferta_de_vaga_fixa: "Abriu um horário fixo",
     }[familia];
   }
 
@@ -352,5 +392,6 @@ function assunto(familia: Familia, modo: Modo): string {
     aviso_de_desmarque: "Sua sessão precisou ser desmarcada",
     aviso_de_cobranca: "Sobre uma sessão",
     lembrete_de_pagamento: "Sobre o combinado",
+    oferta_de_vaga_fixa: "Abriu um horário fixo na agenda",
   }[familia];
 }

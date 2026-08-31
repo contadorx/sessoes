@@ -19,6 +19,8 @@ type ContaLinha = {
   cidade: string | null;
   regua_ativa: boolean;
   regua_dias: number[];
+  mensalidade_dia: number;
+  cobra_sessao: boolean;
 };
 
 type ProfLinha = {
@@ -37,7 +39,9 @@ export default async function Conta() {
     supabase
       .from("contas")
       .select(
-        "nome, pix_chave, pix_nome, pix_cidade, cobranca_atraso_min, lembrete_horas, silencio_inicio, silencio_fim, retencao_anos, cidade, regua_ativa, regua_dias",
+        "nome, pix_chave, pix_nome, pix_cidade, cobranca_atraso_min, lembrete_horas, " +
+          "silencio_inicio, silencio_fim, retencao_anos, cidade, regua_ativa, regua_dias, " +
+          "mensalidade_dia, cobra_sessao",
       )
       .eq("id", sessao.contaId)
       .limit(1),
@@ -107,6 +111,8 @@ export default async function Conta() {
           <FormRitmo
             atraso={conta.cobranca_atraso_min}
             lembrete={conta.lembrete_horas}
+            mensalidadeDia={conta.mensalidade_dia}
+            cobraSessao={conta.cobra_sessao}
             podeEditar={sessao.papel === "dona"}
           />
         </div>

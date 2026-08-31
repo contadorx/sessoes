@@ -147,10 +147,14 @@ export function FormPix({
 export function FormRitmo({
   atraso,
   lembrete,
+  mensalidadeDia,
+  cobraSessao,
   podeEditar,
 }: {
   atraso: number;
   lembrete: number;
+  mensalidadeDia: number;
+  cobraSessao: boolean;
   podeEditar: boolean;
 }) {
   const [r, despachar] = useActionState(salvarRitmo, INICIAL);
@@ -206,6 +210,50 @@ export function FormRitmo({
             <option value="48">2 dias antes</option>
           </select>
         </div>
+
+        <div>
+          <label htmlFor="mensalidade_dia" className="text-[12.5px] font-medium text-tinta">
+            Dia em que a mensalidade é gerada
+          </label>
+          <p className="mt-0.5 text-[12px] leading-relaxed text-tinta2">
+            Vale só para quem você cobra por mensalidade. Vai até 28 porque
+            fevereiro existe — um &ldquo;dia 30&rdquo; deixaria fevereiro sem
+            cobrança, e em silêncio.
+          </p>
+          <select
+            id="mensalidade_dia"
+            name="mensalidade_dia"
+            defaultValue={String(mensalidadeDia)}
+            className="mt-1.5 rounded border border-linha2 bg-folha px-2 py-1 text-[12.5px] text-tinta"
+          >
+            {[1, 5, 10, 15, 20, 25, 28].map((d) => (
+              <option key={d} value={d}>
+                dia {d}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <label className="flex items-start gap-2.5 border-t border-linha pt-4">
+          <input
+            type="checkbox"
+            name="cobra_sessao"
+            value="1"
+            defaultChecked={cobraSessao}
+            className="mt-0.5"
+          />
+          <span className="text-[12.5px] leading-relaxed text-tinta">
+            Cada sessão realizada vira uma cobrança
+            <span className="mt-0.5 block text-[12px] text-tinta2">
+              Ligue se é o sistema que controla quem já pagou. Se você recebe em
+              dinheiro na hora e usa isto como agenda, deixe desligado:{" "}
+              <b className="font-medium">ligado, toda sessão fica em aberto até
+              você marcar como paga</b> — e os lembretes de pagamento passam a
+              alcançar quem não deve nada. Só vale para o modelo por sessão;
+              mensalidade e pacote têm cobrança própria.
+            </span>
+          </span>
+        </label>
 
         {podeEditar && <Salvar rotulo="Salvar ajustes" />}
       </fieldset>

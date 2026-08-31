@@ -35,6 +35,7 @@ type LinhaDeMensagem = {
 
 export type Relatorio = {
   expiradas: number;
+  expiradasFixas: number;
   destravadas: number;
   reservadas: number;
   enviadas: number;
@@ -55,6 +56,12 @@ export async function despacharPendentes(limite = 20): Promise<Relatorio> {
   const expiradas =
     (await db<number>("mensageria.expirar", supabase.rpc("expirar_ofertas"))) ?? 0;
 
+  // A mesma coisa para a fila de vaga fixa (B22). O prazo lá é de 24 horas, não
+  // de 40 minutos, mas a razão é idêntica: uma oferta vencida que ninguém
+  // expira é uma fila parada — e a vaga mais valiosa da agenda esperando.
+  const expiradasFixas =
+    (await db<number>("mensageria.expirarFixas", supabase.rpc("expirar_ofertas_fixas"))) ?? 0;
+
   const destravadas =
     (await db<number>("mensageria.destravar", supabase.rpc("destravar_mensagens", {
       p_minutos: 10,
@@ -68,6 +75,7 @@ export async function despacharPendentes(limite = 20): Promise<Relatorio> {
 
   const relatorio: Relatorio = {
     expiradas,
+    expiradasFixas,
     destravadas,
     reservadas: lote.length,
     enviadas: 0,

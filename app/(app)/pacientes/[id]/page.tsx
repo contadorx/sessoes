@@ -1,12 +1,22 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { obterPaciente, enquadreAberto, lastroDoPaciente } from "../dados";
+import {
+  obterPaciente,
+  enquadreAberto,
+  lastroDoPaciente,
+  pacotesDoPaciente,
+  filaDeEntradaDoPaciente,
+} from "../dados";
 import { atualizarPaciente } from "../acoes";
 import { FormPaciente } from "@/components/app/FormPaciente";
 import { NovoEnquadre } from "@/components/app/NovoEnquadre";
 import { rotuloHorario, rotuloPolitica } from "@/lib/enquadre";
 import { Privacidade } from "@/components/app/Privacidade";
 import { Lastro } from "@/components/app/Lastro";
+import { Pacote } from "@/components/app/Pacote";
+import { FilaEntrada } from "@/components/app/FilaEntrada";
+import { rotuloModelo } from "@/lib/cobranca";
+import { hoje } from "@/lib/tempo-servidor";
 
 const brl = (v: string) =>
   Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -25,6 +35,8 @@ export default async function Paciente({ params }: { params: Promise<{ id: strin
   const aberto = enquadreAberto(paciente);
   const historico = paciente.enquadres.filter((e) => e.vigencia_fim !== null);
   const lastro = await lastroDoPaciente(paciente.id, aberto?.id ?? null);
+  const pacotes = aberto?.modelo_cobranca === "pacote" ? await pacotesDoPaciente(paciente.id) : [];
+  const entrada = aberto ? { naFila: false, desde: null } : await filaDeEntradaDoPaciente(paciente.id);
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -51,8 +63,18 @@ export default async function Paciente({ params }: { params: Promise<{ id: strin
                 horas: aberto.politica_horas,
                 percentual: aberto.politica_percentual,
               })}
-              {aberto.modelo_cobranca !== "avulso" && ` · ${aberto.modelo_cobranca}`}
+              {aberto.modelo_cobranca !== "avulso" &&
+                ` · ${rotuloModelo(aberto.modelo_cobranca)}`}
+              {aberto.modelo_cobranca === "mensal" &&
+                (aberto.mensalidade_valor
+                  ? ` de ${brl(aberto.mensalidade_valor)} fixos`
+                  : " por sessão do mês")}
             </p>
+            {aberto.modelo_cobranca !== "avulso" && aberto.falta_cobra_a_parte && (
+              <p className="mt-1 text-[12px] text-aviso">
+                A falta é cobrada à parte, além do que já foi pago.
+              </p>
+            )}
             <p className="mt-2 font-mono text-[11.5px] text-tinta3">
               vigente desde {aberto.vigencia_inicio}
             </p>
@@ -65,6 +87,44 @@ export default async function Paciente({ params }: { params: Promise<{ id: strin
 
         <NovoEnquadre pacienteId={paciente.id} aberto={aberto} />
       </section>
+
+      {/* Sem combinado aberto: é aqui que a fila de entrada faz sentido. */}
+      {!aberto && !paciente.arquivado_em && (
+        <section className="mt-8">
+          <h2 className="rotulo">Esperando um horário fixo</h2>
+          <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-tinta2">
+            Esta é a outra fila: não a de encaixe — que é de quem já tem horário
+            e topa uma hora extra —, mas a de quem ainda não tem nenhum e está
+            esperando um vagar.
+          </p>
+          <div className="mt-3">
+            <FilaEntrada
+              pacienteId={paciente.id}
+              naFila={entrada.naFila}
+              desde={entrada.desde}
+            />
+          </div>
+        </section>
+      )}
+
+      {aberto?.modelo_cobranca === "pacote" && (
+        <section className="mt-8">
+          <h2 className="rotulo">O pacote</h2>
+          <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-tinta2">
+            Cada encontro consome um crédito — e a falta também, porque a hora
+            foi reservada e perdida. Quando os créditos acabam ou o prazo vence,
+            as sessões voltam a ser cobradas uma a uma.
+          </p>
+          <div className="mt-3">
+            <Pacote
+              pacienteId={paciente.id}
+              pacotes={pacotes}
+              hoje={hoje()}
+              valorDaSessao={aberto?.valor ?? null}
+            />
+          </div>
+        </section>
+      )}
 
       {/* o lastro: o combinado por escrito, aceito com data */}
       <section className="mt-8">
