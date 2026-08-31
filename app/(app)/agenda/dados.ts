@@ -186,3 +186,65 @@ export function porDia(sessoes: SessaoLinha[]): [string, SessaoLinha[]][] {
 
   return [...mapa.entries()];
 }
+
+export type CobrancaLinha = {
+  id: string;
+  sessao_id: string | null;
+  valor: string;
+  motivo: "cancelada_tarde" | "falta" | "avulsa";
+  estado: "aberta" | "paga" | "perdoada" | "cancelada";
+  politica_horas: number | null;
+  politica_percentual: number | null;
+  criado_em: string;
+};
+
+/**
+ * A cobrança de uma sessão, se existir.
+ *
+ * Traz também as canceladas para que a tela possa dizer "isto já foi desfeito"
+ * em vez de sumir com a informação — o histórico do que quase foi cobrado é
+ * parte do que faz alguém confiar na régua automática.
+ */
+export async function cobrancasDaSemana(
+  sessoes: SessaoLinha[],
+): Promise<Record<string, CobrancaLinha>> {
+  const ids = sessoes
+    .filter((s) => s.estado === "cancelada_tarde" || s.estado === "falta")
+    .map((s) => s.id);
+
+  if (ids.length === 0) return {};
+
+  const supabase = await supabaseSessao();
+
+  const linhas = (await db(
+    "cobrancas.da_semana",
+    supabase
+      .from("cobrancas")
+      .select("id, sessao_id, valor, motivo, estado, politica_horas, politica_percentual, criado_em")
+      .in("sessao_id", ids)
+      .neq("estado", "cancelada"),
+  )) as unknown as CobrancaLinha[] | null;
+
+  const porSessao: Record<string, CobrancaLinha> = {};
+  for (const c of linhas ?? []) {
+    if (c.sessao_id) porSessao[c.sessao_id] = c;
+  }
+  return porSessao;
+}
+
+export async function cobrancaDaSessao(sessaoId: string): Promise<CobrancaLinha | null> {
+  const supabase = await supabaseSessao();
+
+  const linhas = await db(
+    "cobrancas.da_sessao",
+    supabase
+      .from("cobrancas")
+      .select("id, sessao_id, valor, motivo, estado, politica_horas, politica_percentual, criado_em")
+      .eq("sessao_id", sessaoId)
+      .neq("estado", "cancelada")
+      .order("criado_em", { ascending: false })
+      .limit(1),
+  );
+
+  return ((linhas ?? []) as unknown as CobrancaLinha[])[0] ?? null;
+}

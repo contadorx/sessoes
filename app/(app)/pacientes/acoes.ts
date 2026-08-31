@@ -10,7 +10,11 @@ import { hoje } from "@/lib/tempo-servidor";
 
 export type Resultado =
   | { estado: "inicial" }
-  | { estado: "erro"; erros: string[] };
+  | { estado: "erro"; erros: string[] }
+  // Salvar cadastro redireciona, então não precisava de "ok". As ações de
+  // privacidade (B13) precisam: a resposta do banco — a data até quando o
+  // registro fica guardado — é justamente o que a psicóloga vai repassar.
+  | { estado: "ok"; mensagem: string };
 
 const INICIAL: Resultado = { estado: "inicial" };
 
@@ -203,4 +207,70 @@ function traduzir(e: unknown): string {
   }
   console.error("[pacientes] erro não traduzido", e);
   return "Não consegui salvar agora. Tente de novo em instantes.";
+}
+
+/**
+ * O pedido de exclusão, respondido com honestidade.
+ *
+ * A mensagem que volta é do banco de propósito: é ela que a psicóloga repassa ao
+ * paciente, com a data exata em que o registro pode sair. Improvisar uma
+ * explicação sobre a LGPD no meio de uma conversa difícil é como se erra aqui.
+ */
+export async function esquecerContato(_anterior: Resultado, form: FormData): Promise<Resultado> {
+  const id = String(form.get("paciente_id") ?? "");
+  if (!id) return { estado: "erro", erros: ["Paciente não identificado."] };
+
+  const supabase = await supabaseSessao();
+
+  try {
+    const explicacao = await db<string>(
+      "paciente.esquecer_contato",
+      supabase.rpc("esquecer_contato", { p_paciente: id }),
+    );
+    revalidatePath(`/pacientes/${id}`);
+    revalidatePath("/pacientes");
+    return { estado: "ok", mensagem: explicacao };
+  } catch (e) {
+    console.error("[paciente] falhou esquecer contato", e);
+    return { estado: "erro", erros: ["Não consegui agora. Tente de novo em instantes."] };
+  }
+}
+
+/**
+ * Encerrar.
+ *
+ * O texto do encerramento é exigido pelo banco, não pelo formulário — a Res. CFP
+ * 001/2009 pede o registro de como o acompanhamento terminou, e um prontuário
+ * que acaba no silêncio é o que o Conselho aponta como falta.
+ */
+export async function arquivarPaciente(_anterior: Resultado, form: FormData): Promise<Resultado> {
+  const id = String(form.get("paciente_id") ?? "");
+  const encerramento = String(form.get("encerramento") ?? "").trim();
+
+  if (!id) return { estado: "erro", erros: ["Paciente não identificado."] };
+  if (encerramento.length < 10) {
+    return {
+      estado: "erro",
+      erros: ["Escreva como o acompanhamento terminou — alta, encaminhamento, abandono."],
+    };
+  }
+
+  const supabase = await supabaseSessao();
+
+  try {
+    await db(
+      "paciente.arquivar",
+      supabase.rpc("arquivar_paciente", { p_paciente: id, p_encerramento: encerramento }),
+    );
+  } catch (e) {
+    console.error("[paciente] falhou arquivar", e);
+    return { estado: "erro", erros: ["Não consegui agora. Tente de novo em instantes."] };
+  }
+
+  revalidatePath(`/pacientes/${id}`);
+  revalidatePath("/pacientes");
+  return {
+    estado: "ok",
+    mensagem: "Ficha encerrada e arquivada. Daqui em diante ela é só leitura.",
+  };
 }

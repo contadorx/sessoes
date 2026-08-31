@@ -3,8 +3,14 @@
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
-import type { SessaoLinha } from "@/app/(app)/agenda/dados";
-import { cancelarSessao, marcarSessao, type Resultado } from "@/app/(app)/agenda/acoes";
+import type { SessaoLinha, CobrancaLinha } from "@/app/(app)/agenda/dados";
+import {
+  cancelarSessao,
+  marcarSessao,
+  perdoarCobranca,
+  marcarCobrancaPaga,
+  type Resultado,
+} from "@/app/(app)/agenda/acoes";
 import { rotuloPolitica, multaDeFalta } from "@/lib/enquadre";
 import { paraCentavos, formatar } from "@/lib/dinheiro";
 import { ROTULO_ESTADO } from "./Semana";
@@ -68,11 +74,75 @@ function Cancelar({ id, por, rotulo }: { id: string; por: string; rotulo: string
   );
 }
 
+/**
+ * A cobrança que nasceu sozinha.
+ *
+ * Duas coisas de desenho, e as duas são sobre postura:
+ *
+ *  · **o perdão vem antes do "recebi"** na ordem de leitura, porque a régua
+ *    automática só é aceitável se o freio estiver à mão. Quem construiu a régua
+ *    tem a obrigação de deixar o desvio fácil;
+ *  · **a tela diz quando o aviso sai.** Automação em que a pessoa não sabe o
+ *    que vai acontecer nem quando é a definição de perder o controle da própria
+ *    relação com o paciente.
+ */
+function Cobranca({ cobranca }: { cobranca: CobrancaLinha }) {
+  const [, perdoar] = useActionState(perdoarCobranca, INICIAL);
+  const [, pagar] = useActionState(marcarCobrancaPaga, INICIAL);
+
+  const valor = formatar(paraCentavos(cobranca.valor));
+
+  if (cobranca.estado === "perdoada") {
+    return (
+      <p className="mt-3 rounded-cartao border border-linha bg-folha2 px-4 py-3 text-[12.5px] leading-relaxed text-tinta2">
+        Você perdoou os <b className="font-semibold text-tinta">{valor}</b> desta
+        sessão. O aviso não saiu.
+      </p>
+    );
+  }
+
+  if (cobranca.estado === "paga") {
+    return (
+      <p className="mt-3 rounded-cartao border border-cheia-linha bg-cheia-bg px-4 py-3 text-[12.5px] leading-relaxed text-tinta2">
+        <b className="font-semibold text-cheia">{valor}</b> recebidos.
+      </p>
+    );
+  }
+
+  return (
+    <div className="mt-3 rounded-cartao border border-vaga-linha bg-vaga-bg px-4 py-3">
+      <p className="text-[12.5px] leading-relaxed text-tinta2">
+        Pelo combinado desta sessão, ficam{" "}
+        <b className="font-semibold text-vaga">{valor}</b> a cobrar. O aviso sai
+        sozinho daqui a pouco, no texto neutro — você não precisa escrever nada.
+      </p>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <form action={perdoar}>
+          <input type="hidden" name="cobranca_id" value={cobranca.id} />
+          <Acao rotulo="Não vou cobrar" />
+        </form>
+        <form action={pagar}>
+          <input type="hidden" name="cobranca_id" value={cobranca.id} />
+          <Acao rotulo="Já recebi" destaque="cheia" />
+        </form>
+      </div>
+
+      <p className="mt-2.5 text-[11.5px] leading-relaxed text-tinta3">
+        Perdoar segura o aviso, se ele ainda não tiver saído. Fica registrado —
+        quantas vezes você abriu mão é uma informação sua, não uma cobrança.
+      </p>
+    </div>
+  );
+}
+
 export function PainelSessao({
   sessao,
+  cobranca,
   aoFechar,
 }: {
   sessao: SessaoLinha;
+  cobranca: CobrancaLinha | null;
   aoFechar: () => void;
 }) {
   const politica = {
@@ -84,10 +154,13 @@ export function PainelSessao({
   const cancelada = sessao.estado.startsWith("cancelada");
   const terminal = cancelada || sessao.estado === "realizada" || sessao.estado === "falta";
 
-  const multa =
-    sessao.estado === "cancelada_tarde"
-      ? multaDeFalta(paraCentavos(sessao.valor), "cancelada_tarde", politica)
-      : 0;
+  // Cobrável é o que o banco cobra: cancelamento tardio **e** falta. Não vir é
+  // desmarcar com zero hora de antecedência (0022).
+  const cobravel = sessao.estado === "cancelada_tarde" || sessao.estado === "falta";
+
+  const multa = cobravel
+    ? multaDeFalta(paraCentavos(sessao.valor), "cancelada_tarde", politica)
+    : 0;
 
   return (
     <div className="rounded-cartao border border-linha bg-folha p-5">
@@ -112,13 +185,26 @@ export function PainelSessao({
         {formatar(paraCentavos(sessao.valor))} · {rotuloPolitica(politica)}
       </p>
 
-      {sessao.estado === "cancelada_tarde" && (
-        <p className="mt-3 rounded-cartao border border-vaga-linha bg-vaga-bg px-4 py-3 text-[12.5px] leading-relaxed text-tinta2">
-          Cancelamento tardio pelo combinado desta sessão:{" "}
-          <b className="font-semibold text-vaga">{formatar(multa)}</b> a cobrar. Por
-          enquanto fica o registro — a cobrança sai sozinha quando o financeiro
-          entrar.
-        </p>
+      {cobranca ? (
+        <Cobranca cobranca={cobranca} />
+      ) : (
+        cobravel && (
+          <p className="mt-3 rounded-cartao border border-linha bg-folha2 px-4 py-3 text-[12.5px] leading-relaxed text-tinta2">
+            {sessao.politica_percentual === 0 ? (
+              <>
+                O combinado desta sessão não prevê cobrança em cancelamento — nada
+                a fazer.
+              </>
+            ) : (
+              <>
+                Pelo combinado, seriam{" "}
+                <b className="font-semibold text-tinta">{formatar(multa)}</b>. A
+                cobrança ainda não apareceu aqui; se não aparecer, é sinal de que
+                algo não rodou — vale me avisar.
+              </>
+            )}
+          </p>
+        )
       )}
 
       {sessao.estado === "cancelada_cedo" && (

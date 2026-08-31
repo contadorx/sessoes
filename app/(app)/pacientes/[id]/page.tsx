@@ -5,6 +5,7 @@ import { atualizarPaciente } from "../acoes";
 import { FormPaciente } from "@/components/app/FormPaciente";
 import { NovoEnquadre } from "@/components/app/NovoEnquadre";
 import { rotuloHorario, rotuloPolitica } from "@/lib/enquadre";
+import { Privacidade } from "@/components/app/Privacidade";
 
 const brl = (v: string) =>
   Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -95,14 +96,33 @@ export default async function Paciente({ params }: { params: Promise<{ id: strin
 
       <section className="mt-8">
         <h2 className="rotulo">Cadastro</h2>
-        <div className="mt-2">
-          <FormPaciente
-            acao={atualizarPaciente}
-            paciente={paciente}
-            rotuloBotao="Salvar cadastro"
-          />
-        </div>
+        {paciente.arquivado_em ? (
+          <div className="mt-2 rounded-cartao border border-linha bg-folha2 px-5 py-4">
+            <p className="text-[12.5px] leading-relaxed text-tinta2">
+              Ficha arquivada — só leitura. Encerramento registrado:
+            </p>
+            <p className="mt-2 whitespace-pre-wrap text-[13px] leading-relaxed text-tinta">
+              {paciente.encerramento}
+            </p>
+          </div>
+        ) : (
+          <div className="mt-2">
+            <FormPaciente
+              acao={atualizarPaciente}
+              paciente={paciente}
+              rotuloBotao="Salvar cadastro"
+            />
+          </div>
+        )}
       </section>
+
+      <Privacidade
+        pacienteId={paciente.id}
+        nome={paciente.nome}
+        arquivado={Boolean(paciente.arquivado_em)}
+        contatoEsquecidoEm={paciente.contato_esquecido_em}
+        restricaoJudicial={paciente.restricao_judicial}
+      />
     </div>
   );
 }

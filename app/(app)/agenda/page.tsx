@@ -6,6 +6,7 @@ import {
   listarAusencias,
   horizonte,
   pacientesParaEncaixe,
+  cobrancasDaSemana,
 } from "./dados";
 import { Semana } from "@/components/app/Semana";
 import { Ausencias } from "@/components/app/Ausencias";
@@ -36,6 +37,10 @@ export default async function Agenda({
     horizonte(),
     pacientesParaEncaixe(),
   ]);
+
+  // Depois das sessões, porque depende delas — e só busca se houver alguma
+  // sessão cobrável na semana.
+  const cobrancas = await cobrancasDaSemana(sessoes);
 
   const resumo = resumoDaSemana(sessoes);
   const ehSemanaAtual = semana.inicio === semanaDe(hojeStr).inicio;
@@ -86,7 +91,8 @@ export default async function Agenda({
       </dl>
 
       <div className="mt-6">
-        <Semana semana={semana} sessoes={sessoes} hoje={hojeStr} />
+        <Semana semana={semana} sessoes={sessoes}
+        cobrancas={cobrancas} hoje={hojeStr} />
       </div>
 
       <div className="mt-8">

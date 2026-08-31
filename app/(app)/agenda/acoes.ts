@@ -223,3 +223,56 @@ export async function estenderJanela(): Promise<Resultado> {
   revalidatePath("/agenda");
   return { estado: "ok", mensagem: "Agenda estendida." };
 }
+
+/**
+ * Perdoar.
+ *
+ * O freio da régua automática, e ele tem de ser mais fácil de puxar do que o
+ * acelerador. Quem decide se cobra é ela — a política só faz a parte que ela
+ * não conseguiria fazer sozinha, que é levantar o assunto.
+ *
+ * Cancelar o aviso que ainda não saiu é do banco (0022 + 0023). Aqui é só o
+ * caminho da tela.
+ */
+export async function perdoarCobranca(_anterior: Resultado, form: FormData): Promise<Resultado> {
+  const id = String(form.get("cobranca_id") ?? "");
+  if (!id) return { estado: "erro", erros: ["Cobrança não identificada."] };
+
+  const supabase = await supabaseSessao();
+
+  try {
+    await db("cobranca.perdoar", supabase.rpc("perdoar_cobranca", { p_cobranca: id }));
+  } catch (e) {
+    console.error("[cobranca] falhou perdoar", e);
+    return { estado: "erro", erros: [traduzirCobranca(e)] };
+  }
+
+  revalidatePath("/agenda");
+  return { estado: "ok", mensagem: "Perdoada. O aviso não vai sair." };
+}
+
+/** Recebeu. O meio de pagamento é da fase 2; isto é o registro dela. */
+export async function marcarCobrancaPaga(_anterior: Resultado, form: FormData): Promise<Resultado> {
+  const id = String(form.get("cobranca_id") ?? "");
+  if (!id) return { estado: "erro", erros: ["Cobrança não identificada."] };
+
+  const supabase = await supabaseSessao();
+
+  try {
+    await db("cobranca.pagar", supabase.rpc("marcar_cobranca_paga", { p_cobranca: id }));
+  } catch (e) {
+    console.error("[cobranca] falhou marcar paga", e);
+    return { estado: "erro", erros: [traduzirCobranca(e)] };
+  }
+
+  revalidatePath("/agenda");
+  return { estado: "ok", mensagem: "Registrado como recebido." };
+}
+
+function traduzirCobranca(e: unknown): string {
+  if (e instanceof ErroDeBanco) {
+    if (/n[aã]o encontrada/i.test(e.message)) return "Esta cobrança não existe mais.";
+    if (/aberta/i.test(e.message)) return "Esta cobrança já foi resolvida.";
+  }
+  return "Não consegui completar agora. Tente de novo em instantes.";
+}

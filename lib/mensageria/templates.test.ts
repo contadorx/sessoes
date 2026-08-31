@@ -4,9 +4,11 @@ import {
   CORPOS,
   FAMILIAS,
   PROIBIDAS_NO_DISCRETO,
+  PROIBIDAS_NA_COBRANCA,
   type Familia,
   type Modo,
 } from "./templates";
+import { formatar } from "@/lib/dinheiro";
 
 /**
  * A fronteira D3 escrita como teste — e, junto dela, as regras da Meta.
@@ -113,6 +115,42 @@ describe("modo completo", () => {
     expect(r.modo).toBe("completo");
     expect(r.texto).toContain("Ana Paula");
     expect(r.variaveis).toContain("Ana Paula");
+  });
+});
+
+describe("a cobrança não constrange (D2)", () => {
+  const MODOS_COBRANCA = MODOS.map((modo) =>
+    renderizar("aviso_de_cobranca", {
+      nome: "Maria",
+      modo,
+      inicio: INICIO,
+      profissional: "Ana Paula",
+      valor_centavos: 10_000,
+    }),
+  );
+
+  it.each(MODOS_COBRANCA)("$modo: nenhuma palavra de vergonha ou de dívida", (r) => {
+    const texto = `${r.texto} ${r.assunto}`.toLowerCase();
+    for (const palavra of PROIBIDAS_NA_COBRANCA) {
+      expect(texto, `achei "${palavra}"`).not.toContain(palavra);
+    }
+  });
+
+  it.each(MODOS_COBRANCA)("$modo: diz o valor e remete ao combinado", (r) => {
+    // Comparado com o formatador do projeto de propósito: ele usa espaço fixo
+    // (U+00A0) entre "R$" e o número, e um literal digitado à mão não bate.
+    expect(r.texto).toContain(formatar(10_000));
+    expect(r.texto).toContain("combinado");
+  });
+
+  it.each(MODOS_COBRANCA)("$modo: devolve a palavra à pessoa", (r) => {
+    expect(r.texto).toContain("responder aqui");
+  });
+
+  it("sem valor, não inventa número nem imprime vazio", () => {
+    const r = renderizar("aviso_de_cobranca", { nome: "Maria", inicio: INICIO });
+    expect(r.texto).toContain("o valor combinado");
+    expect(r.texto).not.toMatch(/R\$\s*(?![\d])/);
   });
 });
 

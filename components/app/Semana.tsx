@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import type { SessaoLinha } from "@/app/(app)/agenda/dados";
+import type { SessaoLinha, CobrancaLinha } from "@/app/(app)/agenda/dados";
 import { faixaDeHoras, posicaoNaGrade, porDiaDaSemana, type Semana as TSemana } from "@/lib/semana";
 import { horaEmSP } from "@/lib/tempo";
 import { PainelSessao } from "./PainelSessao";
@@ -33,10 +33,12 @@ export const ROTULO_ESTADO: Record<SessaoLinha["estado"], string> = {
 export function Semana({
   semana,
   sessoes,
+  cobrancas,
   hoje,
 }: {
   semana: TSemana;
   sessoes: SessaoLinha[];
+  cobrancas: Record<string, CobrancaLinha>;
   hoje: string;
 }) {
   const [escolhida, setEscolhida] = useState<string | null>(null);
@@ -204,7 +206,11 @@ export function Semana({
 
       {sessaoAberta && (
         <div className="mt-4">
-          <PainelSessao sessao={sessaoAberta} aoFechar={() => setEscolhida(null)} />
+          <PainelSessao
+            sessao={sessaoAberta}
+            cobranca={cobrancas[sessaoAberta.id] ?? null}
+            aoFechar={() => setEscolhida(null)}
+          />
         </div>
       )}
     </div>

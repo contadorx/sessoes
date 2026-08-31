@@ -25,12 +25,14 @@
  */
 
 import { FUSO } from "@/lib/tempo";
+import { formatar } from "@/lib/dinheiro";
 
 export const FAMILIAS = [
   "oferta_de_vaga",
   "encaixe_confirmado",
   "lembrete_de_sessao",
   "aviso_de_desmarque",
+  "aviso_de_cobranca",
 ] as const;
 
 export type Familia = (typeof FAMILIAS)[number];
@@ -46,6 +48,12 @@ export type Parametros = {
   expira_em?: string;
   /** Nome do profissional. Sem ele, o modo completo não acontece. */
   profissional?: string;
+  /**
+   * O valor vem em centavos inteiros, e é `lib/dinheiro` que o formata — a
+   * mesma função que a tela usa. Mandar a string pronta do banco criaria uma
+   * segunda formatação de dinheiro no projeto, e duas formatações divergem.
+   */
+  valor_centavos?: number;
   [k: string]: unknown;
 };
 
@@ -116,6 +124,14 @@ function prazo(iso: string | undefined): string {
   return `às ${SO_HORA.format(d)}`;
 }
 
+/** "R$ 100,00", ou uma expressão honesta quando não há número. */
+function dinheiro(centavos: unknown): string {
+  if (typeof centavos !== "number" || !Number.isFinite(centavos) || centavos <= 0) {
+    return "o valor combinado";
+  }
+  return formatar(Math.round(centavos));
+}
+
 /** Só o primeiro nome. Mensagem não é cadastro. */
 function primeiroNome(nome: string | undefined): string {
   const limpo = (nome ?? "").trim();
@@ -123,11 +139,40 @@ function primeiroNome(nome: string | undefined): string {
   return limpo.split(/\s+/)[0];
 }
 
+/** Palavras que jamais entram numa cobrança. */
+export const PROIBIDAS_NA_COBRANCA = [
+  "faltou",
+  "falta",
+  "ausência",
+  "ausente",
+  "não compareceu",
+  "multa",
+  "penalidade",
+  "infelizmente",
+  "lamento",
+  "pendência",
+  "devedor",
+  "dívida",
+  "em aberto",
+  "atraso",
+] as const;
+
 /**
  * Os corpos, exatamente como vão para a Meta.
  *
- * `{{1}}` é sempre quem recebe, `{{2}}` sempre o horário. No modo completo,
- * `{{n}}` final é o profissional. Nenhum começa nem termina em variável.
+ * `{{1}}` é sempre quem recebe, `{{2}}` sempre o horário. Nenhum começa nem
+ * termina em variável, e a ordem de cada um está na tabela `VARIAVEIS`.
+ *
+ * ⚠️ **`aviso_de_cobranca` tem um portão que não é técnico.** A tese inteira do
+ * produto é cobrar sem constrangimento — a psicóloga não cobra porque a conversa
+ * é humilhante para as duas. Uma palavra errada aqui não gera um bug: gera o
+ * problema que o produto existe para resolver. Por isso o texto não diz
+ * "faltou", não diz "multa", não pede desculpa e não explica a regra de novo:
+ * remete ao que já foi combinado, informa o valor e devolve a palavra à pessoa.
+ *
+ * Este texto é **rascunho até uma psicóloga lê-lo** (critério de pronto da B11
+ * no doc 12, não item de QA). As proibições acima estão no teste; o julgamento
+ * sobre o tom, não — esse é dela.
  */
 export const CORPOS: Record<Modo, Record<Familia, string>> = {
   discreto: {
@@ -140,6 +185,9 @@ export const CORPOS: Record<Modo, Record<Familia, string>> = {
       "Oi, {{1}}. Passando para lembrar do seu horário {{2}}. Até lá.",
     aviso_de_desmarque:
       "Oi, {{1}}. Precisei desmarcar o horário {{2}}. Entro em contato para remarcar.",
+    aviso_de_cobranca:
+      "Oi, {{1}}. Sobre o horário {{2}}: pelo combinado, fica {{3}} referente a ele. " +
+      "Se quiser conversar sobre isso, é só responder aqui.",
   },
   completo: {
     oferta_de_vaga:
@@ -153,7 +201,43 @@ export const CORPOS: Record<Modo, Record<Familia, string>> = {
     aviso_de_desmarque:
       "Oi, {{1}}. A sessão {{2}} com {{3}} precisou ser desmarcada. " +
       "Entro em contato para remarcar.",
+    aviso_de_cobranca:
+      "Oi, {{1}}. Sobre a sessão {{2}} com {{3}}: pelo combinado, fica {{4}} referente a ela. " +
+      "Se quiser conversar sobre isso, é só responder aqui.",
   },
+};
+
+/**
+ * As variáveis de cada família, na ordem exata em que o corpo acima as usa.
+ *
+ * Ficam numa tabela, e não numa cadeia de condicionais, por um motivo prático:
+ * variável fora de ordem não quebra nada — só troca o horário pelo valor no
+ * celular de alguém. O teste confere que a contagem bate com o corpo; a ordem
+ * é responsabilidade desta tabela, que dá para conferir a olho.
+ */
+const VARIAVEIS: Record<Modo, Record<Familia, (c: Campos) => string[]>> = {
+  discreto: {
+    oferta_de_vaga: (c) => [c.nome, c.hora, c.limite],
+    encaixe_confirmado: (c) => [c.nome, c.hora],
+    lembrete_de_sessao: (c) => [c.nome, c.hora],
+    aviso_de_desmarque: (c) => [c.nome, c.hora],
+    aviso_de_cobranca: (c) => [c.nome, c.hora, c.valor],
+  },
+  completo: {
+    oferta_de_vaga: (c) => [c.nome, c.hora, c.limite, c.prof],
+    encaixe_confirmado: (c) => [c.nome, c.hora, c.prof],
+    lembrete_de_sessao: (c) => [c.nome, c.hora, c.prof],
+    aviso_de_desmarque: (c) => [c.nome, c.hora, c.prof],
+    aviso_de_cobranca: (c) => [c.nome, c.hora, c.prof, c.valor],
+  },
+};
+
+type Campos = {
+  nome: string;
+  hora: string;
+  limite: string;
+  prof: string;
+  valor: string;
 };
 
 /**
@@ -178,14 +262,8 @@ export function renderizar(template: string, params: Parametros): Renderizado {
   // recusa — e a saída certa é a mais discreta, nunca a menos.
   const modo: Modo = params.modo === "completo" && prof ? "completo" : "discreto";
 
-  const variaveis =
-    modo === "discreto"
-      ? template === "oferta_de_vaga"
-        ? [nome, hora, limite]
-        : [nome, hora]
-      : template === "oferta_de_vaga"
-        ? [nome, hora, limite, prof]
-        : [nome, hora, prof];
+  const valor = dinheiro(params.valor_centavos);
+  const variaveis = VARIAVEIS[modo][template]({ nome, hora, limite, prof, valor });
 
   return {
     familia: template,
@@ -212,6 +290,7 @@ function assunto(familia: Familia, modo: Modo): string {
       encaixe_confirmado: "Horário confirmado",
       lembrete_de_sessao: "Lembrete de horário",
       aviso_de_desmarque: "Mudança no horário",
+      aviso_de_cobranca: "Sobre um horário",
     }[familia];
   }
 
@@ -220,5 +299,6 @@ function assunto(familia: Familia, modo: Modo): string {
     encaixe_confirmado: "Sua sessão está confirmada",
     lembrete_de_sessao: "Lembrete da sua sessão",
     aviso_de_desmarque: "Sua sessão precisou ser desmarcada",
+    aviso_de_cobranca: "Sobre uma sessão",
   }[familia];
 }
