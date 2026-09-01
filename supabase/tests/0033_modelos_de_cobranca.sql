@@ -29,7 +29,7 @@
 --  21. cancelar o pacote cancela a cobrança aberta e preserva os consumos
 --  22. recibo de mensalista sem pagamento registrado é recusado
 --  23. e com pagamento, o valor vem da cobrança paga, não da soma das sessões
---  24. quem é avulso continua com o recibo pela soma das sessões
+--  24. (B23) o avulso também exige recebimento — e mantém o valor por linha
 --  25. isolamento entre contas
 --  26. o anônimo não lê, não vende, não cancela e não roda a rotina
 --
@@ -46,6 +46,7 @@ declare
   e_fixa uuid; e_por uuid; e_borda uuid;
   v numeric; d date;
 begin
+  delete from public.recibos_rfb where conta_id in (select id from public.contas where nome='Ana Solo');
   delete from public.pacote_consumos where conta_id in (select id from public.contas where nome='Ana Solo');
   delete from public.pacotes where conta_id in (select id from public.contas where nome='Ana Solo');
   delete from public.aceites where conta_id in (select id from public.contas where nome='Ana Solo');
@@ -372,7 +373,12 @@ begin
   select id into p1 from public.pacotes where paciente_id=pac and cancelado_em is null limit 1;
   select id into sa from public.sessoes where paciente_id=avulso and inicio < now() order by inicio limit 1;
 
-  de  := date_trunc('month', public.hoje_sp())::date;
+  -- O mês corrente, esticado para trás o quanto for preciso para conter as
+  -- sessões que este próprio teste cria (`now() - 50 horas`). Sem o `least`,
+  -- a suíte passava trinta dias por mês e falhava no dia 1º: as sessões caem no
+  -- mês anterior e o recibo do mês corrente não acha atendimento nenhum.
+  de  := least(date_trunc('month', public.hoje_sp())::date,
+               ((now() - interval '60 hours') at time zone 'America/Sao_Paulo')::date);
   ate := (date_trunc('month', public.hoje_sp()) + interval '1 month - 1 day')::date;
 
   reset role; perform set_config('request.jwt.claims','',true);
@@ -408,12 +414,32 @@ begin
     raise exception '23 FUROU: o recibo lista valor por sessão e um total que não bate com eles'; end if;
 
   -- ---------------------------------------------------------------- 24
+  -- Mudou na B23. A 0034 deixou anotado que o recibo do avulso não conferia
+  -- nada; agora confere, porque passou a existir um jeito de dizer "recebi em
+  -- dinheiro" sem ligar a cobrança por sessão. Os dois lados exigem pagamento.
+  falhou := false;
+  begin doc := public.emitir_documento(avulso,'recibo',de,ate);
+  exception when others then
+    falhou := true;
+    if sqlerrm not like '%pagamento registrado%' then raise; end if;
+  end;
+  if not falhou then
+    raise exception '24 FUROU: o recibo do avulso saiu sem nenhum recebimento registrado'; end if;
+
+  for d in select id from public.sessoes
+            where paciente_id=avulso and estado='realizada'
+              and (inicio at time zone 'America/Sao_Paulo')::date between de and ate loop
+    perform public.registrar_recebimento(d.id);
+  end loop;
+
   doc := public.emitir_documento(avulso,'recibo',de,ate);
   select * into d from public.documentos where id=doc;
-  if d.retrato->>'base' <> 'sessoes' then
+  if d.retrato->>'base' <> 'cobrancas_por_sessao' then
     raise exception '24 FUROU: o avulso mudou de base (%)', d.retrato->>'base'; end if;
   if d.valor_total <> 300.00 then
     raise exception '24 FUROU: o recibo do avulso saiu por %', d.valor_total; end if;
+  if not ((d.retrato->'itens'->0) ? 'valor') then
+    raise exception '24 FUROU: o avulso perdeu o valor por linha — é ele que o convênio pede'; end if;
 
   -- ---------------------------------------------------------------- 25
   reset role; perform set_config('request.jwt.claims','',true);

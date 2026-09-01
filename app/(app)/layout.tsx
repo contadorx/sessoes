@@ -4,6 +4,7 @@ import { sessaoAtual } from "@/lib/conta";
 import { Sair } from "@/components/app/Sair";
 import { estadoInicial } from "./comecar/page";
 import { Instalar } from "@/components/app/Instalar";
+import { alarmeFiscal } from "./receita-saude/alarme";
 
 export default async function LayoutApp({ children }: { children: React.ReactNode }) {
   // Redireciona sozinha se não houver sessão. O middleware já barrou antes —
@@ -15,6 +16,10 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
   // oferecida.
   const estado = await estadoInicial();
   const comecando = estado.pacientes === 0 || estado.na_fila === 0 || estado.vagas_abertas === 0;
+
+  // O alarme de fevereiro mora no menu, e não numa tela que ela pode passar
+  // meses sem abrir: um alarme que só toca dentro da sala não é alarme.
+  const fiscal = await alarmeFiscal();
 
   return (
     <div className="min-h-dvh">
@@ -36,6 +41,9 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
             <Link href="/agenda" className="text-tinta2 hover:text-vaga">
               Agenda
             </Link>
+            <Link href="/calendario" className="text-tinta2 hover:text-vaga">
+              Calendário
+            </Link>
             <Link href="/fila" className="text-tinta2 hover:text-vaga">
               Fila
             </Link>
@@ -47,6 +55,22 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
             </Link>
             <Link href="/em-aberto" className="text-tinta2 hover:text-vaga">
               Em aberto
+            </Link>
+            <Link href="/financeiro" className="text-tinta2 hover:text-vaga">
+              Financeiro
+            </Link>
+            <Link
+              href="/receita-saude"
+              className={
+                fiscal.urgente
+                  ? "font-semibold text-vaga hover:underline"
+                  : "text-tinta2 hover:text-vaga"
+              }
+            >
+              Receita{fiscal.pendentes > 0 && ` ${fiscal.pendentes}`}
+            </Link>
+            <Link href="/contador" className="text-tinta2 hover:text-vaga">
+              Contador
             </Link>
             <Link href="/documentos" className="text-tinta2 hover:text-vaga">
               Documentos

@@ -18,6 +18,34 @@ declare
   falhou boolean;
 begin
   -- ---------------------------------------------------------------- preparo
+  --
+  -- Este preâmbulo é o mais antigo do projeto — é da B2, de quando existiam
+  -- cinco tabelas — e **é sempre ele que quebra primeiro**. Apagar `auth.users`
+  -- derruba a conta em cascata, mas `pacientes` e as tabelas clínicas seguram
+  -- com `on delete restrict` (a guarda de cinco anos escrita na FK), e o erro
+  -- que aparece é uma FK violation no `delete from auth.users` — sem nenhuma
+  -- pista de que a causa é uma build seis fases depois.
+  --
+  -- Por isso ele limpa o que as outras criaram, na ordem de dependência. Toda
+  -- build que acrescentar tabela pendurada em `pacientes` acrescenta uma linha
+  -- aqui, e é mais barato do que descobrir de novo.
+  delete from public.anamnese_adendos where conta_id in
+    (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
+  delete from public.anamneses where conta_id in
+    (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
+  delete from public.evolucoes where conta_id in
+    (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
+  delete from public.registros where conta_id in
+    (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
+  delete from public.documentos where conta_id in
+    (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
+  delete from public.recibos_rfb where conta_id in
+    (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
+  delete from public.pastas_contador where conta_id in
+    (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
+  delete from public.pacientes where conta_id in
+    (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
+
   delete from auth.users where id in (a_auth, b_auth);
 
   insert into auth.users (id, email, raw_user_meta_data)

@@ -36,6 +36,13 @@
 
 -- ========================== parte 1 · o que abre vaga, e o que não abre
 
+-- As linhas de idempotência do webhook nascem com `conta_id` nulo (é assim que
+-- a 0021 as guarda: a mensagem chega antes de se saber de quem é). Nenhum
+-- preâmbulo por conta as alcança, então a suíte passava na primeira execução e
+-- falhava na segunda, na verificação 17, acusando "repetida" contra si mesma.
+-- Suíte que não roda duas vezes seguidas mente na segunda.
+delete from public.mensagens_recebidas where provedor = 'teste' and provedor_msg_id in ('w1','w2');
+
 do $do$
 declare
   a_auth uuid := '11111111-1111-4111-8111-111111111111';
@@ -111,8 +118,11 @@ begin
   if n <> 1 then raise exception '3 FUROU: não registrou o evento (%)', n; end if;
 
   -- ---------------------------------------------------------------- 4
+  -- Depois do último dia de vigência, e não depois de agora — a hora de hoje
+  -- ainda é do combinado que se encerra hoje. Ver a mesma correção na 0006.
   select count(*) into n from public.sessoes
-   where enquadre_id=e3 and estado='prevista' and inicio > now();
+   where enquadre_id=e3 and estado='prevista'
+     and (inicio at time zone 'America/Sao_Paulo')::date > public.hoje_sp();
   if n <> 0 then raise exception '4 FUROU: sobraram % sessões previstas de um combinado encerrado', n; end if;
 
   reset role; perform set_config('request.jwt.claims','',true);

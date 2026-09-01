@@ -6,6 +6,10 @@ import {
   lastroDoPaciente,
   pacotesDoPaciente,
   filaDeEntradaDoPaciente,
+  linhaDoTempoDoPaciente,
+  registroDoPaciente,
+  retencaoDaConta,
+  anamneseDoPaciente,
 } from "../dados";
 import { atualizarPaciente } from "../acoes";
 import { FormPaciente } from "@/components/app/FormPaciente";
@@ -17,6 +21,9 @@ import { Pacote } from "@/components/app/Pacote";
 import { FilaEntrada } from "@/components/app/FilaEntrada";
 import { rotuloModelo } from "@/lib/cobranca";
 import { hoje } from "@/lib/tempo-servidor";
+import { LinhaDoTempo } from "@/components/app/LinhaDoTempo";
+import { PainelRegistro } from "@/components/app/Registro";
+import { PainelAnamnese } from "@/components/app/Anamnese";
 
 const brl = (v: string) =>
   Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -37,6 +44,12 @@ export default async function Paciente({ params }: { params: Promise<{ id: strin
   const lastro = await lastroDoPaciente(paciente.id, aberto?.id ?? null);
   const pacotes = aberto?.modelo_cobranca === "pacote" ? await pacotesDoPaciente(paciente.id) : [];
   const entrada = aberto ? { naFila: false, desde: null } : await filaDeEntradaDoPaciente(paciente.id);
+  const tempo = await linhaDoTempoDoPaciente(paciente.id);
+  const [registro, retencao, anamnese] = await Promise.all([
+    registroDoPaciente(paciente.id),
+    retencaoDaConta(),
+    anamneseDoPaciente(paciente.id),
+  ]);
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -144,6 +157,68 @@ export default async function Paciente({ params }: { params: Promise<{ id: strin
             aceite={lastro.aceite}
           />
         </div>
+      </section>
+
+      {/* ------------------------------------------------------ o registro (PR2/PR6) */}
+      {registro && (
+        <section className="mt-10 border-t border-linha pt-6">
+          <h2 className="font-serif text-[21px] leading-tight">O registro</h2>
+          <p className="mt-2 max-w-xl text-[13.5px] leading-relaxed text-tinta2">
+            O Prontuário Psicológico desta pessoa, nos quatro blocos que a Res. CFP 001/2009 e o
+            Manual de nov/2025 pedem. O que estiver vazio aparece vazio — o Manual pede que se
+            evitem espaços em branco, e um buraco anunciado é melhor que um silencioso.
+          </p>
+
+          <PainelRegistro
+            pacienteId={paciente.id}
+            registro={registro}
+            ultimoRegistro={hoje()}
+            retencaoAnos={retencao}
+          />
+
+          <p className="mt-5 max-w-xl text-[11.5px] leading-relaxed text-tinta3">
+            O que estiver na <b className="font-medium">gaveta</b> não sai na cópia que o
+            paciente pode pedir: é o Registro Documental, de acesso restrito a você. Tudo o
+            mais sai — o direito de acesso ao próprio prontuário é dele. Nada aqui se apaga
+            dentro do prazo de guarda, nem por engano.
+          </p>
+        </section>
+      )}
+
+      {/* ------------------------------------------------------- a anamnese (PR3/PR5) */}
+      <section className="mt-10 border-t border-linha pt-6">
+        <h2 className="font-serif text-[21px] leading-tight">A anamnese</h2>
+        <p className="mt-2 max-w-xl text-[13.5px] leading-relaxed text-tinta2">
+          A avaliação da demanda em profundidade — o bloco 2 do registro, escrito com tempo.
+          Enquanto está aberta, edita-se à vontade; depois de fechada, o que chegar entra como
+          adendo, com a data em que chegou.
+        </p>
+
+        <PainelAnamnese
+          pacienteId={paciente.id}
+          anamnese={anamnese.anamnese}
+          aviso={anamnese.aviso}
+        />
+      </section>
+
+      {/* ------------------------------------------------- a linha do tempo (PR8) */}
+      <section className="mt-10 border-t border-linha pt-6">
+        <h2 className="font-serif text-[21px] leading-tight">A linha do tempo</h2>
+        <p className="mt-2 max-w-xl text-[13.5px] leading-relaxed text-tinta2">
+          As horas desta pessoa, na ordem em que aconteceram — ou não
+          aconteceram. Faltar não é só um lançamento financeiro: é o que se leva
+          para a próxima sessão.
+        </p>
+
+        <LinhaDoTempo linhas={tempo.linhas} ausencias={tempo.ausencias} hoje={hoje()} />
+
+        <p className="mt-5 max-w-xl text-[11.5px] leading-relaxed text-tinta3">
+          O sistema conta; quem lê é você. Aqui não há escore, alerta nem
+          rótulo — só o que aconteceu e quando. E a nota existe na hora que{" "}
+          <b className="font-medium">não</b> houve: a evolução da sessão
+          atendida é prontuário, que entra depois, com as resoluções do CFP
+          conferidas.
+        </p>
       </section>
 
       {historico.length > 0 && (

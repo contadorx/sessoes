@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { despacharPendentes } from "@/lib/mensageria/worker";
+import { sincronizarCalendarios } from "@/lib/calendario/sincronia";
 
 /**
  * A porta do worker.
@@ -50,7 +51,25 @@ export async function GET(req: NextRequest) {
 
   try {
     const relatorio = await despacharPendentes(20);
-    return NextResponse.json({ ok: true, ...relatorio });
+
+    // O calendário pega carona nesta passada em vez de ganhar um cron próprio.
+    // Não é economia de arquivo: a Vercel limita a quantidade de crons, e cinco
+    // minutos é exatamente a cadência que um sync de agenda quer — mais rápido
+    // queima cota do provedor, mais devagar deixa a fila oferecer hora ocupada.
+    //
+    // Falha aqui não derruba a resposta do outbox: são duas filas independentes,
+    // e a mensagem que já saiu não deve ser reprocessada porque um token do
+    // Google venceu.
+    let calendario: Awaited<ReturnType<typeof sincronizarCalendarios>> | { erro: string };
+    try {
+      calendario = await sincronizarCalendarios();
+    } catch (e) {
+      const erro = e instanceof Error ? e.message : String(e);
+      console.error("[calendario] a passada falhou", { erro });
+      calendario = { erro };
+    }
+
+    return NextResponse.json({ ok: true, ...relatorio, calendario });
   } catch (e) {
     const motivo = e instanceof Error ? e.message : String(e);
     console.error("[mensageria] a varredura falhou", { motivo });

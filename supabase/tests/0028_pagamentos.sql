@@ -27,6 +27,7 @@ declare
 begin
   -- ---------------------------------------------------------------- preparo
   delete from public.eventos_pagamento where provedor in ('teste','asaas');
+  delete from public.recibos_rfb where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
   delete from public.cobrancas where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
   delete from public.mensagens where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
   delete from public.sessoes where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
@@ -73,6 +74,12 @@ begin
     raise exception '3 FUROU: não marcou paga'; end if;
   if (select confirmado_por from public.cobrancas where id=cob) <> 'provedor' then
     raise exception '3 FUROU: não registrou quem confirmou'; end if;
+
+  -- (B24) a multa de falta não é atendimento prestado: o webhook não pode
+  -- criar pendência de recibo de serviço de saúde para ela.
+  select count(*) into n from public.recibos_rfb where cobranca_id=cob;
+  if n <> 0 then
+    raise exception 'B24 FUROU: o webhook criou pendência de recibo para uma multa de falta'; end if;
 
   -- ---------------------------------------------------------------- 4
   select public.conciliar_pagamento('asaas','ev2','PAYMENT_RECEIVED','pay_001','{}'::jsonb) into r;

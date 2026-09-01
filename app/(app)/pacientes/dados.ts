@@ -4,6 +4,13 @@ import { supabaseSessao } from "@/lib/supabase/server";
 import type { Canal, Estado } from "@/lib/paciente";
 import type { AceiteLinha } from "@/lib/contrato";
 import type { PacoteLinha } from "@/lib/cobranca";
+import type {
+  LinhaDoTempo,
+  PainelAusencias,
+  EstadoSessao,
+} from "@/lib/ausencias";
+import type { RegistroDoPaciente } from "@/lib/registro";
+import type { Anamnese, Aviso } from "@/lib/anamnese";
 
 export type EnquadreLinha = {
   id: string;
@@ -208,4 +215,81 @@ export async function filaDeEntradaDoPaciente(
 
   const f = (linhas ?? [])[0];
   return { naFila: Boolean(f?.ativo), desde: f?.entrou_em ?? null };
+}
+
+/**
+ * A linha do tempo da pessoa (PR8, B27).
+ *
+ * Duas idas ao banco, não uma: a lista e a aritmética têm formatos diferentes e
+ * a segunda percorre a tabela inteira, sem limite. Juntá-las numa consulta só
+ * economizaria uma ida e obrigaria a tela a somar — e soma na tela é soma que
+ * diverge do relatório na semana seguinte.
+ */
+export type LinhaDoTempoDb = {
+  sessao_id: string;
+  inicio: string;
+  dia: string;
+  estado: EstadoSessao;
+  origem: LinhaDoTempo["origem"];
+  valor: string;
+  nota: string | null;
+  nota_em: string | null;
+  cobranca_estado: "aberta" | "paga" | "perdoada" | null;
+  cobranca_tipo: string | null;
+  cobranca_valor: string | null;
+};
+
+export async function linhaDoTempoDoPaciente(
+  id: string,
+): Promise<{ linhas: LinhaDoTempo[]; ausencias: PainelAusencias }> {
+  const supabase = await supabaseSessao();
+
+  const [linhas, ausencias] = await Promise.all([
+    db("paciente.linha_do_tempo", supabase.rpc("linha_do_tempo", { p_paciente: id })) as Promise<unknown>,
+    db("paciente.ausencias", supabase.rpc("ausencias_do_paciente", { p_paciente: id })) as Promise<unknown>,
+  ]);
+
+  return {
+    linhas: ((linhas ?? []) as LinhaDoTempoDb[]) as LinhaDoTempo[],
+    ausencias: ausencias as PainelAusencias,
+  };
+}
+
+/**
+ * O registro do paciente (PR2/PR6, B28).
+ *
+ * Uma ida só: `registro_do_paciente` já devolve os quatro blocos montados,
+ * inclusive a lista das horas que aconteceram e ficaram sem evolução. Montar
+ * isso na tela obrigaria a tela a saber o que é conteúdo mínimo — e o conteúdo
+ * mínimo é norma, não layout.
+ */
+export async function registroDoPaciente(id: string): Promise<RegistroDoPaciente | null> {
+  const supabase = await supabaseSessao();
+  const bruto = await db(
+    "paciente.registro",
+    supabase.rpc("registro_do_paciente", { p_paciente: id }),
+  );
+  return (bruto ?? null) as RegistroDoPaciente | null;
+}
+
+/** A retenção da conta (5 a 20 anos) — entra na conta do prazo de guarda. */
+export async function retencaoDaConta(): Promise<number> {
+  const supabase = await supabaseSessao();
+  const linhas = (await db(
+    "conta.retencao",
+    supabase.from("contas").select("retencao_anos").limit(1),
+  )) as unknown as { retencao_anos: number }[];
+  return linhas?.[0]?.retencao_anos ?? 5;
+}
+
+/** A anamnese e o aviso da terceira (PR3/PR5, B29). */
+export async function anamneseDoPaciente(
+  id: string,
+): Promise<{ anamnese: Anamnese | null; aviso: Aviso }> {
+  const supabase = await supabaseSessao();
+  const [a, av] = await Promise.all([
+    db("paciente.anamnese", supabase.rpc("anamnese_do_paciente", { p_paciente: id })) as Promise<unknown>,
+    db("paciente.aviso_anamnese", supabase.rpc("aviso_de_anamnese", { p_paciente: id })) as Promise<unknown>,
+  ]);
+  return { anamnese: (a ?? null) as Anamnese | null, aviso: av as Aviso };
 }

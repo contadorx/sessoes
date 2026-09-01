@@ -22,7 +22,9 @@ begin
       'excecoes_agenda','fila_encaixe','ofertas','eventos_fila','mensagens',
       'mensagens_recebidas','cobrancas','trilha_acesso','interessados',
       'documentos','contratos','aceites','pacotes','pacote_consumos','remarcacoes',
-      'fila_entrada','vagas_fixas','ofertas_fixas'
+      'fila_entrada','vagas_fixas','ofertas_fixas','despesas','recibos_rfb',
+      'pastas_contador','calendarios','calendarios_segredo','ocupacoes_externas',
+      'espelhos_calendario','registros','evolucoes','anamneses','anamnese_adendos'
     ]) as t
    where to_regclass('public.' || t) is null;
 
@@ -50,7 +52,12 @@ begin
       'pacientes','enquadres','sessoes','fila_encaixe','ofertas',
       'eventos_fila','mensagens','cobrancas','trilha_acesso',
       'documentos','contratos','aceites','pacotes','pacote_consumos','remarcacoes',
-      'fila_entrada','vagas_fixas','ofertas_fixas'
+      'fila_entrada','vagas_fixas','ofertas_fixas','despesas','recibos_rfb',
+      'pastas_contador','calendarios','ocupacoes_externas','espelhos_calendario',
+      'registros','evolucoes'
+      -- `calendarios_segredo` fica DE FORA desta lista de propósito: ela tem
+      -- RLS ligada e **nenhuma** política, e é assim que tem de voltar. Se um
+      -- dia aparecer política nela, é sinal de que alguém abriu o token.
     ]) as t
    where not exists (
      select 1 from pg_policies p
@@ -87,7 +94,26 @@ begin
       'custo_da_remarcacao',
       'abrir_vaga_fixa','fechar_vaga_fixa','elegiveis_para_vaga_fixa',
       'avancar_fila_fixa','responder_oferta_fixa','expirar_ofertas_fixas',
-      'ao_encerrar_enquadre'
+      'ao_encerrar_enquadre',
+      'registrar_recebimento','desfazer_recebimento','sessoes_sem_registro',
+      'financeiro_do_mes','despesa_nao_e_do_futuro',
+      'prazo_do_ano','ao_pagar_gera_recibo_rfb','vencer_recibos_rfb',
+      'marcar_recibo_rfb','dispensar_recibo_rfb','desmarcar_recibo_rfb',
+      'recibos_rfb_a_emitir','receita_saude_do_ano','recibo_rfb_nao_reescreve',
+      'csv_campo','csv_valor','fechar_mes_da_conta','fechar_mes_do_contador',
+      'contas_para_fechar','gerar_pastas_do_dia','pastas_a_enviar',
+      'marcar_pasta_enviada','marcar_pasta_falhou','pasta_nao_muda',
+      'iniciais_do_nome','titulo_do_evento','ligar_calendario','ajustar_calendario',
+      'pausar_calendario','desligar_calendario','guardar_segredo_do_calendario',
+      'registrar_ocupacoes','calendario_falhou','sessao_espelha',
+      'sessao_apagada_espelha','modo_reescreve_o_futuro','espelhos_a_enviar',
+      'marcar_espelho_feito','marcar_espelho_falhou','calendario_do_profissional',
+      'calendarios_a_ler','importar_historico','importada_nao_vira_dinheiro',
+      'nota_so_na_ausencia','anotar_ausencia','linha_do_tempo','ausencias_do_paciente',
+      'salvar_demanda','escrever_evolucao','registro_do_paciente','evolucao_nao_se_reescreve',
+      'roteiro_padrao','abrir_anamnese','salvar_anamnese','fechar_anamnese',
+      'acrescentar_adendo','aviso_de_anamnese','anamnese_do_paciente',
+      'sessoes_ate_fechar_anamnese','anamnese_fechada_nao_muda'
     ]) as f
    where not exists (
      select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -110,7 +136,12 @@ begin
       'documentos_imutaveis','contratos_imutaveis','contratos_carimbo',
       'aceites_montagem','aceites_congelamento',
       'remarcacoes_montagem','remarcacoes_congelamento',
-      'enquadres_abrem_vaga_fixa','fila_entrada_conta_derivada'
+      'enquadres_abrem_vaga_fixa','fila_entrada_conta_derivada',
+      'despesa_no_passado',
+      'cobrancas_geram_recibo_rfb','recibos_rfb_imutaveis','pastas_imutaveis',
+      'sessao_espelha','sessao_apagada_espelha','modo_reescreve_o_futuro',
+      'cobranca_nao_e_de_importada','consumo_nao_e_de_importada',
+      'nota_so_na_ausencia','evolucao_nao_se_reescreve','anamnese_fechada_nao_muda'
     ]) as g
    where not exists (
      select 1 from pg_trigger t
@@ -129,7 +160,8 @@ begin
       'contrato_rascunho_unico','aceite_vivo_do_enquadre',
       'mensalidade_por_competencia','consumo_unico_por_sessao',
       'remarcacao_viva_por_sessao',
-      'vaga_fixa_viva','oferta_fixa_viva','oferta_fixa_por_pessoa'
+      'vaga_fixa_viva','oferta_fixa_viva','oferta_fixa_por_pessoa',
+      'recibo_rfb_por_cobranca','pasta_por_competencia'
     ]) as i
    where to_regclass('public.' || i) is null;
 
@@ -176,6 +208,17 @@ union all select 'pacote_consumos', count(*) from public.pacote_consumos
 union all select 'remarcacoes', count(*) from public.remarcacoes
 union all select 'fila_entrada', count(*) from public.fila_entrada
 union all select 'vagas_fixas', count(*) from public.vagas_fixas
+union all select 'despesas', count(*) from public.despesas
+union all select 'recibos_rfb', count(*) from public.recibos_rfb
+union all select 'pastas_contador', count(*) from public.pastas_contador
+union all select 'calendarios', count(*) from public.calendarios
+union all select 'calendarios_segredo', count(*) from public.calendarios_segredo
+union all select 'ocupacoes_externas', count(*) from public.ocupacoes_externas
+union all select 'espelhos_calendario', count(*) from public.espelhos_calendario
+union all select 'registros', count(*) from public.registros
+union all select 'evolucoes', count(*) from public.evolucoes
+union all select 'anamneses', count(*) from public.anamneses
+union all select 'anamnese_adendos', count(*) from public.anamnese_adendos
 union all select 'trilha_acesso', count(*) from public.trilha_acesso
 union all select 'auth.users', count(*) from auth.users
 order by 1;

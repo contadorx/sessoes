@@ -31,6 +31,7 @@ declare
   base timestamptz; n int; r text; c record; falhou boolean; msg record;
 begin
   -- ---------------------------------------------------------------- preparo
+  delete from public.recibos_rfb where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
   delete from public.cobrancas where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
   delete from public.mensagens where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
   delete from public.eventos_fila where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));

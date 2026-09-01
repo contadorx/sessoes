@@ -9,7 +9,8 @@ export type SessaoLinha = {
   id: string;
   inicio: string;
   fim: string;
-  origem: "recorrencia" | "encaixe" | "avulsa";
+  origem: "recorrencia" | "encaixe" | "avulsa" | "remarcada" | "importada";
+  nota: string | null;
   estado:
     | "prevista"
     | "confirmada"
@@ -43,7 +44,7 @@ export async function sessoesDaSemana(segunda: string): Promise<SessaoLinha[]> {
     supabase
       .from("sessoes")
       .select(
-        "id, inicio, fim, origem, estado, valor, politica_horas, politica_percentual, pacientes ( id, nome, telefone )",
+        "id, inicio, fim, origem, estado, valor, nota, politica_horas, politica_percentual, pacientes ( id, nome, telefone )",
       )
       .gte("inicio", de.toISOString())
       .lt("inicio", ate.toISOString())
@@ -135,7 +136,7 @@ export async function proximasSessoes(dias = 14): Promise<SessaoLinha[]> {
     supabase
       .from("sessoes")
       .select(
-        "id, inicio, fim, origem, estado, valor, politica_horas, politica_percentual, pacientes ( id, nome, telefone )",
+        "id, inicio, fim, origem, estado, valor, nota, politica_horas, politica_percentual, pacientes ( id, nome, telefone )",
       )
       .gte("inicio", de.toISOString())
       .lt("inicio", ate.toISOString())
@@ -191,7 +192,7 @@ export type CobrancaLinha = {
   id: string;
   sessao_id: string | null;
   valor: string;
-  motivo: "cancelada_tarde" | "falta" | "avulsa";
+  motivo: "cancelada_tarde" | "falta" | "avulsa" | "sessao_realizada";
   estado: "aberta" | "paga" | "perdoada" | "cancelada";
   politica_horas: number | null;
   politica_percentual: number | null;
@@ -205,12 +206,19 @@ export type CobrancaLinha = {
  * Traz também as canceladas para que a tela possa dizer "isto já foi desfeito"
  * em vez de sumir com a informação — o histórico do que quase foi cobrado é
  * parte do que faz alguém confiar na régua automática.
+ *
+ * Desde a B23 a **realizada** também entra: é ela que carrega o "recebi", e sem
+ * a cobrança aqui a tela ofereceria o botão de novo para uma hora já
+ * registrada.
  */
 export async function cobrancasDaSemana(
   sessoes: SessaoLinha[],
 ): Promise<Record<string, CobrancaLinha>> {
   const ids = sessoes
-    .filter((s) => s.estado === "cancelada_tarde" || s.estado === "falta")
+    .filter(
+      (s) =>
+        s.estado === "cancelada_tarde" || s.estado === "falta" || s.estado === "realizada",
+    )
     .map((s) => s.id);
 
   if (ids.length === 0) return {};

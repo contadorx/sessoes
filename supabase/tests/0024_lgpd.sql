@@ -18,7 +18,7 @@
 --   8. ficha arquivada não volta atrás nem se edita
 --   9. mas dá para anotar uma restrição judicial que chegou depois
 --  10. apagar paciente não existe
---  11. exportar a conta traz tudo e entra na trilha
+--  11. exportar a conta traz tudo — despesas, recibos e pastas (B23/B24/B25)
 --  12. a retenção lista, nunca elimina sozinha
 --  13. isolamento entre contas
 --  14. o anônimo não lê nem executa
@@ -35,6 +35,9 @@ declare
 begin
   -- ---------------------------------------------------------------- preparo
   delete from public.trilha_acesso where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
+  delete from public.pastas_contador where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
+  delete from public.recibos_rfb where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
+  delete from public.despesas where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
   delete from public.cobrancas where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
   delete from public.mensagens where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
   delete from public.eventos_fila where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
@@ -144,9 +147,23 @@ begin
     raise exception '10 FUROU: apagou o paciente'; end if;
 
   -- ---------------------------------------------------------------- 11
+  -- A despesa é dado dela sobre o próprio dinheiro. Portabilidade é levar
+  -- tudo; sem esta linha, "tudo" seria "quase tudo" — e faltaria justamente o
+  -- pedaço que o contador quer.
+  insert into public.despesas (conta_id,paga_em,categoria,descricao,valor)
+    values (a_conta, public.hoje_sp() - 3, 'aluguel', 'Sala compartilhada', 900.00);
+
   select public.exportar_conta() into j;
   if jsonb_array_length(j->'pacientes') <> 2 then raise exception '11 FUROU: pacientes'; end if;
   if not (j ? 'trilha_acesso') then raise exception '11 FUROU: sem trilha na exportação'; end if;
+  if jsonb_array_length(j->'despesas') <> 1 then
+    raise exception '11 FUROU: a despesa ficou de fora da portabilidade'; end if;
+  if not (j ? 'recibos_rfb') then
+    raise exception '11 FUROU: os recibos do Receita Saúde ficaram de fora (B24)'; end if;
+  if not (j ? 'pastas_contador') then
+    raise exception '11 FUROU: as pastas do contador ficaram de fora (B25)'; end if;
+  if (j->'despesas'->0) ? 'conta_id' then
+    raise exception '11 FUROU: a exportação vazou conta_id na despesa'; end if;
   if (select count(*) from public.trilha_acesso where acao='exportou_conta') <> 1 then
     raise exception '11 FUROU: não registrou'; end if;
 
@@ -166,6 +183,7 @@ begin
   if not falhou then raise exception '13 FUROU: B exportou paciente de A'; end if;
   select public.exportar_conta() into j;
   if jsonb_array_length(j->'pacientes') <> 0 then raise exception '13 FUROU: exportação de B trouxe gente de A'; end if;
+  if jsonb_array_length(j->'despesas') <> 0 then raise exception '13 FUROU: exportação de B trouxe despesa de A'; end if;
 
   -- ---------------------------------------------------------------- 14
   reset role; perform set_config('request.jwt.claims','',true);
@@ -184,6 +202,7 @@ begin
   -- ---------------------------------------------------------------- limpeza
   reset role; perform set_config('request.jwt.claims','',true);
   delete from public.trilha_acesso where conta_id in (a_conta,b_conta);
+  delete from public.despesas where conta_id in (a_conta,b_conta);
   delete from public.mensagens where conta_id in (a_conta,b_conta);
   delete from public.sessoes where conta_id in (a_conta,b_conta);
   delete from public.pacientes where conta_id in (a_conta,b_conta);

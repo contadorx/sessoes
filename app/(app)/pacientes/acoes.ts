@@ -359,3 +359,233 @@ export async function cancelarPacote(_anterior: Resultado, form: FormData): Prom
       "Pacote encerrado e a cobrança em aberto cancelada. Os créditos já usados continuam registrados.",
   };
 }
+
+/**
+ * A nota da hora que não houve (PR8, B27).
+ *
+ * A validação séria mora no gatilho `nota_so_na_ausencia`: é lá que se decide
+ * que evolução de sessão realizada é prontuário, e prontuário é fase 3. Aqui só
+ * se traduz o "não" do banco para uma frase que explique — porque uma recusa
+ * sem motivo, numa caixa de texto, parece defeito.
+ */
+export async function anotarAusencia(
+  _anterior: Resultado,
+  form: FormData,
+): Promise<Resultado> {
+  const sessao = String(form.get("sessao_id") ?? "").trim();
+  const nota = String(form.get("nota") ?? "");
+
+  if (sessao === "") return { estado: "erro", erros: ["Sem sessão."] };
+  if (nota.length > 2000) {
+    return { estado: "erro", erros: ["A nota tem no máximo 2000 caracteres."] };
+  }
+
+  const supabase = await supabaseSessao();
+  try {
+    await db(
+      "paciente.anotar",
+      supabase.rpc("anotar_ausencia", { p_sessao: sessao, p_nota: nota }),
+    );
+  } catch (e) {
+    const m = e instanceof Error ? e.message : String(e);
+    if (/prontuário/i.test(m)) {
+      return {
+        estado: "erro",
+        erros: [
+          "Esta hora aconteceu — e a evolução da sessão atendida é prontuário, que entra na fase 3, depois da conferência das resoluções do CFP. Aqui a nota é da hora que não houve.",
+        ],
+      };
+    }
+    return { estado: "erro", erros: ["Não consegui guardar a nota agora."] };
+  }
+
+  revalidatePath("/pacientes");
+  revalidatePath("/agenda");
+  return { estado: "ok", mensagem: "Guardado." };
+}
+
+/**
+ * O bloco 2 do conteúdo mínimo: a avaliação da demanda (B28).
+ *
+ * A modalidade tem asterisco: ela é conteúdo mínimo desde a Res. CFP 09/2024, e
+ * não um detalhe de preenchimento. O formulário deixa em branco quem não quiser
+ * responder — obrigar produz resposta de fachada, e resposta de fachada num
+ * prontuário é pior que campo vazio.
+ */
+export async function salvarDemanda(_anterior: Resultado, form: FormData): Promise<Resultado> {
+  const paciente = String(form.get("paciente_id") ?? "").trim();
+  const demanda = String(form.get("demanda") ?? "");
+  const objetivos = String(form.get("objetivos") ?? "");
+  const frequencia = String(form.get("frequencia") ?? "");
+  const modalidade = String(form.get("modalidade") ?? "");
+
+  if (paciente === "") return { estado: "erro", erros: ["Sem paciente."] };
+  if (demanda.length > 5000 || objetivos.length > 5000) {
+    return { estado: "erro", erros: ["Texto longo demais para um bloco do registro."] };
+  }
+
+  const supabase = await supabaseSessao();
+  try {
+    await db(
+      "registro.demanda",
+      supabase.rpc("salvar_demanda", {
+        p_paciente: paciente,
+        p_demanda: demanda,
+        p_objetivos: objetivos,
+        p_frequencia: frequencia,
+        p_modalidade: modalidade === "" ? null : modalidade,
+      }),
+    );
+  } catch (e) {
+    return { estado: "erro", erros: [legivelClinico(e)] };
+  }
+
+  revalidatePath("/pacientes");
+  return { estado: "ok", mensagem: "Guardado no registro." };
+}
+
+/** O bloco 3: a evolução da sessão que aconteceu (B28). */
+export async function escreverEvolucao(_anterior: Resultado, form: FormData): Promise<Resultado> {
+  const sessao = String(form.get("sessao_id") ?? "").trim();
+  const texto = String(form.get("texto") ?? "");
+  const camada = String(form.get("camada") ?? "prontuario");
+
+  if (sessao === "") return { estado: "erro", erros: ["Sem sessão."] };
+  if (texto.trim() === "") {
+    return {
+      estado: "erro",
+      erros: ["Evolução em branco não é evolução — o registro não guarda espaço vazio."],
+    };
+  }
+  if (texto.length > 20000) return { estado: "erro", erros: ["Texto longo demais."] };
+
+  const supabase = await supabaseSessao();
+  try {
+    await db(
+      "registro.evolucao",
+      supabase.rpc("escrever_evolucao", {
+        p_sessao: sessao,
+        p_texto: texto,
+        p_camada: camada === "documental" ? "documental" : "prontuario",
+      }),
+    );
+  } catch (e) {
+    return { estado: "erro", erros: [legivelClinico(e)] };
+  }
+
+  revalidatePath("/pacientes");
+  revalidatePath("/agenda");
+  return { estado: "ok", mensagem: "Guardado." };
+}
+
+/**
+ * As recusas do registro chegam prontas do banco, e é assim que tem de ser: a
+ * regra mora lá, e repetir o texto aqui é criar uma segunda verdade que um dia
+ * discorda da primeira. O que esta função faz é só evitar que uma mensagem de
+ * Postgres crua apareça na tela de quem está atendendo.
+ */
+function legivelClinico(e: unknown): string {
+  const m = e instanceof Error ? e.message : String(e);
+  const limpo = m.replace(/^.*?:\s*/, "").trim();
+  return limpo.length > 3 && limpo.length < 400
+    ? limpo.charAt(0).toUpperCase() + limpo.slice(1)
+    : "Não consegui guardar agora.";
+}
+
+// =========================================================== a anamnese (B29)
+
+export async function abrirAnamnese(_anterior: Resultado, form: FormData): Promise<Resultado> {
+  const paciente = String(form.get("paciente_id") ?? "").trim();
+  const modelo = String(form.get("modelo") ?? "adulto");
+  if (paciente === "") return { estado: "erro", erros: ["Sem paciente."] };
+
+  const supabase = await supabaseSessao();
+  try {
+    await db(
+      "anamnese.abrir",
+      supabase.rpc("abrir_anamnese", { p_paciente: paciente, p_modelo: modelo }),
+    );
+  } catch (e) {
+    return { estado: "erro", erros: [legivelClinico(e)] };
+  }
+  revalidatePath("/pacientes");
+  return { estado: "ok", mensagem: "Anamnese aberta com o roteiro do modelo." };
+}
+
+/**
+ * Salvar a anamnese.
+ *
+ * O conteúdo chega como uma lista de seções — título e texto —, e a ordem que
+ * veio da tela é a ordem que se guarda: a estrutura é dela.
+ */
+export async function salvarAnamnese(_anterior: Resultado, form: FormData): Promise<Resultado> {
+  const anamnese = String(form.get("anamnese_id") ?? "").trim();
+  const bruto = String(form.get("conteudo") ?? "[]");
+  const medicacao = String(form.get("medicacao") ?? "");
+  if (anamnese === "") return { estado: "erro", erros: ["Sem anamnese."] };
+
+  let conteudo: { titulo: string; texto: string }[];
+  try {
+    const lido = JSON.parse(bruto);
+    if (!Array.isArray(lido)) throw new Error("não é lista");
+    conteudo = lido.map((s: { titulo?: unknown; texto?: unknown }) => ({
+      titulo: String(s.titulo ?? "").slice(0, 200),
+      texto: String(s.texto ?? "").slice(0, 20000),
+    }));
+  } catch {
+    return { estado: "erro", erros: ["Não consegui ler as seções."] };
+  }
+
+  const supabase = await supabaseSessao();
+  try {
+    await db(
+      "anamnese.salvar",
+      supabase.rpc("salvar_anamnese", {
+        p_anamnese: anamnese,
+        p_conteudo: conteudo,
+        p_medicacao: medicacao,
+      }),
+    );
+  } catch (e) {
+    return { estado: "erro", erros: [legivelClinico(e)] };
+  }
+  revalidatePath("/pacientes");
+  return { estado: "ok", mensagem: "Guardado." };
+}
+
+export async function fecharAnamnese(_anterior: Resultado, form: FormData): Promise<Resultado> {
+  const anamnese = String(form.get("anamnese_id") ?? "").trim();
+  if (String(form.get("confirma") ?? "") !== "fechar") {
+    return { estado: "erro", erros: ['Escreva "fechar" para confirmar — não há como reabrir depois.'] };
+  }
+
+  const supabase = await supabaseSessao();
+  try {
+    await db("anamnese.fechar", supabase.rpc("fechar_anamnese", { p_anamnese: anamnese }));
+  } catch (e) {
+    return { estado: "erro", erros: [legivelClinico(e)] };
+  }
+  revalidatePath("/pacientes");
+  return {
+    estado: "ok",
+    mensagem: "Fechada. O que chegar depois entra como adendo, com a data em que chegou.",
+  };
+}
+
+export async function acrescentarAdendo(_anterior: Resultado, form: FormData): Promise<Resultado> {
+  const anamnese = String(form.get("anamnese_id") ?? "").trim();
+  const texto = String(form.get("texto") ?? "");
+  if (texto.trim() === "") return { estado: "erro", erros: ["Adendo em branco não é adendo."] };
+
+  const supabase = await supabaseSessao();
+  try {
+    await db(
+      "anamnese.adendo",
+      supabase.rpc("acrescentar_adendo", { p_anamnese: anamnese, p_texto: texto }),
+    );
+  } catch (e) {
+    return { estado: "erro", erros: [legivelClinico(e)] };
+  }
+  revalidatePath("/pacientes");
+  return { estado: "ok", mensagem: "Adendo guardado com a data de hoje." };
+}

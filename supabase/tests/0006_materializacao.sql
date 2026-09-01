@@ -63,8 +63,14 @@ begin
           or (inicio at time zone 'America/Sao_Paulo')::time <> time '15:00');
   if n <> 0 then raise exception '3 FUROU: % sessões fora da terça 15h em São Paulo', n; end if;
 
+  -- A 0008 fechou o motor: `materializar_enquadre` não é executável por quem
+  -- está logado (é o cron e os gatilhos que chamam). Este teste é de B5 e
+  -- chamava como `authenticated` — passou a falhar em 0008 e ninguém reparou,
+  -- porque suíte antiga só é lida quando alguém a roda de novo.
+  reset role;
   perform public.materializar_enquadre(a_enq);
   perform public.materializar_enquadre(a_enq);
+  execute 'set local role authenticated';
   select count(*) into n from public.sessoes where enquadre_id = a_enq;
   if n <> esperado then raise exception '4 FUROU: rodar de novo duplicou (%)', n; end if;
 
@@ -101,7 +107,13 @@ begin
 
   select count(*) into n from public.sessoes where enquadre_id = novo_enq and valor = 230.00;
   if n = 0 then raise exception '8 FUROU: o enquadre novo não materializou'; end if;
-  select count(*) into n from public.sessoes where enquadre_id = a_enq and inicio > now();
+  -- Depois do **último dia de vigência**, e não depois de agora: o combinado
+  -- vale até `vigencia_fim` inclusive, então a sessão de hoje mais tarde é
+  -- legítima. Escrito com `now()`, este teste passava seis dias por semana e
+  -- falhava nas terças de manhã — que é o dia da recorrência deste cenário.
+  select count(*) into n from public.sessoes
+   where enquadre_id = a_enq
+     and (inicio at time zone 'America/Sao_Paulo')::date > hoje;
   if n <> 0 then raise exception '8 FUROU: sobraram % previsões do enquadre fechado', n; end if;
 
   falhou := false;
@@ -113,11 +125,18 @@ begin
   exception when exclusion_violation then null; end;
   if falhou then raise exception '9 FUROU: dois pacientes no mesmo horário'; end if;
 
+  -- Guarda o alvo numa variável em vez de procurá-lo depois por `estado =
+  -- 'cancelada_tarde'`: **quem classifica é o banco**, comparando o relógio dele
+  -- com a política (0010/0011), e a primeira sessão do enquadre novo pode estar
+  -- a uma semana de distância — caso em que o cancelamento é, corretamente,
+  -- `cancelada_cedo`. O que esta verificação prova é que a hora vaga aceita
+  -- encaixe, e isso não depende de qual das duas classificações saiu.
+  select id into ex from public.sessoes where enquadre_id = novo_enq order by inicio limit 1;
   update public.sessoes set estado = 'cancelada_tarde', cancelada_em = now(), cancelada_por = 'paciente'
-   where id = (select id from public.sessoes where enquadre_id = novo_enq order by inicio limit 1);
+   where id = ex;
   insert into public.sessoes (conta_id, profissional_id, paciente_id, enquadre_id, inicio, fim, origem, valor)
   select conta_id, profissional_id, paciente_id, null, inicio, fim, 'encaixe', 200.00
-    from public.sessoes where enquadre_id = novo_enq and estado = 'cancelada_tarde' limit 1;
+    from public.sessoes where id = ex;
   select count(*) into n from public.sessoes where origem = 'encaixe';
   if n <> 1 then raise exception '10 FUROU: a vaga cancelada não aceitou encaixe'; end if;
 

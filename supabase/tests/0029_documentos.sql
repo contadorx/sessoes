@@ -4,6 +4,7 @@
 -- o que "correto" significa: um número errado aqui não é um bug de tela — é um
 -- documento assinado por ela dizendo uma coisa que não aconteceu.
 --
+--   0. (B23) o recibo exige recebimento registrado — antes disso, recusa
 --   1. o recibo soma só as sessões REALIZADAS — falta cobrada não é atendimento
 --   2. o retrato congela quem é quem, com CRP e CPF
 --   3. a declaração de comparecimento não fala de dinheiro
@@ -31,6 +32,10 @@ begin
   -- ---------------------------------------------------------------- preparo
   delete from public.documentos where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
   delete from public.trilha_acesso where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
+  delete from public.recibos_rfb where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
+  delete from public.despesas where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
+  delete from public.pacote_consumos where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
+  delete from public.pacotes where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
   delete from public.cobrancas where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
   delete from public.mensagens where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
   delete from public.sessoes where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
@@ -68,6 +73,28 @@ begin
   insert into public.sessoes (conta_id,profissional_id,paciente_id,inicio,fim,origem,estado,valor,politica_horas,politica_percentual)
   values (a_conta,a_prof,maria, (((base+3)::timestamp + time '15:00') at time zone 'America/Sao_Paulo'),
           (((base+3)::timestamp + time '15:50') at time zone 'America/Sao_Paulo'),'avulsa','falta',200.00,24,50);
+
+  -- ---------------------------------------------------------------- 0
+  -- Mudou na B23: um recibo declara que o dinheiro entrou. A B17 emitia direto
+  -- da agenda, e era a assimetria que a 0034 deixou anotada. Agora os dois
+  -- lados — avulso e mensalista — exigem pagamento registrado.
+  falhou := false;
+  begin perform public.emitir_documento(maria,'recibo',base-1,base+30);
+  exception when others then
+    falhou := true;
+    if sqlerrm not like '%pagamento registrado%' then raise; end if;
+  end;
+  if not falhou then
+    raise exception '0 FUROU: emitiu recibo sem nenhum recebimento registrado'; end if;
+
+  for doc in select id from public.sessoes
+              where paciente_id=maria and estado='realizada' loop
+    perform public.registrar_recebimento(doc.id, base+16);
+  end loop;
+
+  -- (B24) cada pagamento registrado vira uma pendência de recibo na Receita.
+  select count(*) into n from public.recibos_rfb where conta_id=a_conta and estado='pendente';
+  if n <> 3 then raise exception 'B24 FUROU: % pendências de recibo para 3 pagamentos', n; end if;
 
   -- ---------------------------------------------------------------- 1
   select public.emitir_documento(maria,'recibo',base-1,base+30) into d1;
@@ -166,6 +193,9 @@ begin
   insert into public.sessoes (conta_id,profissional_id,paciente_id,inicio,fim,origem,estado,valor,politica_horas,politica_percentual)
   values (b_conta,b_prof,b_pac, (((base+1)::timestamp + time '10:00') at time zone 'America/Sao_Paulo'),
           (((base+1)::timestamp + time '10:50') at time zone 'America/Sao_Paulo'),'avulsa','realizada',300.00,24,50);
+  for doc in select id from public.sessoes where paciente_id=b_pac and estado='realizada' loop
+    perform public.registrar_recebimento(doc.id, base+16);
+  end loop;
   select public.emitir_documento(b_pac,'recibo',base-1,base+30) into d1;
   if (select numero from public.documentos where id=d1) <> 1 then
     raise exception '11 FUROU: a numeração de B seguiu a de A'; end if;
@@ -184,6 +214,8 @@ begin
   reset role; perform set_config('request.jwt.claims','',true);
   delete from public.documentos where conta_id in (a_conta,b_conta);
   delete from public.trilha_acesso where conta_id in (a_conta,b_conta);
+  delete from public.recibos_rfb where conta_id in (a_conta,b_conta);
+  delete from public.cobrancas where conta_id in (a_conta,b_conta);
   delete from public.sessoes where conta_id in (a_conta,b_conta);
   delete from public.pacientes where conta_id in (a_conta,b_conta);
   delete from auth.users where id in (a_auth,b_auth);
