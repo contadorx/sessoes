@@ -14,6 +14,13 @@ import {
   sinaisDaConta,
   mesPorExtenso,
   type ContaNoPainel,
+  acoesDaAssinatura,
+  ROTULO_ACAO_ASSINATURA,
+  acoesDaFatura,
+  rotuloFatura,
+  motivoValido,
+  somaDosCustos,
+  precoVigente,
 } from "./negocio";
 
 const conta = (p: Partial<ContaNoPainel> = {}): ContaNoPainel => ({
@@ -272,5 +279,97 @@ describe("rótulos e datas", () => {
     // caractere invisível. Lição antiga da casa.
     expect(reais(6900)).toContain("69,00");
     expect(reais(0)).toContain("0,00");
+  });
+});
+
+// ============================================ a operação (OP5)
+
+describe("acoesDaAssinatura — a tela não oferece o que o banco vai recusar", () => {
+  it("sem assinatura, só abrir", () => {
+    expect(acoesDaAssinatura("sem_assinatura")).toEqual(["abrir"]);
+  });
+
+  it("cancelada, só abrir outra — cancelada não revive", () => {
+    // O gatilho `assinatura_carimba` levanta exceção em cancelada → ativa
+    // desde a 0045. Oferecer "reativar" seria um botão que só sabe falhar.
+    expect(acoesDaAssinatura("cancelada")).toEqual(["abrir"]);
+    expect(acoesDaAssinatura("cancelada")).not.toContain("mudar_plano");
+  });
+
+  it("viva, nunca oferece abrir — o índice barra a segunda", () => {
+    for (const e of ["trial", "ativa", "em_atraso"] as const) {
+      expect(acoesDaAssinatura(e), e).not.toContain("abrir");
+      expect(acoesDaAssinatura(e)).toContain("cancelar");
+      expect(acoesDaAssinatura(e)).toContain("emitir_fatura");
+    }
+  });
+
+  it("toda ação tem rótulo", () => {
+    for (const a of acoesDaAssinatura("ativa")) {
+      expect(ROTULO_ACAO_ASSINATURA[a].length).toBeGreaterThan(3);
+    }
+  });
+});
+
+describe("acoesDaFatura — paga não se cancela, estorna", () => {
+  it("pendente e vencida: baixar ou cancelar", () => {
+    expect(acoesDaFatura("pendente")).toEqual(["baixar", "cancelar"]);
+    expect(acoesDaFatura("vencida")).toEqual(["baixar", "cancelar"]);
+  });
+
+  it("paga só estorna — e nunca oferece cancelar", () => {
+    // Cancelar uma fatura paga apagaria receita que entrou. O caminho honesto
+    // é o estorno, que registra que o dinheiro voltou.
+    expect(acoesDaFatura("paga")).toEqual(["estornar"]);
+    expect(acoesDaFatura("paga")).not.toContain("cancelar");
+  });
+
+  it("o que saiu do fluxo não volta", () => {
+    expect(acoesDaFatura("cancelada")).toEqual([]);
+    expect(acoesDaFatura("estornada")).toEqual([]);
+  });
+
+  it("todo estado tem rótulo em português", () => {
+    for (const e of ["pendente", "paga", "vencida", "cancelada", "estornada"] as const) {
+      expect(rotuloFatura(e)).not.toMatch(/_/);
+    }
+  });
+});
+
+describe("motivoValido — o churn precisa de causa", () => {
+  it("menos de cinco caracteres não passa, aqui e no banco", () => {
+    expect(motivoValido("")).toBe(false);
+    expect(motivoValido("caro")).toBe(false);
+    expect(motivoValido("   ok    ")).toBe(false);
+  });
+
+  it("cinco passa", () => {
+    expect(motivoValido("achou caro")).toBe(true);
+  });
+});
+
+describe("somaDosCustos e precoVigente", () => {
+  it("soma em inteiro — centavo não passa por float", () => {
+    expect(somaDosCustos([{ centavos: 12000 }, { centavos: 3390 }, { centavos: 1 }])).toBe(15391);
+    expect(somaDosCustos([])).toBe(0);
+  });
+
+  it("o preço vigente é o mais recente que já começou", () => {
+    const p = [
+      { vigencia_inicio: "2026-01-01", centavos_milesimos: 5000 },
+      { vigencia_inicio: "2026-06-01", centavos_milesimos: 7000 },
+      { vigencia_inicio: "2027-01-01", centavos_milesimos: 9000 },
+    ];
+    expect(precoVigente(p, "2026-03-15")).toBe(5000);
+    expect(precoVigente(p, "2026-06-01")).toBe(7000);
+    expect(precoVigente(p, "2026-12-31")).toBe(7000);
+  });
+
+  it("sem preço declarado devolve nulo, e nulo NÃO é zero", () => {
+    // Zero diria que a mensagem foi de graça, e o painel mostraria margem
+    // cheia num mês em que eu só esqueci de cadastrar o preço. É a mesma
+    // família do LTV infinito: ausência de dado vestida de resultado.
+    expect(precoVigente([{ vigencia_inicio: "2026-06-01", centavos_milesimos: 7000 }], "2026-01-01")).toBeNull();
+    expect(precoVigente([], "2026-01-01")).toBeNull();
   });
 });

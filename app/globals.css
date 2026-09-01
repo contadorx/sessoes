@@ -10,7 +10,17 @@
   --color-folha2: #F5F7F3;
   --color-tinta: #1F262A;
   --color-tinta2: #57625F;
-  --color-tinta3: #87918D;
+  /* Escurecido em 01/09/2026 (de #87918D). O tom antigo dava 2,78:1 sobre o
+     papel — abaixo do mínimo de 4,5:1 da WCAG AA para texto normal —, e ele
+     carregava justamente as frases que mais importam para quem está decidindo:
+     "o plano Grátis não expira", "sem contrato de fidelidade". Ficava elegante
+     e não se lia.
+
+     Este passa em todos os três fundos (papel 4,72 · folha 5,52 · folha2
+     5,12). O custo é que a distância para o `tinta2` encolheu — a hierarquia
+     entre texto de apoio e texto secundário passa a ser feita por tamanho e
+     peso, que é onde ela deveria estar desde o começo. */
+  --color-tinta3: #616B67;
   --color-linha: #D9DED6;
   --color-linha2: #C0C7BC;
 

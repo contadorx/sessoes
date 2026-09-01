@@ -4,6 +4,27 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 type Estado = "na_fila" | "ofertando" | "recusou" | "aceitou" | "fora";
 
+/**
+ * A fila da demonstração, depois da segunda auditoria — e ela mudou por dois
+ * motivos, os dois graves.
+ *
+ * **1. "11 dias sem sessão" contradizia a própria página.** Duas seções abaixo
+ * está escrito "não opinamos sobre frequência", e o Código de Ética veda
+ * induzir alguém a recorrer aos serviços. Ordenar pessoas por tempo sem
+ * atendimento transforma frequência em critério operacional — e mesmo sendo a
+ * psicóloga quem configura a regra, a demonstração fazia o **sistema** parecer
+ * decidir quem "precisa" ser atendido antes. Numa landing, o que se demonstra
+ * é o que se promete.
+ *
+ * **2. Nomes completos numa página que vende minimização de dados.** São
+ * fictícios, e não é esse o ponto: uma demonstração de discrição que exibe
+ * "João Pedro Salles" na tela ensina o contrário do que a seção ao lado
+ * defende. Agora são iniciais — a mesma forma que a figura da hero já usava.
+ *
+ * O que ficou no lugar do tempo de espera é o que de fato decide: **a ordem
+ * que ela definiu** e **a disponibilidade que a pessoa informou**. O sistema
+ * respeita as duas e não sabe de mais nada.
+ */
 const FILA: {
   nome: string;
   janela: string;
@@ -12,28 +33,28 @@ const FILA: {
   motivo?: string;
 }[] = [
   {
-    nome: "Caio Nogueira",
+    nome: "C. N.",
     janela: "terça ou quarta, à tarde",
-    espera: "11 dias sem sessão",
+    espera: "1ª na ordem",
     cabe: true,
   },
   {
-    nome: "João Pedro Salles",
+    nome: "J. P. S.",
     janela: "qualquer dia, depois das 14h",
-    espera: "6 dias sem sessão",
+    espera: "2ª na ordem",
     cabe: true,
   },
   {
-    nome: "Bia Nogueira",
+    nome: "B. N.",
     janela: "só pela manhã",
-    espera: "4 dias sem sessão",
+    espera: "3ª na ordem",
     cabe: false,
     motivo: "fora da janela",
   },
   {
-    nome: "Rafael Tomé",
+    nome: "R. T.",
     janela: "qualquer horário",
-    espera: "em férias até 14/09",
+    espera: "em pausa até 14/09",
     cabe: false,
     motivo: "em pausa",
   },
@@ -51,27 +72,27 @@ const PASSOS: Passo[] = [
   {
     ms: 900,
     hora: "11:46",
-    texto: "Oferta discreta enviada ao Caio — 11 dias sem sessão.",
-    estados: { "Caio Nogueira": "ofertando" },
+    texto: "Oferta discreta enviada à primeira da ordem que cabe na janela.",
+    estados: { "C. N.": "ofertando" },
   },
   {
     ms: 2600,
     hora: "11:52",
-    texto: "Caio não consegue hoje. Segue na fila para a próxima.",
-    estados: { "Caio Nogueira": "recusou" },
+    texto: "C. N. não consegue hoje. Segue na fila para a próxima.",
+    estados: { "C. N.": "recusou" },
   },
   {
     ms: 3400,
     hora: "11:52",
-    texto: "Oferta enviada ao João Pedro — 6 dias sem sessão.",
-    estados: { "Caio Nogueira": "recusou", "João Pedro Salles": "ofertando" },
+    texto: "A vez passa para a segunda da ordem. Uma pessoa por vez, sempre.",
+    estados: { "C. N.": "recusou", "J. P. S.": "ofertando" },
   },
   {
     ms: 5400,
     hora: "11:58",
-    texto: "João Pedro confirmou. A terça das 15h está preenchida.",
+    texto: "J. P. S. confirmou. A terça das 15h está preenchida.",
     bom: true,
-    estados: { "Caio Nogueira": "recusou", "João Pedro Salles": "aceitou" },
+    estados: { "C. N.": "recusou", "J. P. S.": "aceitou" },
   },
 ];
 
@@ -137,8 +158,9 @@ export function Cascata() {
       {/* a fila */}
       <div>
         <div className="rounded-cartao border border-linha bg-folha2 px-4 py-3 text-[12.5px] leading-relaxed text-tinta2">
-          <b className="font-semibold text-tinta">Regra de prioridade:</b> quem
-          está há mais tempo sem sessão — definida por ela, no cadastro. A fila
+          <b className="font-semibold text-tinta">A ordem é definida por você.</b>{" "}
+          O Sessões respeita essa ordem, confere a disponibilidade que a pessoa
+          informou, e oferece o horário a uma pessoa por vez. A fila
           nunca vira leilão: dinheiro não compra posição.
         </div>
 
@@ -239,7 +261,7 @@ export function Cascata() {
         >
           <p className="text-[12.5px] leading-relaxed text-tinta2">
             {fechou
-              ? "Você não pediu nada a ninguém, não mandou mensagem e não negociou. Recebeu um aviso dizendo que a terça das 15h agora é do João Pedro."
+              ? "Você não pediu nada a ninguém, não mandou mensagem e não negociou. Recebeu um aviso dizendo que a terça das 15h está preenchida."
               : "A hora vazia continua vazia."}
           </p>
           <span

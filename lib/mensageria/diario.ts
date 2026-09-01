@@ -23,6 +23,7 @@ export type RelatorioDiario = {
   regua: number;
   vencidos: number;
   pastas: number;
+  faturas_vencidas: number;
   expurgadas: number;
 };
 
@@ -70,10 +71,21 @@ export async function passadaDiaria(): Promise<RelatorioDiario> {
   const pastas =
     (await db<number>("diario.pastas", supabase.rpc("gerar_pastas_do_dia"))) ?? 0;
 
+  // As minhas faturas, não as dela (OP5). Não cobra ninguém e não avisa
+  // ninguém: só troca `pendente` por `vencida` no que passou da data, para o
+  // painel parar de contar como esperado o que já não é. Enquanto a cobrança
+  // da assinatura for manual, este é o único passo automático do meu lado — e
+  // ele é de leitura da realidade, não de ação sobre a cliente.
+  const faturas_vencidas =
+    (await db<number>("diario.vencer_faturas", supabase.rpc("vencer_faturas"))) ?? 0;
+
   const expurgadas =
     (await db<number>("diario.expurgar", supabase.rpc("expurgar_mensagens", {
       p_dias: DIAS_DE_RETENCAO,
     }))) ?? 0;
 
-  return { materializadas, lembretes, mensalidades, regua, vencidos, pastas, expurgadas };
+  return {
+    materializadas, lembretes, mensalidades, regua, vencidos, pastas,
+    faturas_vencidas, expurgadas,
+  };
 }

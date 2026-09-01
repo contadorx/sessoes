@@ -242,3 +242,105 @@ export function mesPorExtenso(iso: string): string {
   const [ano, mes] = iso.slice(0, 10).split("-");
   return `${meses[Number(mes) - 1]} de ${ano}`;
 }
+
+// ============================================ a operação (OP5)
+
+/**
+ * O que se pode fazer com uma assinatura, dado o estado dela.
+ *
+ * Existe porque a tela mostrava oito números e nenhum botão, e a primeira
+ * versão dos botões oferecia tudo em tudo: "cancelar" numa assinatura já
+ * cancelada, "emitir fatura" numa que não existe. Oferecer e recusar depois é
+ * pior que não oferecer — a pessoa clica, lê um erro que ela não causou, e
+ * passa a desconfiar do botão do lado.
+ *
+ * A regra é a do banco (migração 0050), repetida aqui para a tela não precisar
+ * adivinhar. Se as duas discordarem, o banco ganha e o sintoma é um erro
+ * legível, não uma escrita errada.
+ */
+export type AcaoDeAssinatura = "abrir" | "mudar_plano" | "cancelar" | "emitir_fatura";
+
+export function acoesDaAssinatura(estado: EstadoAssinatura): AcaoDeAssinatura[] {
+  if (estado === "sem_assinatura") return ["abrir"];
+  if (estado === "cancelada") return ["abrir"];
+  // trial, ativa e em_atraso são todas "vivas": mudam de plano, cancelam e
+  // faturam. O índice `assinatura_viva_por_conta` é quem impede a segunda.
+  return ["mudar_plano", "cancelar", "emitir_fatura"];
+}
+
+export const ROTULO_ACAO_ASSINATURA: Record<AcaoDeAssinatura, string> = {
+  abrir: "Abrir assinatura",
+  mudar_plano: "Mudar de plano",
+  cancelar: "Cancelar",
+  emitir_fatura: "Emitir fatura do mês",
+};
+
+export type EstadoFatura = "pendente" | "paga" | "vencida" | "cancelada" | "estornada";
+
+export function rotuloFatura(e: EstadoFatura): string {
+  switch (e) {
+    case "pendente": return "aguardando";
+    case "paga": return "paga";
+    case "vencida": return "vencida";
+    case "cancelada": return "cancelada";
+    case "estornada": return "estornada";
+  }
+}
+
+/**
+ * O que se faz com uma fatura. Paga não se cancela — estorna; e o que já
+ * saiu do fluxo (cancelada, estornada) não volta.
+ */
+export type AcaoDeFatura = "baixar" | "estornar" | "cancelar";
+
+export function acoesDaFatura(e: EstadoFatura): AcaoDeFatura[] {
+  if (e === "pendente" || e === "vencida") return ["baixar", "cancelar"];
+  if (e === "paga") return ["estornar"];
+  return [];
+}
+
+/**
+ * O motivo é obrigatório em cancelamento e estorno, e o mínimo é cinco
+ * caracteres — o mesmo do banco.
+ *
+ * Não é burocracia: o churn é o número que decide o roadmap, e um churn sem
+ * causa não muda decisão nenhuma. "Cancelou" não ensina; "cancelou porque
+ * parou de atender" e "cancelou porque achou caro" mandam construir coisas
+ * opostas.
+ */
+export function motivoValido(motivo: string): boolean {
+  return motivo.trim().length >= 5;
+}
+
+export function fraseDoMotivoCurto(): string {
+  return "Escreva o motivo — cancelamento sem causa vira um número que não ensina nada.";
+}
+
+/**
+ * A soma dos custos fixos de um mês, em centavos.
+ *
+ * Some inteiros e devolve inteiro: custo fixo já é centavo, e passar por
+ * `float` aqui seria a mesma classe de erro que a B1 proibiu no dinheiro da
+ * psicóloga. Vale para o meu dinheiro também.
+ */
+export function somaDosCustos(linhas: { centavos: number }[]): number {
+  return linhas.reduce((s, l) => s + l.centavos, 0);
+}
+
+/**
+ * O preço vigente de um canal numa data — a mesma cascata do banco.
+ *
+ * Pega a vigência mais recente que não é posterior ao dia. Devolve `null`
+ * quando não há preço declarado antes daquela data, e isso **não é zero**:
+ * zero seria dizer que a mensagem foi de graça, e o painel passaria a mostrar
+ * margem cheia num mês em que eu simplesmente esqueci de cadastrar o preço.
+ */
+export function precoVigente(
+  precos: { vigencia_inicio: string; centavos_milesimos: number }[],
+  dia: string,
+): number | null {
+  const validos = precos
+    .filter((p) => p.vigencia_inicio <= dia)
+    .sort((a, b) => (a.vigencia_inicio < b.vigencia_inicio ? 1 : -1));
+  return validos.length > 0 ? validos[0].centavos_milesimos : null;
+}

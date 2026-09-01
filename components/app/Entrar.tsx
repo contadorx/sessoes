@@ -11,7 +11,21 @@ export function Entrar() {
   const params = useSearchParams();
   const proxima = params.get("proxima") ?? "/agenda";
 
-  const [modo, setModo] = useState<Modo>("entrar");
+  /**
+   * Qual aba abre primeiro.
+   *
+   * `?criar` abre em "Criar conta", e é para onde o "Começar de graça" da
+   * landing aponta. Sem isso, a promessa da hero ("a conta se cria agora")
+   * caía numa tela de login com a aba errada selecionada — e um formulário de
+   * senha em branco, para quem nunca teve conta, se lê como "você precisa de
+   * algo que não tem".
+   *
+   * O parâmetro é lido uma vez, no estado inicial: se a pessoa trocar de aba
+   * na mão, a URL não a arrasta de volta.
+   */
+  const [modo, setModo] = useState<Modo>(
+    params.get("criar") !== null ? "cadastrar" : "entrar",
+  );
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   reais,
   fraseDaOrigem,
@@ -75,9 +76,15 @@ export function PainelNegocio({
 
   return (
     <>
-      <header className="mb-5">
+      <header className="mb-5 flex flex-wrap items-baseline gap-x-4">
         <h1 className="text-[21px] font-semibold text-tinta">O negócio</h1>
-        <p className="mt-1 text-[13px] text-tinta2">
+        <Link
+          href="/negocio/custos"
+          className="text-[12.5px] text-tinta2 underline decoration-linha2 underline-offset-4 hover:text-vaga"
+        >
+          custos e preço por mensagem
+        </Link>
+        <p className="w-full text-[13px] text-tinta2">
           {mesPorExtenso(painel.mes)} · esta é a única tela do sistema que não é dela, e ela{" "}
           <b className="font-medium text-tinta">não alcança prontuário</b> — conta sessões, não
           sabe de quem.
@@ -174,7 +181,15 @@ export function PainelNegocio({
                       }`}
                     >
                       <td className="py-2 pr-3">
-                        <span className="font-medium text-tinta">{c.nome}</span>
+                        {/* O nome leva à ficha. Era a peça que faltava: o
+                            painel dizia "quanto" e não havia para onde clicar
+                            quando eu queria saber "o quê". */}
+                        <Link
+                          href={`/negocio/${c.conta_id}`}
+                          className="font-medium text-tinta underline decoration-linha2 underline-offset-4 hover:text-vaga"
+                        >
+                          {c.nome}
+                        </Link>
                         {c.is_teste && (
                           <span className="ml-1.5 rounded-full border border-linha2 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-tinta3">
                             teste

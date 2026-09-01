@@ -3,6 +3,7 @@ import { Marca } from "@/components/site/Marca";
 import { Cascata } from "@/components/site/Cascata";
 import { Discricao } from "@/components/site/Discricao";
 import { Espera } from "@/components/site/Espera";
+import { Telas } from "@/components/site/Telas";
 import {
   AgendaEExtrato,
   CincoLugares,
@@ -77,7 +78,7 @@ function Secao({
       id={id}
       className={`scroll-mt-16 border-t border-linha ${fundo === "folha" ? "bg-folha2" : ""}`}
     >
-      <div className="mx-auto max-w-5xl px-5 py-14 sm:px-8 sm:py-20">
+      <div className="mx-auto max-w-5xl px-5 py-12 sm:px-8 sm:py-16">
         <span className="flex items-center gap-2.5">
           <Fio className="shrink-0" />
           <span className="rotulo">{rotulo}</span>
@@ -93,6 +94,32 @@ function Secao({
         {children && <div className="mt-8">{children}</div>}
       </div>
     </section>
+  );
+}
+
+/**
+ * O que sai da leitura corrida sem sair da página.
+ *
+ * A segunda auditoria mediu o problema: 31 títulos, ~9.600px, e a tese forte
+ * diluída numa sucessão de explicações — *"hoje ela recebe cerca de quinze
+ * mensagens concorrentes"*. Mas nada aqui era mentira nem enfeite: era detalhe
+ * que a psicóloga cuidadosa vai querer, na hora em que ela quiser.
+ *
+ * Então o corte não apaga: recolhe. Fica visível o que decide, e a um clique o
+ * que confirma. `<details>` nativo — sem JavaScript, e o conteúdo continua no
+ * HTML para quem lê com leitor de tela e para quem indexa a página.
+ */
+function Mais({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
+  return (
+    <details className="group mt-6">
+      <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 text-[13px] font-medium text-tinta2 underline decoration-linha2 underline-offset-4 transition-colors hover:text-vaga">
+        {rotulo}
+        <span aria-hidden className="text-[11px] transition-transform group-open:rotate-90">
+          ›
+        </span>
+      </summary>
+      <div className="mt-5">{children}</div>
+    </details>
   );
 }
 
@@ -123,11 +150,31 @@ function Cartao({
  * resultado — quem escolhe software por isso está comparando planilha com
  * planilha.
  */
+/**
+ * **O que saiu do Pro, e por quê.** A lista dele trazia "acesso separado para
+ * secretaria e administração" como recurso pago. A segunda auditoria matou o
+ * argumento numa frase: *"não se deve cobrar pela proteção mínima que impede a
+ * secretária de ler prontuário"*.
+ *
+ * E ela está certa, com uma consequência técnica boa: a migração 0049 pôs esse
+ * isolamento na **RLS**, não numa condicional de plano — a secretária de uma
+ * conta Grátis já não lê evolução hoje, e não haveria como cobrar por isso sem
+ * construir de propósito um jeito de desligar a proteção. O que se cobra no
+ * Pro passa a ser o que de fato é trabalho a mais: matriz de permissões e
+ * aprovação em etapas.
+ *
+ * **E o Solo ganhou um rótulo factual.** A borda colorida sugeria recomendação
+ * sem dizer nada; "a maioria" saiu na primeira auditoria porque afirmava um
+ * fato sobre uma base que não existe. O que ficou descreve para quem o plano é,
+ * que é verdade no dia em que a primeira pessoa assina.
+ */
 const PLANOS = [
   {
     nome: "Grátis",
     preco: "R$ 0",
     detalhe: "para sempre",
+    cta: "Criar conta grátis",
+    href: "/entrar?criar",
     linhas: [
       "Agenda, prontuário e o registro do que aconteceu com cada horário",
       "Lembrete de véspera e aviso de desmarque, sem limite",
@@ -140,29 +187,40 @@ const PLANOS = [
     preco: "R$ 69",
     detalhe: "por mês",
     destaque: true,
+    selo: "para quem atende sozinha",
+    cta: "Começar no Solo",
+    href: "/entrar?criar",
+    // A ordem importa: quem chegou por agenda, Pix e recibo lê o primeiro item
+    // como resumo do plano. "Receita por hora disponível" abrindo a lista
+    // reintroduzia o vocabulário financeiro que a hero passou a evitar — vai
+    // por último, onde é consequência e não porta de entrada.
     linhas: [
-      "Receita por hora disponível e o que aconteceu com cada horário",
-      "Fila e cobrança sem teto de mensagens",
       "Pix comparado com as sessões previstas",
-      "Cobrança proposta com a política congelada",
+      "Fila e cobrança sem teto de mensagens",
       "Modo Receita Saúde e pasta do contador",
+      "Cobrança proposta com a política congelada",
+      "Receita por hora disponível e o que aconteceu com cada horário",
     ],
   },
   {
     nome: "Pro",
     preco: "R$ 129",
     detalhe: "por mês",
+    cta: "Começar no Pro",
+    href: "/entrar?criar",
     linhas: [
       "Tudo do Solo",
       "NFS-e e a ramificação PJ, sem pendência falsa",
       "Página do paciente: confirmar, pagar e receber documento — sem nenhum campo clínico",
-      "Acesso separado para secretaria e administração",
+      "Permissões por pessoa: quem vê o quê, com aprovação em etapas",
     ],
   },
   {
     nome: "Clínica",
     preco: "R$ 249",
-    detalhe: "+ R$ 39 por profissional",
+    detalhe: "+ R$ 39 por profissional que atende",
+    cta: "Conversar sobre a clínica",
+    href: "/#conversa",
     linhas: [
       "Repasse e demonstrativo",
       "Agenda de salas",
@@ -172,32 +230,6 @@ const PLANOS = [
   },
 ];
 
-const FRONTEIRAS = [
-  [
-    "Não entramos na sala.",
-    "Nada de gravar paciente, transcrever sessão ou IA opinando sobre diagnóstico, conduta ou risco.",
-  ],
-  [
-    "Não opinamos sobre frequência.",
-    "O Código de Ética veda induzir alguém a recorrer aos seus serviços e prolongar desnecessariamente o atendimento. Nenhuma tela aqui sugere que alguém podia vir mais vezes.",
-  ],
-  [
-    "Não reativamos ex-paciente, e não damos desconto para vender horário parado.",
-    "Preço não é propaganda, e vínculo clínico não é lista de remarketing.",
-  ],
-  [
-    "Não vendemos pacientes.",
-    "Não somos marketplace, não rankeamos profissional e não intermediamos demanda.",
-  ],
-  [
-    "A fila não é leilão.",
-    "A regra de prioridade é clínica e é sua. Dinheiro não compra posição.",
-  ],
-  [
-    "O contador vê finanças, nunca clínica. E quem trabalha com você também.",
-    "Acesso clínico é uma decisão separada do cargo: quem marca a agenda não precisa ler a sessão. Minimização de dados por construção, não por promessa.",
-  ],
-];
 
 export default function Home() {
   return (
@@ -221,11 +253,20 @@ export default function Home() {
           >
             Preço
           </a>
+          {/* Duas ações, e não uma. "Entrar" sozinho no topo parece destinado
+              a quem já é cliente — e era a única porta visível para quem
+              rolava a página inteira e decidia experimentar no fim. */}
           <Link
             href="/entrar"
-            className="rounded-full border border-linha2 px-4 py-1.5 text-[12.5px] font-medium text-tinta2 transition-colors hover:border-vaga hover:text-vaga"
+            className="text-[12.5px] font-medium text-tinta2 transition-colors hover:text-vaga"
           >
-            Entrar
+            Já tenho conta
+          </Link>
+          <Link
+            href="/entrar?criar"
+            className="rounded-full bg-vaga px-4 py-1.5 text-[12.5px] font-semibold text-white transition-opacity hover:opacity-90"
+          >
+            Criar conta grátis
           </Link>
         </div>
       </header>
@@ -253,9 +294,18 @@ export default function Home() {
                   deixa de ser um degrau. Uma hero de cinco linhas em serif
                   pesada não é ênfase — é a página inteira gritando a primeira
                   frase e sussurrando o resto. */}
+              {/* **A marca saiu de dentro da frase.** "No fim do mês, o
+                  Sessões. junta tudo" põe um ponto final no meio de uma
+                  oração, e o leitor não perdoa isso no maior texto da página —
+                  lê como erro de digitação, não como assinatura.
+
+                  A regra que fica: "Sessões." com ponto é **assinatura** (topo,
+                  rodapé, ícone). Dentro de uma frase, ou o nome vem sem ponto,
+                  ou a frase se escreve sem precisar dele. Aqui escolhi a
+                  segunda: a hero ganhou um verbo melhor e perdeu a muleta. */}
               <h1 className="max-w-[20ch] font-serif text-[34px] leading-[1.1] tracking-[-0.02em] text-balance sm:text-[46px]">
-                Sua agenda diz uma coisa. O Pix, outra. No fim do mês, o{" "}
-                <Marca peso="texto" /> junta tudo.
+                Sua agenda diz uma coisa. O Pix, outra. No fim do mês, tudo
+                precisa bater.
               </h1>
 
               <p className="mt-6 max-w-[54ch] text-[16px] leading-relaxed text-tinta2 sm:text-[17px]">
@@ -294,10 +344,10 @@ export default function Home() {
             <div className="lg:col-start-1 lg:row-start-2">
               <div className="flex flex-wrap items-center gap-4">
                 <Link
-                  href="/entrar"
+                  href="/entrar?criar"
                   className="rounded-full bg-vaga px-6 py-3 text-[13.5px] font-semibold text-white transition-opacity hover:opacity-90"
                 >
-                  Começar de graça
+                  Criar conta grátis
                 </Link>
                 <a
                   href="#mes"
@@ -328,7 +378,7 @@ export default function Home() {
           linha="Agenda num app, pagamento no extrato, recibo no site da Receita, controle numa planilha e o resto no WhatsApp. Aqui a sessão carrega tudo — quem confirmou, quem pagou, quem tem recibo, o que ficou a receber."
           fundo="folha"
         >
-          <figure className="mb-10 rounded-cartao border border-linha bg-folha p-5 sm:p-7">
+          <figure className="mb-8 rounded-cartao border border-linha bg-folha p-5 sm:p-6">
             <CincoLugares className="mx-auto h-auto w-full max-w-[660px]" />
             <figcaption className="mt-4 border-t border-linha pt-3 text-[12px] leading-relaxed text-tinta3">
               À esquerda, o mês de hoje. À direita, o mesmo mês — e é a sessão
@@ -338,71 +388,86 @@ export default function Home() {
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Cartao titulo="O Pix é comparado com as sessões previstas">
-              Quando o valor e a referência batem, o pagamento é identificado
-              sozinho. Quando não batem — pagamento sem sessão, sessão sem
-              pagamento, valor diferente do combinado —, vira uma linha numa
-              lista de divergências, para você resolver em trinta segundos em
-              vez de conferir o extrato inteiro no fim do dia.
-            </Cartao>
-            <Cartao titulo="A política vem congelada na sessão">
-              Vinte e quatro horas, cinquenta por cento — o que você combinou, na
-              versão que valia <em>naquele dia</em>. O sistema propõe a cobrança
-              com essa política e o histórico; quem confirma, perdoa ou ajusta é
-              você. Exceção clínica não é decidível por regra.
+              Quando os dados disponíveis permitem uma correspondência segura, o
+              pagamento é relacionado à sessão. Os demais — pagamento sem
+              sessão, sessão sem pagamento, valor diferente do combinado — ficam
+              separados numa lista, para você revisar só as divergências em vez
+              de conferir o extrato inteiro no fim do dia.
             </Cartao>
             <Cartao titulo="A cobrança segue o ritmo que você definiu">
               O lembrete de pagamento em atraso não vem de você. Vem da agenda,
-              no dia que você escolheu, no mesmo texto neutro — e parando
-              sozinho. É para você não precisar puxar o assunto.
-            </Cartao>
-            <Cartao titulo="Receita Saúde, com a ramificação certa">
-              A obrigação é de quem atende como pessoa física. Tratar como
-              universal gera pendência falsa em toda conta PJ — e o recibo
-              errado tem dez dias para ser corrigido.
+              no dia que você escolheu, no mesmo texto neutro. Ele para quando o
+              pagamento é identificado, ou quando você interrompe a régua. É
+              para você não precisar puxar o assunto.
             </Cartao>
             <Cartao titulo="No fim do mês, o contador recebe pronto">
               Receitas, estornos, recibos, taxas e pendências no formato que ele
               pede. Finanças, nunca prontuário.
             </Cartao>
-            <Cartao titulo="Do jeito que você cobra">
-              Por sessão, mensalidade fixa ou pacote fechado — com regra clara
-              para o mês de cinco semanas e para a falta dentro da mensalidade.
-            </Cartao>
           </div>
+
+          <Mais rotulo="E também: política de falta, Receita Saúde e formas de cobrar">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Cartao titulo="A política vem congelada na sessão">
+                Vinte e quatro horas, cinquenta por cento — o que você combinou, na
+                versão que valia <em>naquele dia</em>. O sistema propõe a cobrança
+                com essa política e o histórico; quem confirma, perdoa ou ajusta é
+                você. Exceção clínica não é decidível por regra.
+              </Cartao>
+              <Cartao titulo="Receita Saúde só para quem precisa">
+                A obrigação é de quem atende como pessoa física. Tratar como
+                universal gera pendência falsa em toda conta PJ — e o recibo
+                errado tem dez dias para ser corrigido.
+              </Cartao>
+              <Cartao titulo="Do jeito que você cobra">
+                Por sessão, mensalidade fixa ou pacote fechado — com regra clara
+                para o mês de cinco semanas e para a falta dentro da mensalidade.
+              </Cartao>
+            </div>
+          </Mais>
         </Secao>
 
         {/* ---------------- o registro único ---------------- */}
         <Secao
           rotulo="Um registro, não seis tarefas"
           titulo="Você registra a sessão uma vez. O restante acompanha esse registro."
-          linha="Marcar que a sessão aconteceu é o único gesto obrigatório do dia. Dele saem a cobrança, o lembrete de pagamento, a linha do recibo, o número que o contador precisa e o fechamento do mês — como consequência do registro, e não como cinco tarefas novas que aparecem depois."
+          linha="Depois de registrar o que aconteceu com a sessão, o Sessões organiza as pendências que nascem desse registro: a cobrança, o lembrete de pagamento, a linha do recibo, o número que o contador precisa e o fechamento do mês. São consequências do que você já fez, e não cinco tarefas novas que aparecem depois."
         >
-          <figure className="mb-10 rounded-cartao border border-linha bg-folha p-5 sm:p-7">
+          <figure className="mb-8 rounded-cartao border border-linha bg-folha p-5 sm:p-6">
             <UmRegistro className="mx-auto h-auto w-full max-w-[620px]" />
           </figure>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <Cartao titulo="A sessão responde por si">
+          {/* Ficou UM cartão, não três.
+
+              Os outros dois — "campos pendentes aparecem antes de concluir" e
+              "cinco eixos, não um estado" — repetiam, com outras palavras, o
+              que a seção do CFP e a dos quatro destinos já dizem inteiras. A
+              segunda auditoria mediu o efeito: 31 títulos e ~9.600px de altura,
+              e a diferenciação se diluindo numa sucessão de explicações. O
+              custo de repetir não é a página ficar grande; é a ideia forte
+              virar mais uma. */}
+          <div className="max-w-[62ch] rounded-cartao border border-linha bg-folha p-5">
+            <h3 className="font-serif text-[19px] leading-snug text-tinta">
+              A sessão responde por si
+            </h3>
+            <p className="mt-2 text-[13.5px] leading-relaxed text-tinta2">
               Registrar o que aconteceu, ver cobrança e pagamento, enviar ou
               pausar o lembrete, emitir documento, consultar reposição e ver o
               que falta para fechar — tudo no painel da própria sessão, sem
               atravessar módulo nenhum.
-            </Cartao>
-            <Cartao titulo="Campos pendentes aparecem antes de concluir">
-              O Manual do CFP pede que não se deixe espaço em branco no
-              prontuário. Aqui o que falta fica visível <em>antes</em> de você
-              concluir o registro, em vez de sumir da tela — a lacuna que você
-              não vê é a que fica.
-            </Cartao>
-            <Cartao titulo="Cinco eixos, não um estado">
-              Num sistema comum, &ldquo;paga&rdquo; não diz se foi realizada,
-              &ldquo;cancelada&rdquo; não diz se houve receita e
-              &ldquo;remarcada&rdquo; não diz se consumiu outra hora. Aqui a
-              sessão carrega os cinco separados: agenda, confirmação, pagamento,
-              fiscal e o que aconteceu com o horário.
-            </Cartao>
+            </p>
           </div>
         </Secao>
+
+        {/* ---------------- a prova de que existe software ----------------
+
+            Condicional: nasce só com as capturas que existirem em
+            `public/telas/`. Enquanto não existirem, a página segue sem ela em
+            vez de mostrar moldura vazia — a auditoria encontrou uma promessa
+            não cumprida no funil, e eu não vou plantar outra aqui. O LEIA-ME
+            daquela pasta tem as credenciais da conta de demonstração e o
+            aviso sobre nome de paciente. */}
+        <Telas />
 
         {/* ---------------- o que aconteceu com o horário ----------------
 
@@ -500,21 +565,25 @@ export default function Home() {
           <Discricao />
         </Secao>
 
-        {/* ---------------- o CFP ----------------
+        {/* ---------------- o CFP e as fronteiras, agora numa seção só ----------------
 
-            O título anterior — "A conformidade com o CFP é sua. O sistema
-            existe para você não ter que pensar nela." — prometia eliminar uma
-            decisão que não se terceiriza, e prometia isso na seção destinada a
-            tranquilizar quem é atenta às obrigações profissionais. Justamente
-            ela é quem perceberia a contradição. */}
+            Eram duas seções longas e consecutivas, e a segunda auditoria
+            apontou o custo: a leitora recebia duas listas grandes seguidas
+            sobre o mesmo assunto — o que o produto faz com a responsabilidade
+            profissional e o que ele se recusa a fazer.
+
+            São o mesmo argumento visto de dois lados, e agora estão juntas:
+            três compromissos e três recusas à vista, o resto a um clique. O
+            título anterior — "a conformidade com o CFP é sua, o sistema existe
+            para você não ter que pensar nela" — já tinha sido corrigido na
+            primeira auditoria, porque prometia eliminar uma decisão que não se
+            terceiriza. */}
         <Secao
           id="cfp"
           rotulo="As regras da profissão"
           titulo="A responsabilidade profissional continua sendo sua. O sistema reduz o trabalho de cumpri-la."
-          linha="Nenhum software assume a responsabilidade da psicóloga pelo prontuário — quem disser o contrário está vendendo o que não pode entregar. O que dá para fazer é organizar registros, prazos, acessos e correções para que o cumprimento não dependa de memória nem de uma revisão apressada no fim do mês. O sistema orienta o caminho e preserva o histórico; a decisão profissional continua com você."
+          linha="Nenhum software assume a responsabilidade da psicóloga pelo prontuário — quem disser o contrário está vendendo o que não pode entregar. O que dá para fazer é organizar registros, prazos, acessos e correções para que o cumprimento não dependa de memória nem de uma revisão apressada no fim do mês. E, do outro lado, recusar o que não deveria existir num software que vive fora da sala."
         >
-          {/* A folha, ao lado dos cartões: é o que a frase "o que está em
-              branco aparece em branco" nunca conseguiu dizer sozinha. */}
           <div className="grid items-start gap-8 lg:grid-cols-[300px_minmax(0,1fr)]">
             <figure className="order-last rounded-cartao border border-linha bg-folha p-4 lg:order-first lg:sticky lg:top-20">
               <FolhaDoProntuario className="h-auto w-full" />
@@ -525,76 +594,81 @@ export default function Home() {
             </figure>
 
             <div className="grid gap-4 sm:grid-cols-2">
-            <Cartao titulo="O prontuário nos blocos que o Manual pede">
-              Identificação, avaliação da demanda, evolução e encerramento — a
-              estrutura da Resolução 001/2009 com a linguagem do Manual
-              Orientativo de novembro de 2025, não um campo de texto livre com
-              outro nome.
-            </Cartao>
-            <Cartao titulo="Evolução que não se apaga — e que se corrige">
-              O que foi registrado fica com a data em que foi registrado.
-              Correção não é proibida: ela entra como acréscimo datado, com a
-              data em que chegou, sem apagar o histórico. Um registro que se
-              reescreve por cima não é registro, é a versão de hoje da história.
-            </Cartao>
-            <Cartao titulo="Campos obrigatórios pendentes ficam visíveis">
-              O Manual pede que não se deixe espaço em branco no prontuário.
-              Aqui a seção que falta aparece antes de você concluir o registro,
-              em vez de sumir da tela.
-            </Cartao>
-            <Cartao titulo="Cinco anos, e do menor conta da maioridade">
-              O prazo de guarda é calculado por ficha, e o sistema recusa apagar
-              o que ainda está dentro dele. Quando o paciente é menor, o relógio
-              começa quando ele completa dezoito.
-            </Cartao>
-            <Cartao titulo="Trilha de quem viu o quê">
-              Cada abertura de prontuário fica registrada, e a trilha é sua —
-              não um log interno nosso. É o que permite responder com fato, e
-              não com memória, se alguém perguntar.
-            </Cartao>
-            <Cartao titulo="Nosso suporte não vê prontuário">
-              É limitação escrita no código, com teste automático que reprova a
-              alteração se alguma função de suporte encostar em prontuário,
-              evolução ou anamnese. Vemos conta, plano e erro técnico. Para
-              recuperar acesso, agimos sobre a conta e o login — nunca abrindo o
-              conteúdo clínico. Se um incidente exigir mais que isso, você é
-              avisada antes, e a trilha registra.
-            </Cartao>
+              <Cartao titulo="O prontuário nos blocos que o Manual pede">
+                Identificação, avaliação da demanda, evolução e encerramento — a
+                estrutura da Resolução 001/2009 com a linguagem do Manual
+                Orientativo de novembro de 2025, não um campo de texto livre com
+                outro nome.
+              </Cartao>
+              <Cartao titulo="Cinco anos, e do menor conta da maioridade">
+                O prazo de guarda é calculado por ficha, e o sistema recusa apagar
+                o que ainda está dentro dele. Quando o paciente é menor, o relógio
+                começa quando ele completa dezoito.
+              </Cartao>
+              <Cartao titulo="Não entramos na sala">
+                Nada de gravar paciente, transcrever sessão ou IA opinando sobre
+                diagnóstico, conduta ou risco. E nenhuma tela sugere que alguém
+                podia vir mais vezes — o Código de Ética veda induzir a pessoa a
+                recorrer aos seus serviços.
+              </Cartao>
+              <Cartao titulo="O contador vê finanças, nunca clínica. E quem trabalha com você também">
+                Acesso clínico é uma decisão separada do cargo: quem marca a
+                agenda não precisa ler a sessão. Minimização de dados por
+                construção, não por promessa.
+              </Cartao>
             </div>
           </div>
 
-          <p className="mt-6 max-w-[74ch] text-[12.5px] leading-relaxed text-tinta3">
-            Base normativa: <b className="font-medium text-tinta2">Resolução CFP nº 001/2009</b> (prontuário
-            psicológico e guarda), <b className="font-medium text-tinta2">Resolução CFP nº 06/2019</b> (documentos
-            escritos), <b className="font-medium text-tinta2">Resolução CFP nº 09/2024</b> (atendimento por
-            tecnologias) e o <b className="font-medium text-tinta2">Manual Orientativo de nov/2025</b>, que é o
-            texto que traz os quadros comparativos e a distinção entre prontuário
-            e registro documental. Conferimos as quatro em 01/09/2026, e o que
-            estiver desatualizado aqui é erro nosso — se você encontrar, escreva.
-          </p>
-        </Secao>
+          <Mais rotulo="Ver todos os compromissos e todas as linhas que não atravessamos">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Cartao titulo="Evolução que não se apaga — e que se corrige">
+                O que foi registrado fica com a data em que foi registrado.
+                Correção não é proibida: ela entra como acréscimo datado, com a
+                data em que chegou, sem apagar o histórico.
+              </Cartao>
+              <Cartao titulo="Campos obrigatórios pendentes ficam visíveis">
+                O Manual pede que não se deixe espaço em branco no prontuário.
+                Aqui a seção que falta aparece antes de você concluir o registro,
+                em vez de sumir da tela.
+              </Cartao>
+              <Cartao titulo="Trilha de quem viu o quê">
+                Cada abertura de prontuário fica registrada, e a trilha é sua —
+                não um log interno nosso. É o que permite responder com fato, e
+                não com memória, se alguém perguntar.
+              </Cartao>
+              <Cartao titulo="Nosso suporte não vê prontuário">
+                É limitação escrita no código, com teste automático que reprova a
+                alteração se alguma função de suporte encostar em prontuário,
+                evolução ou anamnese. Para recuperar acesso, agimos sobre a conta
+                e o login — nunca abrindo o conteúdo clínico.
+              </Cartao>
+              <Cartao titulo="Não reativamos ex-paciente, e não damos desconto para vender horário parado">
+                Preço não é propaganda, e vínculo clínico não é lista de
+                remarketing.
+              </Cartao>
+              <Cartao titulo="Não vendemos pacientes, e a fila não é leilão">
+                Não somos marketplace, não rankeamos profissional e não
+                intermediamos demanda. A ordem da fila é sua; dinheiro não compra
+                posição.
+              </Cartao>
+            </div>
 
-        {/* ---------------- fronteiras ---------------- */}
-        <Secao
-          rotulo="As linhas que não atravessamos"
-          titulo="O Sessões vive fora da sala, e não opina sobre a clínica."
-          linha="Um software que administra a agenda, o dinheiro e a papelada — e que nunca entra na sessão nem sugere o que fazer com um paciente. Isto não é promessa de marketing: são decisões de arquitetura, escritas antes da primeira linha de código, e algumas delas vêm direto do Código de Ética."
-          fundo="folha"
-        >
-          <div className="grid gap-px overflow-hidden rounded-cartao border border-linha bg-linha sm:grid-cols-2">
-            {FRONTEIRAS.map(([t, d]) => (
-              <div key={t} className="bg-folha px-5 py-5">
-                <h3 className="font-serif text-[18px] leading-snug text-tinta">{t}</h3>
-                <p className="mt-1.5 text-[13px] leading-relaxed text-tinta2">{d}</p>
-              </div>
-            ))}
-          </div>
-          <p className="mt-5 max-w-[70ch] text-[12.5px] leading-relaxed text-tinta3">
-            Prontuário é dado pessoal sensível. Criptografia, trilha de quem viu
-            o quê, prazo de guarda declarado e portabilidade dos dois lados: você
-            sai levando os seus dados, e o paciente recebe os dele — que é um
-            direito.
-          </p>
+            <p className="mt-6 max-w-[74ch] text-[12.5px] leading-relaxed text-tinta3">
+              Base normativa: <b className="font-medium text-tinta2">Resolução CFP nº 001/2009</b> (prontuário
+              psicológico e guarda), <b className="font-medium text-tinta2">Resolução CFP nº 06/2019</b> (documentos
+              escritos), <b className="font-medium text-tinta2">Resolução CFP nº 09/2024</b> (atendimento por
+              tecnologias) e o <b className="font-medium text-tinta2">Manual Orientativo de nov/2025</b>. Conferimos
+              as quatro em 01/09/2026, e o que estiver desatualizado aqui é erro
+              nosso — se você encontrar, escreva.
+            </p>
+
+            <p className="mt-4 max-w-[70ch] text-[12.5px] leading-relaxed text-tinta3">
+              Prontuário é dado pessoal sensível. Criptografia, trilha de quem viu
+              o quê, prazo de guarda declarado e portabilidade dos dois lados: você
+              sai levando os seus dados, e o paciente recebe os dele — que é um
+              direito.
+            </p>
+          </Mais>
         </Secao>
 
         {/* ---------------- planos ---------------- */}
@@ -613,11 +687,17 @@ export default function Home() {
                 }`}
               >
                 <span className="font-serif text-[20px] text-tinta">{p.nome}</span>
+                {p.selo && (
+                  <span className="mt-1 text-[11px] font-medium uppercase tracking-wider text-vaga">
+                    {p.selo}
+                  </span>
+                )}
                 <span className="tabular mt-3 font-mono text-[26px] font-medium leading-none text-tinta">
                   {p.preco}
                 </span>
                 <span className="mt-1 text-[12px] text-tinta3">{p.detalhe}</span>
-                <ul className="mt-4 flex flex-col gap-2 border-t border-linha pt-4">
+
+                <ul className="mt-4 flex flex-1 flex-col gap-2 border-t border-linha pt-4">
                   {p.linhas.map((l) => (
                     <li
                       key={l}
@@ -628,8 +708,39 @@ export default function Home() {
                     </li>
                   ))}
                 </ul>
+
+                {/* **Cada plano tem uma porta.** Sem isto, a pessoa comparava os
+                    quatro preços, decidia, e não achava onde clicar — o
+                    cabeçalho oferecia só "Entrar", que parece ser para quem já
+                    é cliente. Ela tinha de descobrir sozinha que precisava
+                    voltar ao topo. */}
+                <Link
+                  href={p.href}
+                  className={`mt-5 rounded-full px-4 py-2.5 text-center text-[12.5px] font-semibold transition-opacity hover:opacity-90 ${
+                    p.destaque
+                      ? "bg-vaga text-white"
+                      : "border border-linha2 text-tinta2 hover:bg-folha2"
+                  }`}
+                >
+                  {p.cta}
+                </Link>
               </div>
             ))}
+          </div>
+
+          {/* O exemplo que faltava. "R$ 249 + R$ 39 por profissional" não
+              respondia o que uma clínica de cinco pessoas paga, nem se a
+              secretária conta — e quem não consegue calcular o próprio caso não
+              escolhe o plano, adia. */}
+          <div className="mt-5 rounded-cartao border border-linha bg-folha px-5 py-4">
+            <p className="text-[13px] leading-relaxed text-tinta2">
+              <b className="font-medium text-tinta">Clínica, na prática:</b> a
+              base de R$ 249 já inclui uma profissional que atende. Cinco
+              profissionais custam R$ 249 + 4 × R$ 39 ={" "}
+              <b className="font-medium text-tinta">R$ 405 por mês</b>. Secretaria
+              e administração <b className="font-medium text-tinta">não contam</b>{" "}
+              como profissional e não são cobradas.
+            </p>
           </div>
 
           <p className="mt-6 max-w-[70ch] text-[12.5px] leading-relaxed text-tinta3">
@@ -640,38 +751,68 @@ export default function Home() {
           </p>
         </Secao>
 
-        {/* ---------------- a conversa ----------------
+        {/* ---------------- o fechamento ----------------
 
-            Era a lista de espera. O produto está no ar, então isto deixou de
-            ser um portão e virou o que sempre foi de verdade: continuar
-            ouvindo quem usa. */}
+            A hierarquia estava invertida: o maior botão da página, depois de
+            toda a argumentação, era "Quero conversar" — e "criar sua conta"
+            aparecia como link de texto embaixo. A landing começava como produto
+            aberto e terminava como pesquisa de descoberta.
+
+            Agora a ação principal do fim repete a do início, e a conversa fica
+            onde ela é útil: como saída para quem não está pronta.
+
+            **A frase do título é do Leandro, e ficou.** A auditoria sugeriu
+            trocar "psicólogas de verdade" por achar que pode soar defensivo; o
+            pedido dele foi explícito e o sentido é outro — é o contraste com
+            software feito sobre suposição, que é o que o mercado fez. */}
         <section id="conversa" className="scroll-mt-16 border-t border-linha bg-folha2">
-          <div className="mx-auto max-w-3xl px-5 py-16 sm:px-8 sm:py-24">
-            <span className="rotulo">Conversa</span>
-            <h2 className="mt-2 max-w-[24ch] font-serif text-[29px] leading-[1.15] tracking-[-0.015em] text-balance sm:text-[38px]">
-              Estamos sempre ouvindo psicólogas de verdade para reduzir o
-              trabalho que não é atendimento.
+          <div className="mx-auto max-w-3xl px-5 py-14 sm:px-8 sm:py-20">
+            <span className="flex items-center gap-2.5">
+              <Fio className="shrink-0" />
+              <span className="rotulo">Começar</span>
+            </span>
+
+            <h2 className="mt-2 max-w-[22ch] font-serif text-[29px] leading-[1.15] tracking-[-0.015em] text-balance sm:text-[38px]">
+              Comece pelo próximo atendimento.
             </h2>
+
             <p className="mt-3 max-w-[58ch] text-[14.5px] leading-relaxed text-tinta2">
-              Cada tela daqui saiu de uma conversa com quem fecha o mês. Se você
-              quiser conversar vinte minutos sobre como é o seu mês de verdade —
-              onde a conta trava, e o que você já resolve numa planilha —, deixe
-              seu e-mail. Não é requisito para usar: a conta se cria agora, de
-              graça.
+              A conta se cria em um minuto. O plano Grátis não expira, não pede
+              cartão, e já traz a agenda, o prontuário e o registro do que
+              aconteceu com cada horário — você escolhe um plano pago só quando
+              quiser que o sistema trabalhe no seu lugar.
             </p>
-            <div className="mt-8">
-              <Espera />
-            </div>
-            <p className="mt-6 text-[13px] text-tinta2">
-              Ou{" "}
+
+            <div className="mt-7 flex flex-wrap items-center gap-4">
+              <Link
+                href="/entrar?criar"
+                className="rounded-full bg-vaga px-7 py-3.5 text-[14px] font-semibold text-white transition-opacity hover:opacity-90"
+              >
+                Criar minha conta grátis
+              </Link>
               <Link
                 href="/entrar"
-                className="font-medium text-vaga underline decoration-vaga-linha underline-offset-4"
+                className="text-[13.5px] font-medium text-tinta2 underline decoration-linha2 underline-offset-4 transition-colors hover:text-vaga"
               >
-                criar sua conta agora
-              </Link>{" "}
-              — leva um minuto, e o plano Grátis não expira.
-            </p>
+                Já tenho conta
+              </Link>
+            </div>
+
+            <div className="mt-10 border-t border-linha pt-8">
+              <h3 className="max-w-[30ch] font-serif text-[22px] leading-snug text-tinta">
+                Estamos sempre ouvindo psicólogas de verdade para reduzir o
+                trabalho que não é atendimento.
+              </h3>
+              <p className="mt-2.5 max-w-[58ch] text-[13.5px] leading-relaxed text-tinta2">
+                Cada tela daqui saiu de uma conversa com quem fecha o mês. Ainda
+                tem dúvida, ou quer conversar vinte minutos sobre como é o seu
+                mês de verdade — onde a conta trava, e o que você já resolve numa
+                planilha? Deixe seu e-mail.
+              </p>
+              <div className="mt-6">
+                <Espera />
+              </div>
+            </div>
           </div>
         </section>
       </main>
