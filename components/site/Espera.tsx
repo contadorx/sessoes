@@ -4,6 +4,20 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { entrarNaLista, type EstadoInscricao } from "@/app/(site)/acoes";
 
+/**
+ * O canal de conversa — não é mais lista de espera.
+ *
+ * O produto está no ar: quem quer usar cria conta e usa. Isto aqui é a outra
+ * coisa, e é a que o Leandro pediu para deixar explícita — *"estamos sempre
+ * ouvindo psicólogas de verdade para reduzir o trabalho que não é
+ * atendimento"*. Continua sendo um e-mail num formulário; o que mudou é que
+ * ele não promete acesso, promete uma conversa.
+ *
+ * A ação do servidor continua a mesma (`entrarNaLista`): a tabela guarda
+ * e-mail e perfil, e nada mais. Renomear a função por causa da copy seria
+ * trocar o nome de uma coisa que não mudou.
+ */
+
 const INICIAL: EstadoInscricao = { estado: "inicial" };
 
 function Botao() {
@@ -14,7 +28,7 @@ function Botao() {
       disabled={pending}
       className="rounded-full bg-vaga px-6 py-3 text-[13.5px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-45"
     >
-      {pending ? "Enviando…" : "Entrar na lista"}
+      {pending ? "Enviando…" : "Quero conversar"}
     </button>
   );
 }
@@ -27,8 +41,8 @@ export function Espera() {
       <div className="sobe rounded-cartao border border-cheia-linha bg-cheia-bg px-5 py-6 text-center">
         <p className="font-serif text-[22px] text-cheia">{estado.mensagem}</p>
         <p className="mt-1.5 text-[13px] text-tinta2">
-          Sem newsletter, sem corrente de e-mail. Escrevo uma vez, quando houver
-          o que mostrar.
+          Sem newsletter e sem corrente de e-mail. Escrevo para combinar a
+          conversa, e só.
         </p>
       </div>
     );
@@ -76,8 +90,9 @@ export function Espera() {
 
       <div className="mt-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="max-w-[42ch] text-[11.5px] leading-relaxed text-tinta3">
-          Guardo só o e-mail e essa resposta, para avisar quando abrir. Nada de
-          lista comprada, nada compartilhado.
+          Guardo só o e-mail e essa resposta, para combinar a conversa. Nada de
+          lista comprada, nada compartilhado — e você pode pedir para apagar a
+          qualquer momento.
         </p>
         <Botao />
       </div>

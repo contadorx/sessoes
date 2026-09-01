@@ -8,7 +8,7 @@ import {
   salvarAssinatura,
   salvarRegua,
   type Resultado,
-} from "@/app/(app)/conta/acoes";
+} from "@/app/(app)/perfil/acoes";
 import { tipoDaChave } from "@/lib/pix";
 
 const INICIAL: Resultado = { estado: "inicial" };

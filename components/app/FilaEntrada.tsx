@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { mudarFilaDeEntrada, type Resultado } from "@/app/(app)/vagas/acoes";
+import { mudarFilaDeEntrada, type Resultado } from "@/app/(app)/encaixes/fixos/acoes";
 
 const INICIAL: Resultado = { estado: "inicial" };
 

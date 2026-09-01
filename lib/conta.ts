@@ -2,12 +2,21 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { supabaseSessao } from "@/lib/supabase/server";
+import type { Acessos, Papel } from "@/lib/permissao";
 
 export type Sessao = {
   authUserId: string;
   usuarioId: string;
   contaId: string;
-  papel: "dona" | "profissional" | "secretaria";
+  papel: Papel;
+  /**
+   * Os dois eixos de acesso, crus como estão no banco — `null` quer dizer
+   * "ninguém decidiu, use o padrão do papel". Quem interpreta é
+   * `lib/permissao.ts`; aqui eles passam sem tradução de propósito, para não
+   * existirem duas leituras do mesmo dado.
+   */
+  acessoClinico: boolean | null;
+  acessoFinanceiro: boolean | null;
   nome: string | null;
   email: string;
   contaNome: string;
@@ -40,7 +49,7 @@ export async function sessaoAtual(): Promise<Sessao> {
     supabase
       .from("usuarios")
       .select(
-        "id, conta_id, papel, nome, email, operador, contas ( nome, tipo, plano ), profissionais ( id )",
+        "id, conta_id, papel, nome, email, operador, acesso_clinico, acesso_financeiro, contas ( nome, tipo, plano ), profissionais ( id )",
       )
       .eq("auth_user_id", user.id)
       .limit(1),
@@ -60,7 +69,9 @@ export async function sessaoAtual(): Promise<Sessao> {
     authUserId: user.id,
     usuarioId: u.id as string,
     contaId: u.conta_id as string,
-    papel: u.papel as Sessao["papel"],
+    papel: u.papel as Papel,
+    acessoClinico: (u.acesso_clinico as boolean | null) ?? null,
+    acessoFinanceiro: (u.acesso_financeiro as boolean | null) ?? null,
     nome: (u.nome as string | null) ?? null,
     email: u.email as string,
     contaNome: (conta?.nome as string) ?? "",
@@ -68,5 +79,18 @@ export async function sessaoAtual(): Promise<Sessao> {
     plano: (conta?.plano as string) ?? "gratis",
     profissionalId: (profissional?.id as string | undefined) ?? null,
     operador: (u.operador as boolean | null) === true,
+  };
+}
+
+/**
+ * A sessão vista como permissão, para passar direto a `lib/permissao.ts` e a
+ * `lib/navegacao.ts` sem cada tela remontar o objeto na mão — que é como duas
+ * telas acabam discordando sobre quem pode o quê.
+ */
+export function acessosDa(s: Sessao): Acessos {
+  return {
+    papel: s.papel,
+    acessoClinico: s.acessoClinico,
+    acessoFinanceiro: s.acessoFinanceiro,
   };
 }

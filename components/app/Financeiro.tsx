@@ -8,7 +8,7 @@ import {
   lancarDespesa,
   apagarDespesa,
   type Resultado,
-} from "@/app/(app)/financeiro/acoes";
+} from "@/app/(app)/recebimentos/movimentacoes/acoes";
 import {
   CATEGORIAS,
   rotuloCategoria,
@@ -152,7 +152,7 @@ export function PainelFinanceiro({
             <>
               <b className="font-medium text-tinta">{formatar(painel.emAberto.centavos)}</b> em
               aberto —{" "}
-              <Link href="/em-aberto" className="underline underline-offset-2 hover:text-vaga">
+              <Link href="/recebimentos" className="underline underline-offset-2 hover:text-vaga">
                 ver quem
               </Link>
               .{" "}

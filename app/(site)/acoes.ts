@@ -19,7 +19,7 @@ export async function entrarNaLista(
 ): Promise<EstadoInscricao> {
   // Armadilha para robô: campo escondido que só um bot preenche.
   if (String(form.get("site") ?? "").trim() !== "") {
-    return { estado: "ok", mensagem: "Pronto. Te aviso quando abrir." };
+    return { estado: "ok", mensagem: "Recebi. Escrevo para combinar a conversa." };
   }
 
   const email = String(form.get("email") ?? "").trim().toLowerCase();
@@ -52,7 +52,7 @@ export async function entrarNaLista(
     // 23505 = e-mail já cadastrado. Para quem se inscreve, é sucesso —
     // e não confirmamos a ninguém que um endereço já está na base.
     if (erro instanceof ErroDeBanco && erro.codigo === "23505") {
-      return { estado: "ok", mensagem: "Você já está na lista. Te aviso quando abrir." };
+      return { estado: "ok", mensagem: "Seu e-mail já está aqui. Escrevo para combinar a conversa." };
     }
 
     console.error("[lista] falhou a inscrição", erro);
@@ -62,5 +62,5 @@ export async function entrarNaLista(
     };
   }
 
-  return { estado: "ok", mensagem: "Pronto. Te aviso quando abrir." };
+  return { estado: "ok", mensagem: "Recebi. Escrevo para combinar a conversa." };
 }

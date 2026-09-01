@@ -9,7 +9,7 @@ import {
   desligarCalendario,
   importarHistorico,
   type Resultado,
-} from "@/app/(app)/calendario/acoes";
+} from "@/app/(app)/perfil/integracoes/acoes";
 import {
   tituloDoEvento,
   rotuloDoModo,

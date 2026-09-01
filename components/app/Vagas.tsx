@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { oferecerVaga, abrirVaga, fecharVaga, type Resultado } from "@/app/(app)/vagas/acoes";
+import { oferecerVaga, abrirVaga, fecharVaga, type Resultado } from "@/app/(app)/encaixes/fixos/acoes";
 import {
   horarioSemanal,
   estadoDaVaga,

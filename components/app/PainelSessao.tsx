@@ -24,7 +24,7 @@ import {
   registrarRecebimento,
   desfazerRecebimento,
   type Resultado as ResultadoFinanceiro,
-} from "@/app/(app)/financeiro/acoes";
+} from "@/app/(app)/recebimentos/movimentacoes/acoes";
 
 const INICIAL: Resultado = { estado: "inicial" };
 const INICIAL_FIN: ResultadoFinanceiro = { estado: "inicial" };
@@ -448,7 +448,7 @@ export function PainelSessao({
 
         {cancelada && new Date(sessao.inicio) > new Date() && (
           <Link
-            href={`/fila/${sessao.id}`}
+            href={`/encaixes/${sessao.id}`}
             className="rounded-full bg-vaga px-4 py-2 text-[12.5px] font-semibold text-white transition-opacity hover:opacity-90"
           >
             Oferecer em cascata →

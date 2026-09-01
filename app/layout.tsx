@@ -23,11 +23,18 @@ const mono = IBM_Plex_Mono({
   weight: ["400", "500"],
 });
 
-// A frase do produto. Trocada em 01/09/2026 junto com a tese: a anterior
-// ("sua agenda não fura mais de graça") prometia recuperar a hora, que depende
-// de haver demanda represada — hipótese que ainda não foi medida.
+// A frase do produto.
+//
+// Trocada duas vezes. A primeira ("sua agenda não fura mais de graça")
+// prometia recuperar a hora, que depende de haver demanda represada — hipótese
+// que ainda não foi medida. A segunda terminava em "quanto da sua capacidade
+// virou receita", e a auditoria pegou o defeito: a meta description repetia a
+// tese contábil em vez de dizer o que o produto faz, e o resultado de busca
+// prometia painel a quem procura alívio.
+//
+// Esta diz as quatro coisas que a pessoa procura, na ordem em que ela procura.
 const FRASE =
-  "Organiza o que não é atender: agenda, recebimentos, recibos e o fechamento com o contador. E mostra quanto da sua capacidade virou receita.";
+  "Agenda, pagamentos, recibos e o fechamento com o contador num lugar só. Você registra o atendimento uma vez e o resto acompanha.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://sessoes.com.br"),

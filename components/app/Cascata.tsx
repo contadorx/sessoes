@@ -9,8 +9,8 @@ import {
   responderPorEla,
   expirarOfertas,
   type Resultado,
-} from "@/app/(app)/fila/acoes";
-import type { Evento, OfertaLinha, Vaga } from "@/app/(app)/fila/dados";
+} from "@/app/(app)/encaixes/acoes";
+import type { Evento, OfertaLinha, Vaga } from "@/app/(app)/encaixes/dados";
 import { rotuloJanela, tempoDeEspera, type Janela } from "@/lib/janela";
 import { formatar, paraCentavos } from "@/lib/dinheiro";
 
@@ -128,7 +128,7 @@ export function Cascata({
       <div>
         <div className="rounded-cartao border border-linha bg-folha2 px-4 py-3 text-[12.5px] leading-relaxed text-tinta2">
           <b className="font-semibold text-tinta">Regra de prioridade:</b> {regra}.{" "}
-          <Link href="/fila#regras" className="underline underline-offset-2 hover:text-vaga">
+          <Link href="/encaixes#regras" className="underline underline-offset-2 hover:text-vaga">
             mudar
           </Link>
           <br />
@@ -138,7 +138,7 @@ export function Cascata({
         {fila.length === 0 ? (
           <p className="mt-3 rounded-cartao border border-dashed border-linha2 bg-folha px-4 py-6 text-center text-[13px] text-tinta2">
             Nenhum paciente na fila.{" "}
-            <Link href="/fila" className="font-medium text-vaga hover:underline">
+            <Link href="/encaixes" className="font-medium text-vaga hover:underline">
               colocar alguém →
             </Link>
           </p>

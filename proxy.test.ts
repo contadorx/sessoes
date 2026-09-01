@@ -84,13 +84,13 @@ describe("as URLs limpas do Panorama existem de verdade", () => {
 describe("o que continua fechado", () => {
   it.each([
     "/agenda",
-    "/fila",
-    "/fila/abc",
+    "/encaixes",
+    "/encaixes/abc",
     "/pacientes",
     "/pacientes/abc",
     "/pacientes/abc/exportar",
     "/comecar",
-    "/conta/exportar",
+    "/perfil/exportar",
   ])("%s exige sessão", (caminho) => {
     expect(ehPublica(caminho)).toBe(false);
   });

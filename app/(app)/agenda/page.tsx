@@ -15,6 +15,11 @@ import { Ausencias } from "@/components/app/Ausencias";
 import { Encaixe } from "@/components/app/Encaixe";
 import { semanaDe, rotuloSemana, somarDias } from "@/lib/semana";
 import { hoje } from "@/lib/tempo-servidor";
+import { acessosDa } from "@/lib/conta";
+import { prazosDoMes } from "@/app/(app)/prazos";
+import { pendencias, fraseDasPendencias } from "@/lib/navegacao";
+import { FaixaDePendencias } from "@/components/app/Navegacao";
+import { estadoInicial } from "@/app/(app)/comecar/page";
 
 export const metadata = { title: "Agenda" };
 
@@ -32,14 +37,18 @@ export default async function Agenda({
   const referencia = /^\d{4}-\d{2}-\d{2}$/.test(pedida ?? "") ? pedida! : hojeStr;
   const semana = semanaDe(referencia);
 
-  const [sessao, sessoes, ausencias, ate, pacientes, retorno] = await Promise.all([
-    sessaoAtual(),
-    sessoesDaSemana(semana.inicio),
-    listarAusencias(),
-    horizonte(),
-    pacientesParaEncaixe(),
-    retornoDoMes(hojeStr),
-  ]);
+  const [sessao, sessoes, ausencias, ate, pacientes, retorno, prazos, comeco] =
+    await Promise.all([
+      sessaoAtual(),
+      sessoesDaSemana(semana.inicio),
+      listarAusencias(),
+      horizonte(),
+      pacientesParaEncaixe(),
+      retornoDoMes(hojeStr),
+      // Os prazos que viraram faixa em vez de item de menu — ver `prazos.ts`.
+      prazosDoMes(),
+      estadoInicial(),
+    ]);
 
   // Depois das sessões, porque depende delas — e só busca se houver alguma
   // sessão cobrável na semana.
@@ -47,6 +56,16 @@ export default async function Agenda({
 
   const resumo = resumoDaSemana(sessoes);
   const ehSemanaAtual = semana.inicio === semanaDe(hojeStr).inicio;
+
+  const acessos = acessosDa(sessao);
+  const abertas = pendencias(prazos, acessos);
+
+  // O "Começar" era um item de menu que sumia sozinho — e some ainda, mas
+  // agora daqui, que é onde ela já está. Item de navegação para uma lista de
+  // três tarefas que se fazem uma vez é entulho permanente por um trabalho
+  // temporário.
+  const comecando =
+    comeco.pacientes === 0 || comeco.na_fila === 0 || comeco.vagas_abertas === 0;
 
   return (
     <div>
@@ -61,16 +80,43 @@ export default async function Agenda({
             {rotuloSemana(semana)}
           </span>
           <Semaninha para={somarDias(semana.inicio, 7)} rotulo="→" />
-          {!ehSemanaAtual && (
-            <Link
-              href="/agenda"
-              className="ml-2 text-[12.5px] font-medium text-vaga hover:underline"
-            >
-              hoje
-            </Link>
-          )}
+          {/* **Hoje é persistente.** Antes ele só aparecia quando ela já
+              estava perdida em outra semana — e voltar era o problema mais
+              comum da tela que ela abre todo dia. Um botão que aparece só
+              quando o erro já aconteceu é um botão que ela não sabe que
+              existe. */}
+          <Link
+            href="/agenda"
+            aria-current={ehSemanaAtual ? "page" : undefined}
+            className={`ml-2 rounded-full px-3 py-1 text-[12.5px] font-medium transition-colors ${
+              ehSemanaAtual
+                ? "border border-linha text-tinta3"
+                : "border border-vaga-linha text-vaga hover:bg-vaga-bg"
+            }`}
+          >
+            Hoje
+          </Link>
         </nav>
       </div>
+
+      {/* Os prazos que vencem. Some sozinha quando não há nenhum — é a troca
+          por "Receita" e "Contador" terem sido itens fixos de menu o ano
+          inteiro, que é como um alarme vira paisagem. */}
+      <div className="mt-5">
+        <FaixaDePendencias itens={abertas} frase={fraseDasPendencias(abertas)} />
+      </div>
+
+      {comecando && (
+        <Link
+          href="/comecar"
+          className="mt-5 flex flex-wrap items-baseline gap-x-2 rounded-cartao border border-vaga-linha bg-vaga-bg px-4 py-2.5 text-[13px] text-tinta2 transition-opacity hover:opacity-90"
+        >
+          <b className="font-medium text-vaga">Terminar de configurar</b>
+          <span className="text-[12.5px]">
+            faltam os pacientes, a fila e o primeiro horário — três passos, uma vez só
+          </span>
+        </Link>
+      )}
 
       {/* a faixa de números */}
       <dl className="mt-5 grid gap-px overflow-hidden rounded-cartao border border-linha bg-linha sm:grid-cols-2 lg:grid-cols-4">

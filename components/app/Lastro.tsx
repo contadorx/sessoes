@@ -8,7 +8,7 @@ import {
   registrarPresencial,
   revogarAceite,
   type Resultado,
-} from "@/app/(app)/contratos/acoes";
+} from "@/app/(app)/perfil/contrato/acoes";
 import {
   estadoDoAceite,
   rotuloDoAceite,
@@ -140,7 +140,7 @@ export function Lastro({
       {estado === "sem_contrato" && (
         <p className="mt-2 text-[12.5px] leading-relaxed text-tinta2">
           Escreva uma vez e vale para todo mundo, com os números de cada um.{" "}
-          <Link href="/contratos" className="underline underline-offset-2 hover:text-vaga">
+          <Link href="/perfil/contrato" className="underline underline-offset-2 hover:text-vaga">
             escrever agora
           </Link>
         </p>

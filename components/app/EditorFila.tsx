@@ -8,8 +8,8 @@ import {
   atualizarNaFila,
   sairDaFila,
   type Resultado,
-} from "@/app/(app)/fila/acoes";
-import type { NaFila } from "@/app/(app)/fila/dados";
+} from "@/app/(app)/encaixes/acoes";
+import type { NaFila } from "@/app/(app)/encaixes/dados";
 import { rotuloJanela, tempoDeEspera } from "@/lib/janela";
 import { DIAS } from "@/lib/enquadre";
 import { Campo, Erros, ENTRADA } from "./campos";

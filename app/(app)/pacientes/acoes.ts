@@ -335,7 +335,7 @@ export async function venderPacote(_anterior: Resultado, form: FormData): Promis
   }
 
   revalidatePath(`/pacientes/${paciente}`);
-  revalidatePath("/em-aberto");
+  revalidatePath("/recebimentos");
   return { estado: "ok", mensagem: "Pacote vendido. A cobrança do total já está em aberto." };
 }
 
@@ -352,7 +352,7 @@ export async function cancelarPacote(_anterior: Resultado, form: FormData): Prom
   }
 
   revalidatePath(`/pacientes/${paciente}`);
-  revalidatePath("/em-aberto");
+  revalidatePath("/recebimentos");
   return {
     estado: "ok",
     mensagem:

@@ -2,8 +2,8 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { emitirDocumento, type Resultado } from "@/app/(app)/documentos/acoes";
-import type { PacienteParaDoc } from "@/app/(app)/documentos/dados";
+import { emitirDocumento, type Resultado } from "@/app/(app)/fechamento/documentos/acoes";
+import type { PacienteParaDoc } from "@/app/(app)/fechamento/documentos/dados";
 
 const INICIAL: Resultado = { estado: "inicial" };
 

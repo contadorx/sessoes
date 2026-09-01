@@ -129,7 +129,7 @@ export default async function Comecar() {
             <p>
               {estado.na_fila} pessoa{estado.na_fila > 1 ? "s" : ""} esperando
               encaixe.{" "}
-              <Link href="/fila" className="text-vaga hover:underline">
+              <Link href="/encaixes" className="text-vaga hover:underline">
                 ver a fila
               </Link>
             </p>
@@ -138,7 +138,7 @@ export default async function Comecar() {
               Quem topa entrar num horário que vagar — com a janela de cada um
               (&ldquo;terça ou quarta, depois das 13h&rdquo;). Sem ninguém aqui, um
               cancelamento continua sendo só um buraco.{" "}
-              <Link href="/fila" className="text-vaga hover:underline">
+              <Link href="/encaixes" className="text-vaga hover:underline">
                 montar a fila
               </Link>
             </p>

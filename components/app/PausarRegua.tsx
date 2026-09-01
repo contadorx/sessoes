@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { pausarRegua, type Resultado } from "@/app/(app)/em-aberto/acoes";
+import { pausarRegua, type Resultado } from "@/app/(app)/recebimentos/acoes";
 
 const INICIAL: Resultado = { estado: "inicial" };
 

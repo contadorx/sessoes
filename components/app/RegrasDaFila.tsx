@@ -2,8 +2,8 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { salvarRegras, type Resultado } from "@/app/(app)/fila/acoes";
-import type { Regras } from "@/app/(app)/fila/dados";
+import { salvarRegras, type Resultado } from "@/app/(app)/encaixes/acoes";
+import type { Regras } from "@/app/(app)/encaixes/dados";
 import { REGRAS, ROTULO_REGRA, EXPLICACAO_REGRA } from "@/lib/regra";
 import { Campo, Erros, ENTRADA } from "./campos";
 

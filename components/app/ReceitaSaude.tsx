@@ -9,7 +9,7 @@ import {
   dispensar,
   mudarModo,
   type Resultado,
-} from "@/app/(app)/receita-saude/acoes";
+} from "@/app/(app)/fechamento/receita-saude/acoes";
 import {
   fraseDoPrazo,
   frasePisoDaMulta,
@@ -191,7 +191,7 @@ export function PainelReceitaSaude({
         {aEmitir.length === 0 ? (
           <p className="mt-2 rounded-cartao border border-linha bg-folha2 px-5 py-4 text-[13px] leading-relaxed text-tinta2">
             Nada a emitir neste ano. Quando você registrar um recebimento em{" "}
-            <Link href="/financeiro" className="underline underline-offset-2 hover:text-vaga">
+            <Link href="/recebimentos/movimentacoes" className="underline underline-offset-2 hover:text-vaga">
               Financeiro
             </Link>
             , ele aparece aqui.

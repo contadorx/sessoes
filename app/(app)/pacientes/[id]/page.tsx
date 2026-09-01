@@ -24,6 +24,8 @@ import { hoje } from "@/lib/tempo-servidor";
 import { LinhaDoTempo } from "@/components/app/LinhaDoTempo";
 import { PainelRegistro } from "@/components/app/Registro";
 import { PainelAnamnese } from "@/components/app/Anamnese";
+import { sessaoAtual, acessosDa } from "@/lib/conta";
+import { abasDoPaciente } from "@/lib/navegacao";
 
 const brl = (v: string) =>
   Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -36,6 +38,14 @@ const MOTIVO: Record<string, string> = {
 
 export default async function Paciente({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  // A auditoria pediu "cadastro, dados administrativos e área clínica conforme
+  // permissão", e é aqui que os dois eixos aparecem na mesma tela. A RLS já
+  // devolveria vazio para quem não pode (migração 0049) — o que muda aqui é
+  // não **oferecer** a seção: uma caixa de evolução em branco para quem não
+  // pode escrever nela é uma promessa que a próxima tela quebra.
+  const acessos = acessosDa(await sessaoAtual());
+  const abas = abasDoPaciente(acessos);
+  const veClinico = abas.includes("clinico");
   const paciente = await obterPaciente(id);
   if (!paciente) notFound();
 
@@ -160,7 +170,7 @@ export default async function Paciente({ params }: { params: Promise<{ id: strin
       </section>
 
       {/* ------------------------------------------------------ o registro (PR2/PR6) */}
-      {registro && (
+      {veClinico && registro && (
         <section className="mt-10 border-t border-linha pt-6">
           <h2 className="font-serif text-[21px] leading-tight">O registro</h2>
           <p className="mt-2 max-w-xl text-[13.5px] leading-relaxed text-tinta2">
@@ -186,6 +196,7 @@ export default async function Paciente({ params }: { params: Promise<{ id: strin
       )}
 
       {/* ------------------------------------------------------- a anamnese (PR3/PR5) */}
+      {veClinico && (
       <section className="mt-10 border-t border-linha pt-6">
         <h2 className="font-serif text-[21px] leading-tight">A anamnese</h2>
         <p className="mt-2 max-w-xl text-[13.5px] leading-relaxed text-tinta2">
@@ -200,6 +211,17 @@ export default async function Paciente({ params }: { params: Promise<{ id: strin
           aviso={anamnese.aviso}
         />
       </section>
+      )}
+
+      {!veClinico && (
+        <section className="mt-10 border-t border-linha pt-6">
+          <p className="max-w-xl text-[13px] leading-relaxed text-tinta3">
+            O registro clínico desta pessoa não aparece no seu acesso. Não é
+            omissão da tela: acesso clínico é uma decisão separada do cargo, e
+            quem concede é a responsável pela conta.
+          </p>
+        </section>
+      )}
 
       {/* ------------------------------------------------- a linha do tempo (PR8) */}
       <section className="mt-10 border-t border-linha pt-6">

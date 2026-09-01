@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { salvarContador, fecharMes, type Resultado } from "@/app/(app)/contador/acoes";
+import { salvarContador, fecharMes, type Resultado } from "@/app/(app)/fechamento/contador/acoes";
 import {
   nomeDoMes,
   resumoDoRetrato,
@@ -213,7 +213,7 @@ export function PainelContador({
 
                   <div className="mt-3 flex flex-wrap items-center gap-3">
                     <a
-                      href={`/contador/${p.id}/csv`}
+                      href={`/fechamento/contador/${p.id}/csv`}
                       className="rounded-full border border-linha2 px-4 py-1.5 text-[12.5px] font-medium text-tinta2 transition-colors hover:bg-folha2"
                     >
                       Baixar o CSV
@@ -248,11 +248,11 @@ export function PainelContador({
 
       <p className="mt-6 text-[12.5px] text-tinta3">
         Os números vêm de{" "}
-        <Link href="/financeiro" className="underline underline-offset-2 hover:text-vaga">
+        <Link href="/recebimentos/movimentacoes" className="underline underline-offset-2 hover:text-vaga">
           Financeiro
         </Link>{" "}
         e de{" "}
-        <Link href="/receita-saude" className="underline underline-offset-2 hover:text-vaga">
+        <Link href="/fechamento/receita-saude" className="underline underline-offset-2 hover:text-vaga">
           Receita Saúde
         </Link>
         . Nada é digitado duas vezes.

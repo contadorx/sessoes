@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { publicarContrato, type Resultado } from "@/app/(app)/contratos/acoes";
+import { publicarContrato, type Resultado } from "@/app/(app)/perfil/contrato/acoes";
 import {
   MARCADORES,
   TEXTO_PADRAO,
