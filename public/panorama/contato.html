@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Panorama da Prática Psicológica — receber o relatório</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    --papel:#ECEEE9; --papel-alto:#F6F7F4; --papel-fundo:#E2E5DE;
+    --tinta:#1F262A; --tinta-media:#4A555B; --tinta-fraca:#77838A;
+    --fio:#C8CEC6; --fio-forte:#A9B2A9;
+    --vaga:#AB2758; --vaga-fundo:#F7E4EA;
+    --cheia:#1C6B58; --cheia-fundo:#DDEBE6;
+    --aviso:#8A5712; --aviso-fundo:#F5EADA;
+    --serif:"Newsreader",Georgia,serif;
+    --sans:"Archivo","Helvetica Neue",Arial,sans-serif;
+    --mono:"IBM Plex Mono",Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --papel:#171B1C; --papel-alto:#1F2426; --papel-fundo:#101314;
+      --tinta:#E4E7E2; --tinta-media:#A8B1B0; --tinta-fraca:#78827F;
+      --fio:#333B3C; --fio-forte:#4A5354;
+      --vaga:#EE7099; --vaga-fundo:#3A1725;
+      --cheia:#62BFA2; --cheia-fundo:#12302A;
+      --aviso:#D9A24E; --aviso-fundo:#322512;
+    }
+  }
+  :root[data-theme="dark"]{
+    --papel:#171B1C; --papel-alto:#1F2426; --papel-fundo:#101314;
+    --tinta:#E4E7E2; --tinta-media:#A8B1B0; --tinta-fraca:#78827F;
+    --fio:#333B3C; --fio-forte:#4A5354;
+    --vaga:#EE7099; --vaga-fundo:#3A1725;
+    --cheia:#62BFA2; --cheia-fundo:#12302A;
+    --aviso:#D9A24E; --aviso-fundo:#322512;
+  }
+
+  *{box-sizing:border-box;}
+  body{background:var(--papel);color:var(--tinta);font-family:var(--sans);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased;}
+  .env{max-width:640px;margin:0 auto;padding:0 1.15rem 4rem;}
+
+  /* progresso */
+  .progresso{position:sticky;top:0;z-index:20;background:var(--papel);padding:.85rem 0 .7rem;margin:0 -1.15rem 1.75rem;padding-left:1.15rem;padding-right:1.15rem;border-bottom:1px solid var(--fio);}
+  .trilho{height:3px;background:var(--papel-fundo);border-radius:2px;overflow:hidden;}
+  .barra{height:100%;background:var(--vaga);width:0;transition:width .35s ease;}
+  .passo-rot{font-family:var(--mono);font-size:.66rem;letter-spacing:.11em;text-transform:uppercase;color:var(--tinta-fraca);margin-bottom:.45rem;display:flex;justify-content:space-between;gap:1rem;}
+
+  /* cabeçalho */
+  .marca{font-family:var(--mono);font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--vaga);padding-top:2.25rem;}
+  h1{font-family:var(--serif);font-weight:500;font-size:clamp(1.9rem,7vw,2.7rem);line-height:1.08;letter-spacing:-.02em;text-wrap:balance;margin:.7rem 0 1rem;}
+  .lede{font-family:var(--serif);font-size:1.08rem;line-height:1.5;color:var(--tinta-media);margin:0 0 1.25rem;}
+
+  h2{font-family:var(--serif);font-weight:500;font-size:clamp(1.35rem,5vw,1.75rem);line-height:1.15;letter-spacing:-.015em;text-wrap:balance;margin:0 0 .4rem;}
+  .sub{font-size:.88rem;color:var(--tinta-media);margin:0 0 1.9rem;}
+
+  /* perguntas */
+  .q{margin-bottom:2rem;}
+  .q > .rot{display:block;font-family:var(--serif);font-size:1.08rem;line-height:1.4;margin-bottom:.2rem;}
+  .q .cod{font-family:var(--mono);font-size:.64rem;color:var(--tinta-fraca);letter-spacing:.08em;margin-right:.45rem;}
+  .q .dica{font-size:.82rem;color:var(--tinta-fraca);margin:.15rem 0 .7rem;}
+  .obrig{color:var(--vaga);}
+
+  textarea,input[type=text],input[type=number],input[type=email],select{
+    width:100%;font-family:var(--sans);font-size:1rem;color:var(--tinta);
+    background:var(--papel-alto);border:1px solid var(--fio);border-radius:3px;
+    padding:.65rem .75rem;margin-top:.5rem;
+  }
+  textarea{min-height:5.5rem;resize:vertical;line-height:1.5;}
+  input:focus,textarea:focus,select:focus{outline:2px solid var(--vaga);outline-offset:1px;border-color:var(--vaga);}
+  input[type=number]{max-width:8rem;font-family:var(--mono);}
+
+  .opts{display:flex;flex-direction:column;gap:.1rem;margin-top:.6rem;}
+  .opt{display:grid;grid-template-columns:1.3rem 1fr;gap:.65rem;align-items:start;
+       padding:.55rem .6rem;border-radius:3px;cursor:pointer;font-size:.97rem;line-height:1.4;}
+  .opt:hover{background:var(--papel-alto);}
+  .opt input{margin-top:.28em;width:1.05rem;height:1.05rem;accent-color:var(--vaga);cursor:pointer;}
+  .opt input:focus-visible{outline:2px solid var(--vaga);outline-offset:2px;}
+
+  /* trade-off */
+  .itens{display:flex;flex-direction:column;gap:.45rem;margin-top:.9rem;}
+  .item{display:grid;grid-template-columns:2.1rem 1fr;gap:.7rem;align-items:center;
+        border:1px solid var(--fio);background:var(--papel-alto);border-radius:3px;
+        padding:.7rem .8rem;cursor:pointer;font-size:.97rem;line-height:1.35;text-align:left;
+        color:var(--tinta);font-family:var(--sans);width:100%;}
+  .item:hover{border-color:var(--fio-forte);}
+  .item:focus-visible{outline:2px solid var(--vaga);outline-offset:2px;}
+  .item .pos{font-family:var(--mono);font-size:.8rem;font-weight:500;display:grid;place-items:center;
+             width:1.75rem;height:1.75rem;border-radius:50%;border:1px solid var(--fio-forte);color:var(--tinta-fraca);}
+  .item.sel{border-color:var(--vaga);background:var(--vaga-fundo);}
+  .item.sel .pos{background:var(--vaga);border-color:var(--vaga);color:var(--papel);}
+  .item.sel2{border-color:var(--cheia);background:var(--cheia-fundo);}
+  .item.sel2 .pos{background:var(--cheia);border-color:var(--cheia);color:var(--papel);}
+  .item[disabled]{opacity:.42;cursor:not-allowed;}
+  /* o campo do item residual, que só aparece quando ele é escolhido */
+  .livre{margin:-.1rem 0 .35rem 2.8rem;}
+  .livre input[type=text]{margin-top:.35rem;background:var(--papel);border-color:var(--vaga);}
+
+  /* avisos */
+  .nota{border-left:3px solid var(--vaga);background:var(--papel-alto);padding:.9rem 1.05rem;margin:0 0 1.5rem;font-size:.9rem;line-height:1.5;}
+  .nota .rot{font-family:var(--mono);font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--vaga);display:block;margin-bottom:.35rem;}
+  .nota p{margin:0 0 .6rem;} .nota p:last-child{margin:0;}
+  .nota.verde{border-left-color:var(--cheia);} .nota.verde .rot{color:var(--cheia);}
+  .erro{color:var(--vaga);font-size:.85rem;margin-top:.5rem;font-weight:500;}
+  .aviso-soma{font-family:var(--mono);font-size:.82rem;color:var(--tinta-fraca);margin-top:.6rem;}
+  .aviso-soma.ruim{color:var(--vaga);}
+
+  /* navegação */
+  .nav{display:flex;gap:.75rem;align-items:center;margin-top:2.5rem;padding-top:1.5rem;border-top:1px solid var(--fio);}
+  button.principal{
+    font-family:var(--sans);font-size:1rem;font-weight:600;color:var(--papel);
+    background:var(--tinta);border:none;border-radius:3px;padding:.8rem 1.6rem;cursor:pointer;
+  }
+  button.principal:hover{background:var(--vaga);}
+  button.principal:focus-visible{outline:2px solid var(--vaga);outline-offset:3px;}
+  button.principal[disabled]{opacity:.45;cursor:not-allowed;}
+  button.secundario{font-family:var(--sans);font-size:.9rem;color:var(--tinta-media);background:none;border:none;cursor:pointer;padding:.8rem .4rem;text-decoration:underline;}
+  .nav .obs{font-size:.8rem;color:var(--tinta-fraca);margin-left:auto;text-align:right;max-width:16rem;line-height:1.35;}
+
+  .oculto{display:none;}
+  .previa{background:var(--aviso-fundo);color:var(--aviso);border:1px solid var(--aviso);
+          font-family:var(--mono);font-size:.72rem;padding:.55rem .8rem;border-radius:3px;margin:1rem 0 0;}
+
+  /* final */
+  .porta{display:block;border:1px solid var(--fio);background:var(--papel-alto);border-radius:3px;
+         padding:1rem 1.15rem;margin-bottom:.75rem;}
+  .porta .t{font-family:var(--serif);font-size:1.1rem;font-weight:600;margin-bottom:.2rem;}
+  .porta .d{font-size:.85rem;color:var(--tinta-media);}
+
+  footer{margin-top:3rem;padding-top:1.25rem;border-top:1px solid var(--fio);font-size:.8rem;color:var(--tinta-fraca);}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;}}
+</style>
+</head>
+<body>
+<div class="env">
+
+<section id="form-wrap">
+  <div class="marca">Panorama da Prática Psicológica</div>
+  <h1 id="titulo">Quero receber o relatório.</h1>
+  <p class="lede" id="lede">Um envio só, quando o estudo sair. Depois disso, nada.</p>
+
+  <div class="nota verde">
+    <span class="rot">Separado das suas respostas</span>
+    <p>Este formulário é <strong>outro</strong>, e de propósito. O que você escreveu no questionário não tem
+    nenhuma ligação com o e-mail que você deixar aqui — não existe coluna, chave nem meio técnico de juntar
+    as duas coisas. É isso que mantém a pesquisa anônima.</p>
+  </div>
+
+  <form id="f" novalidate>
+    <div class="q">
+      <span class="rot">Seu e-mail <span class="obrig">*</span></span>
+      <input type="email" name="email" id="email" required placeholder="voce@exemplo.com.br" autocomplete="email">
+      <div class="erro oculto" id="erro-email">Confira o e-mail.</div>
+    </div>
+
+    <div class="q">
+      <div class="opts">
+        <label class="opt"><input type="checkbox" id="c-relatorio"><span>Quero receber o relatório quando sair</span></label>
+        <label class="opt"><input type="checkbox" id="c-conversa"><span>Topo conversar 30 minutos sobre a minha rotina — sem venda e sem demonstração</span></label>
+      </div>
+      <div class="erro oculto" id="erro-escolha">Marque ao menos uma das duas.</div>
+    </div>
+
+    <div class="q oculto" id="wrap-zap">
+      <span class="rot">WhatsApp, para combinar a conversa</span>
+      <p class="dica">Opcional. Só para marcar horário — não entra em lista nenhuma.</p>
+      <input type="text" name="whatsapp" id="whatsapp" placeholder="(11) 90000-0000" autocomplete="tel">
+    </div>
+
+    <div class="nav">
+      <button type="button" class="principal" id="btn">Enviar</button>
+      <span class="obs">Um envio, sem lista de disparo. Para sair depois, é só responder pedindo.</span>
+    </div>
+  </form>
+  <div class="previa oculto" id="previa">Modo de prévia — as chaves do Supabase não foram configuradas, nada está sendo gravado.</div>
+</section>
+
+<section id="fim" class="oculto">
+  <div class="marca">Panorama da Prática Psicológica</div>
+  <h1>Anotado. Obrigado.</h1>
+  <p class="lede" id="lede-fim">Você recebe um e-mail quando o relatório sair.</p>
+  <div class="nota verde">
+    <span class="rot">E o combinado continua</span>
+    <p>O relatório sai <strong>aberto e gratuito, sem cadastro</strong> — inclusive para quem não respondeu.
+    Este e-mail serve só para te avisar, não para te dar acesso.</p>
+  </div>
+</section>
+
+<footer style="margin-top:3rem;padding-top:1.25rem;border-top:1px solid var(--fio);font-size:.8rem;color:var(--tinta-fraca)">
+  <p>Pesquisa de opinião com participantes não identificados — dispensada de registro no sistema CEP/CONEP
+  nos termos da Resolução CNS nº 510/2016, art. 1º, parágrafo único, I.</p>
+</footer>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var CFG = window.CONFIG_CONTATO || {
+    SUPABASE_URL:      "https://shzqiymgmgosuhdjotyq.supabase.co",
+    SUPABASE_ANON_KEY: "sb_publishable_7XvMflZ0v5m1gHNuaDUzHA_aiSLTD4b"
+  };
+  var GRAVA = !!(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY);
+  var DEBUG = false;
+  try { DEBUG = new URLSearchParams(location.search).get("debug") === "1"; } catch (e) {}
+
+  var quero = "relatorio";
+  try { quero = new URLSearchParams(location.search).get("quero") || "relatorio"; } catch (e) {}
+
+  var cR = document.getElementById("c-relatorio");
+  var cC = document.getElementById("c-conversa");
+  cR.checked = true;
+  if (quero === "conversa") {
+    cC.checked = true;
+    document.getElementById("titulo").textContent = "Topo conversar 30 minutos.";
+    document.getElementById("lede").textContent =
+      "Sem venda e sem demonstração. É a parte do estudo que o formulário não alcança.";
+  }
+
+  function zap() {
+    document.getElementById("wrap-zap").classList.toggle("oculto", !cC.checked);
+  }
+  cC.addEventListener("change", zap); zap();
+
+  if (!GRAVA) document.getElementById("previa").classList.remove("oculto");
+
+  function erro(id, mostra) { document.getElementById(id).classList.toggle("oculto", !mostra); }
+
+  document.getElementById("btn").addEventListener("click", function () {
+    var btn = this;
+    var email = document.getElementById("email").value.trim();
+    var okEmail = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) && email.length >= 5 && email.length <= 254;
+    var okEscolha = cR.checked || cC.checked;
+    erro("erro-email", !okEmail);
+    erro("erro-escolha", !okEscolha);
+    if (!okEmail || !okEscolha) return;
+
+    btn.disabled = true; btn.textContent = "Enviando…";
+    var corpo = {
+      email: email,
+      quer_relatorio: cR.checked,
+      topa_conversa: cC.checked,
+      whatsapp: (document.getElementById("whatsapp").value || "").trim().slice(0, 30) || null
+    };
+
+    var p = GRAVA ? fetch(CFG.SUPABASE_URL + "/rest/v1/pesquisa_contatos", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": CFG.SUPABASE_ANON_KEY,
+        "Authorization": "Bearer " + CFG.SUPABASE_ANON_KEY,
+        "Prefer": "return=minimal"
+      },
+      body: JSON.stringify(corpo)
+    }).then(function (r) {
+      if (r.ok) return true;
+      return r.text().then(function (t) { throw new Error("HTTP " + r.status + " " + (t || "").slice(0, 200)); });
+    }) : Promise.resolve(true);
+
+    p.then(fim).catch(function (e) {
+      if (DEBUG) { alert("não gravou: " + e.message); btn.disabled = false; btn.textContent = "Enviar"; return; }
+      try { console.error("[panorama/contato]", e); } catch (x) {}
+      fim();
+    });
+  });
+
+  function fim() {
+    document.getElementById("form-wrap").classList.add("oculto");
+    if (cC.checked) {
+      document.getElementById("lede-fim").textContent =
+        "Eu escrevo para combinar horário. Se você deixou WhatsApp, chamo por lá.";
+    }
+    document.getElementById("fim").classList.remove("oculto");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+})();
+</script>
+</body>
+</html>

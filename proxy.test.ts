@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { config, ehPublica } from "./proxy";
 
 /**
@@ -37,8 +39,45 @@ describe("o que precisa passar sem sessão", () => {
       `/p/remarcar/${"b".repeat(32)}`,
       "o link da remarcação: idem — e é o link que faz a troca acontecer",
     ],
+    ["/panorama", "a página do estudo — é este endereço que vai no post"],
+    ["/panorama/pesquisa", "o questionário pela URL limpa"],
+    ["/panorama/contato", "as duas portas do fim"],
+    ["/panorama/pesquisa.html", "e também pelo caminho com extensão"],
   ])("%s — %s", (caminho) => {
     expect(ehPublica(caminho)).toBe(true);
+  });
+});
+
+/**
+ * O Panorama repetiu o defeito das rotas de máquina, e por isso ganha teste.
+ *
+ * As páginas da pesquisa são estáticas, mas as URLs limpas do `next.config.ts`
+ * não têm extensão — então elas acordam o proxy, e o proxy fecha por padrão.
+ * Sem `/panorama/` na lista, divulgar `/panorama` mandaria toda respondente
+ * para `/entrar` com um 307. Ninguém veria erro nenhum: a pesquisa
+ * simplesmente não teria resposta, e a explicação seria "o link não funciona".
+ */
+describe("as URLs limpas do Panorama existem de verdade", () => {
+  it("cada rewrite aponta para um arquivo que está em public/panorama/", () => {
+    const rewrites = [
+      ["/panorama", "index.html"],
+      ["/panorama/pesquisa", "pesquisa.html"],
+      ["/panorama/contato", "contato.html"],
+      ["/panorama/protocolo", "protocolo.pdf"],
+    ] as const;
+
+    for (const [rota, arquivo] of rewrites) {
+      expect(
+        existsSync(join(process.cwd(), "public", "panorama", arquivo)),
+        `${rota} reescreve para public/panorama/${arquivo}, que não existe`,
+      ).toBe(true);
+      expect(ehPublica(rota), `${rota} cairia em /entrar`).toBe(true);
+    }
+  });
+
+  it("o prefixo não abre um caminho parecido", () => {
+    expect(ehPublica("/panoramas")).toBe(false);
+    expect(ehPublica("/panorama-interno")).toBe(false);
   });
 });
 

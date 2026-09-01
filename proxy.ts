@@ -18,10 +18,25 @@ import { createServerClient } from "@supabase/ssr";
  * `middleware.ts`. Mesmo papel, nome novo.
  */
 
-const PUBLICAS = new Set(["/", "/entrar"]);
+const PUBLICAS = new Set(["/", "/entrar", "/panorama"]);
 
 const PREFIXOS_PUBLICOS = [
   "/p/", // portal do paciente por link mágico (D18)
+
+  // **A pesquisa Panorama.** Páginas estáticas em `public/panorama/`, com URL
+  // limpa por rewrite no `next.config.ts`. Quem chega aqui é uma psicóloga que
+  // veio de um post ou de um ofício do CRP e não tem — nem vai criar — conta
+  // no produto.
+  //
+  // O arquivo com extensão (`/panorama/pesquisa.html`) já escapa pelo matcher.
+  // A URL limpa (`/panorama/pesquisa`) não escapa, e sem esta linha ela vira
+  // um 307 para `/entrar`: a pesquisa inteira divulgada, e todo mundo caindo
+  // numa tela de login. É o mesmo defeito que as rotas de máquina tiveram, e
+  // ele continua sendo silencioso — um 307 não parece erro para ninguém.
+  //
+  // Abrir aqui não expõe nada: em `public/` não há dado, e as tabelas da
+  // pesquisa são insert-only pela RLS.
+  "/panorama/",
 
   // **Rotas de máquina.** Quem bate nelas é o cron da Vercel e o provedor de
   // WhatsApp — nunca alguém com cookie de sessão. Sem esta linha, o proxy

@@ -24,7 +24,10 @@ begin
       'documentos','contratos','aceites','pacotes','pacote_consumos','remarcacoes',
       'fila_entrada','vagas_fixas','ofertas_fixas','despesas','recibos_rfb',
       'pastas_contador','calendarios','calendarios_segredo','ocupacoes_externas',
-      'espelhos_calendario','registros','evolucoes','anamneses','anamnese_adendos'
+      'espelhos_calendario','registros','evolucoes','anamneses','anamnese_adendos',
+      -- O Panorama. Não é do produto (não tem conta_id), mas mora no mesmo
+      -- banco e some no mesmo restore.
+      'pesquisa_abertas','pesquisa_respostas','pesquisa_contatos'
     ]) as t
    where to_regclass('public.' || t) is null;
 
@@ -113,7 +116,8 @@ begin
       'salvar_demanda','escrever_evolucao','registro_do_paciente','evolucao_nao_se_reescreve',
       'roteiro_padrao','abrir_anamnese','salvar_anamnese','fechar_anamnese',
       'acrescentar_adendo','aviso_de_anamnese','anamnese_do_paciente',
-      'sessoes_ate_fechar_anamnese','anamnese_fechada_nao_muda'
+      'sessoes_ate_fechar_anamnese','anamnese_fechada_nao_muda',
+      'pesquisa_contato_existe','esquecer_contato_da_pesquisa'
     ]) as f
    where not exists (
      select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -183,7 +187,55 @@ begin
     raise exception 'FALTA a restrição de exclusão em sessoes';
   end if;
 
-  raise notice 'ESTRUTURA OK — tabelas, RLS, políticas, funções, gatilhos, índices e extensões voltaram.';
+  -- ------------------------------------------ 8. as views do Panorama
+  --
+  -- Esta é a verificação mais barata de esquecer e a mais cara de errar.
+  --
+  -- As 12 views da pesquisa leem tabelas cujo material é o texto que uma
+  -- psicóloga escreveu sobre o dia dela. Elas só não vazam por duas travas
+  -- postas à mão no fim da 0044b: `security_invoker = on`, que faz a view
+  -- respeitar a RLS de baixo em vez de rodar como dona, e o revoke, que
+  -- esconde a view do PostgREST. As duas são *opções de relação* e *grants* —
+  -- exatamente o tipo de coisa que um restore parcial, um dump com flag
+  -- diferente ou um `create or replace view` de manutenção deixa cair sem
+  -- avisar. E o modo de falha é mudo: a view volta funcionando, as consultas
+  -- do painel continuam certas, e a única diferença é que agora qualquer
+  -- pessoa com a chave que está publicada no formulário faz
+  -- `GET /rest/v1/v_residual_textos` e lê tudo.
+  select string_agg(v, ', ') into faltando
+    from unnest(array[
+      'v_leitura1_fila','v_leitura3_cobranca','v_leitura4_agenda',
+      'v_rendimento_canal','v_leitura5_canal','v_ranking_ponderado',
+      'v_nao_e_problema','v_residual','v_residual_textos',
+      'v_itens_novos','v_qualidade','v_funil'
+    ]) as v
+   where to_regclass('public.' || v) is null;
+
+  if faltando is not null then
+    raise exception 'FALTAM VIEWS DO PANORAMA: %', faltando;
+  end if;
+
+  select string_agg(v, ', ') into faltando
+    from unnest(array[
+      'v_leitura1_fila','v_leitura3_cobranca','v_leitura4_agenda',
+      'v_rendimento_canal','v_leitura5_canal','v_ranking_ponderado',
+      'v_nao_e_problema','v_residual','v_residual_textos',
+      'v_itens_novos','v_qualidade','v_funil'
+    ]) as v
+   where coalesce((select option_value
+                     from pg_class c
+                          join pg_namespace n on n.oid = c.relnamespace,
+                          pg_options_to_table(c.reloptions)
+                    where n.nspname = 'public' and c.relname = v
+                      and option_name = 'security_invoker'), 'off') <> 'on'
+      or has_table_privilege('anon', 'public.' || v, 'select')
+      or has_table_privilege('authenticated', 'public.' || v, 'select');
+
+  if faltando is not null then
+    raise exception 'VIEWS DO PANORAMA ABERTAS: % — sem security_invoker ou com SELECT para anon, a pesquisa inteira está legível com a chave que está no formulário. Reaplique o bloco final da 0044b.', faltando;
+  end if;
+
+  raise notice 'ESTRUTURA OK — tabelas, RLS, políticas, funções, gatilhos, índices, extensões e as views fechadas do Panorama voltaram.';
 end $$;
 
 -- ---------------------------------------------------------------- as contagens
@@ -219,6 +271,9 @@ union all select 'registros', count(*) from public.registros
 union all select 'evolucoes', count(*) from public.evolucoes
 union all select 'anamneses', count(*) from public.anamneses
 union all select 'anamnese_adendos', count(*) from public.anamnese_adendos
+union all select 'pesquisa_abertas', count(*) from public.pesquisa_abertas
+union all select 'pesquisa_respostas', count(*) from public.pesquisa_respostas
+union all select 'pesquisa_contatos', count(*) from public.pesquisa_contatos
 union all select 'trilha_acesso', count(*) from public.trilha_acesso
 union all select 'auth.users', count(*) from auth.users
 order by 1;

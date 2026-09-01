@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Levantamento independente sobre a parte administrativa e financeira do consultório de psicologia no Brasil.">
+<title>Panorama da Prática Psicológica</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+  :root{
+    --papel:#ECEEE9; --papel-alto:#F6F7F4; --papel-fundo:#E2E5DE;
+    --tinta:#1F262A; --tinta-media:#4A555B; --tinta-fraca:#77838A;
+    --fio:#C8CEC6; --fio-forte:#A9B2A9;
+    --vaga:#AB2758; --vaga-fundo:#F7E4EA;
+    --cheia:#1C6B58; --cheia-fundo:#DDEBE6;
+    --aviso:#8A5712; --aviso-fundo:#F5EADA;
+    --serif:"Newsreader",Georgia,serif;
+    --sans:"Archivo","Helvetica Neue",Arial,sans-serif;
+    --mono:"IBM Plex Mono",Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --papel:#171B1C; --papel-alto:#1F2426; --papel-fundo:#101314;
+      --tinta:#E4E7E2; --tinta-media:#A8B1B0; --tinta-fraca:#78827F;
+      --fio:#333B3C; --fio-forte:#4A5354;
+      --vaga:#EE7099; --vaga-fundo:#3A1725;
+      --cheia:#62BFA2; --cheia-fundo:#12302A;
+      --aviso:#D9A24E; --aviso-fundo:#322512;
+    }
+  }
+  :root[data-theme="dark"]{
+    --papel:#171B1C; --papel-alto:#1F2426; --papel-fundo:#101314;
+    --tinta:#E4E7E2; --tinta-media:#A8B1B0; --tinta-fraca:#78827F;
+    --fio:#333B3C; --fio-forte:#4A5354;
+    --vaga:#EE7099; --vaga-fundo:#3A1725;
+    --cheia:#62BFA2; --cheia-fundo:#12302A;
+    --aviso:#D9A24E; --aviso-fundo:#322512;
+  }
+
+  *{box-sizing:border-box;}
+  body{background:var(--papel);color:var(--tinta);font-family:var(--sans);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+  .env{max-width:800px;margin:0 auto;padding:0 1.35rem 5rem;}
+
+  /* capa */
+  header.capa{padding:3.5rem 0 2.25rem;border-bottom:2px solid var(--tinta);}
+  .selo{font-family:var(--mono);font-size:.68rem;letter-spacing:.15em;text-transform:uppercase;color:var(--vaga);margin-bottom:1.4rem;}
+  h1{font-family:var(--serif);font-weight:500;font-size:clamp(2.3rem,7vw,3.6rem);line-height:1.03;letter-spacing:-.022em;text-wrap:balance;margin:0 0 1.1rem;max-width:19ch;}
+  .lede{font-family:var(--serif);font-size:clamp(1.08rem,2.4vw,1.3rem);line-height:1.5;color:var(--tinta-media);max-width:56ch;margin:0 0 2rem;}
+
+  .cta{display:inline-block;font-family:var(--sans);font-size:1rem;font-weight:600;color:var(--papel);background:var(--tinta);border:none;border-radius:3px;padding:.85rem 1.8rem;text-decoration:none;}
+  .cta:hover{background:var(--vaga);}
+  .cta:focus-visible{outline:2px solid var(--vaga);outline-offset:3px;}
+  .cta-nota{font-size:.85rem;color:var(--tinta-fraca);margin-top:.75rem;}
+
+  /* seções */
+  section{margin-bottom:3.5rem;scroll-margin-top:1rem;}
+  h2{font-family:var(--serif);font-weight:500;font-size:clamp(1.55rem,3.6vw,2.1rem);line-height:1.14;letter-spacing:-.015em;text-wrap:balance;margin:0 0 1.15rem;padding-top:1.15rem;border-top:2px solid var(--tinta);}
+  h2 .num{font-family:var(--mono);font-size:.66rem;font-weight:500;letter-spacing:.13em;color:var(--tinta-fraca);display:block;margin-bottom:.5rem;}
+  h3{font-family:var(--sans);font-weight:600;font-size:.78rem;letter-spacing:.1em;text-transform:uppercase;color:var(--tinta-media);margin:2.25rem 0 .85rem;}
+  p{margin:0 0 1.05rem;max-width:64ch;}
+  ul{margin:0 0 1.25rem;padding-left:1.3rem;max-width:64ch;} li{margin-bottom:.5rem;}
+  strong{font-weight:600;} em{font-style:italic;}
+  a{color:var(--vaga);text-underline-offset:2px;}
+  a:focus-visible{outline:2px solid var(--vaga);outline-offset:2px;}
+  code{font-family:var(--mono);font-size:.87em;background:var(--papel-fundo);padding:.1em .34em;border-radius:2px;}
+
+  /* fatos */
+  .fatos{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--fio);border:1px solid var(--fio);margin:0 0 1.75rem;}
+  .fatos div{background:var(--papel);padding:1rem 1.1rem;}
+  .fatos .n{font-family:var(--mono);font-size:1.55rem;font-weight:500;line-height:1;display:block;margin-bottom:.4rem;font-variant-numeric:tabular-nums;}
+  .fatos .r{font-size:.78rem;line-height:1.35;color:var(--tinta-media);}
+
+  /* nota */
+  .nota{border-left:3px solid var(--vaga);background:var(--papel-alto);padding:1.05rem 1.25rem;margin:0 0 1.6rem;max-width:64ch;}
+  .nota .rot{font-family:var(--mono);font-size:.64rem;letter-spacing:.12em;text-transform:uppercase;color:var(--vaga);display:block;margin-bottom:.45rem;}
+  .nota p:last-child{margin:0;}
+  .nota.verde{border-left-color:var(--cheia);} .nota.verde .rot{color:var(--cheia);}
+
+  /* ficha */
+  .rolagem{overflow-x:auto;margin-bottom:1.6rem;}
+  table{border-collapse:collapse;width:100%;min-width:420px;font-size:.88rem;}
+  th{text-align:left;font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;font-weight:600;color:var(--tinta-media);border-bottom:1.5px solid var(--tinta);padding:.45rem .8rem .45rem 0;}
+  td{border-bottom:1px solid var(--fio);padding:.6rem .8rem .6rem 0;vertical-align:top;}
+  td:first-child{font-weight:600;white-space:nowrap;}
+  td:last-child,th:last-child{padding-right:0;}
+
+  /* bloco para instituições */
+  .instituicoes{border:1px solid var(--fio-forte);background:var(--papel-alto);padding:1.6rem 1.5rem;margin-top:1rem;}
+  .instituicoes h2{border-top:0;padding-top:0;margin-top:0;}
+  .kit{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.9rem;margin:1.25rem 0;}
+  .kit div{border:1px solid var(--fio);background:var(--papel);padding:.8rem .9rem;font-size:.85rem;line-height:1.4;}
+  .kit b{display:block;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--vaga);margin-bottom:.3rem;font-family:var(--mono);font-weight:500;}
+
+  footer{border-top:2px solid var(--tinta);padding-top:1.4rem;font-size:.82rem;color:var(--tinta-fraca);}
+  footer p{max-width:70ch;}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;}}
+</style>
+
+</head>
+<body>
+<div class="env">
+
+<header class="capa">
+  <div class="selo">Levantamento independente · 2026</div>
+  <h1>Ninguém nunca mediu isso.</h1>
+  <p class="lede">Quantas sessões furam por mês. Quantas são cobradas. Há quanto tempo você não reajusta o seu valor. Quanto tempo some, todo mês, com o que não é atender. <strong>Não existe esse dado no Brasil.</strong> Estamos produzindo.</p>
+  <a class="cta" href="/panorama/pesquisa" id="participar">Participar da pesquisa →</a>
+  <p class="cta-nota">9 minutos · anônimo · não pedimos nome nem e-mail</p>
+</header>
+
+<section>
+  <h2><span class="num">01</span>Por que este levantamento existe</h2>
+  <p>A produção sobre o exercício da Psicologia no Brasil cobre bem três frentes: o perfil da categoria e sua inserção no mercado, a atuação em políticas públicas, e o abandono do tratamento visto pela clínica.</p>
+  <p><strong>Falta uma.</strong> Não há levantamento nacional sobre a parte administrativa e financeira de quem atende em consultório particular — quantas sessões marcadas não acontecem e o que se faz com aquele horário, como se cobra e quantas faltas ficam sem cobrança, quão longe o honorário praticado está da referência da categoria, e quanto tempo consome a papelada que ninguém ensinou a fazer.</p>
+  <p>É uma lacuna que importa, e por razões concretas:</p>
+
+  <div class="fatos">
+    <div><span class="n">35,5%</span><span class="r">dos respondentes do CensoPsi 2022 trabalham <strong>exclusivamente como autônomos</strong></span></div>
+    <div><span class="n">71%</span><span class="r">mantêm <strong>mais de um vínculo</strong> de trabalho</span></div>
+    <div><span class="n">R$&nbsp;309,75</span><span class="r">é a <strong>média da tabela CFP/Fenapsi</strong> para psicoterapia individual, vigente desde jun/2024</span></div>
+    <div><span class="n">2025</span><span class="r">o ano em que o <strong>Receita Saúde</strong> virou obrigatório, sem que se saiba quantas cumprem</span></div>
+  </div>
+
+  <div class="nota">
+    <span class="rot">O que existe lá fora e não existe aqui</span>
+    <p>A American Psychological Association conduz anualmente o <em>Practitioner Pulse Survey</em>. Na edição de 2024, com 853 psicólogos, <strong>53% declararam não ter vaga para novos pacientes</strong>. Não há instrumento brasileiro comparável — e é isso que este levantamento pretende começar a corrigir.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">02</span>Como funciona</h2>
+  <div class="rolagem">
+    <table>
+      <tbody>
+        <tr><td>Tempo</td><td>9 minutos. Medimos: a maioria leva entre 8 e 11.</td></tr>
+        <tr><td>Anonimato</td><td><strong>Não pedimos nome, e-mail, CPF nem número de registro.</strong> As respostas são analisadas apenas em conjunto.</td></tr>
+        <tr><td>O que perguntamos</td><td>A sua última semana de trabalho, em números. Nada sobre pacientes específicos, nada sobre conteúdo clínico.</td></tr>
+        <tr><td>O que sai disso</td><td>Um relatório público e gratuito, sem cadastro, com o questionário em anexo e as limitações declaradas.</td></tr>
+        <tr><td>Quando</td><td>Coleta até [data]. Relatório previsto para [data].</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="nota verde">
+    <span class="rot">Uma escolha de desenho que vale explicar</span>
+    <p>As primeiras quatro perguntas são abertas e vêm <strong>antes</strong> de qualquer lista de alternativas — e não podem ser editadas depois. É de propósito: queremos saber o que você pensou <em>antes</em> de ver as opções que oferecemos. O que as pessoas escrevem sozinhas costuma não ser o que elas marcam numa lista, e a diferença entre as duas coisas é um dos resultados que vamos publicar.</p>
+    <p><strong>A primeira delas não pergunta o que te incomoda.</strong> Pede que você reconstrua o último dia em que atendeu — o que fez fora das sessões, do começo ao fim. Perguntar por incômodo só recupera o que a pessoa já classificou como incômodo, e deixa de fora a parte da rotina que consome tempo sem ser chamada de problema.</p>
+  </div>
+
+  <div class="nota verde">
+    <span class="rot">E uma segunda, que é uma admissão</span>
+    <p>Na pergunta em que você escolhe as três coisas que mais te custam, a última opção é <strong>“outra coisa — qual?”</strong>, com espaço para escrever. Ela existe porque toda lista fechada é o conjunto de suposições de quem a escreveu, e sem essa saída o resultado principal só conseguiria ordenar as nossas.</p>
+    <p><strong>A proporção de pessoas que escolher essa opção é, ela mesma, um resultado</strong> — a nota que a nossa lista tira. Se passar de 20%, está registrado desde já que o ranking será publicado como provisório, e a lista, declarada insuficiente.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">03</span>Quem conduz, e o conflito de interesse</h2>
+  <div class="rolagem">
+    <table>
+      <tbody>
+        <tr><td>Responsável</td><td><strong>Leandro [sobrenome]</strong> — economista e contador, pós-graduado em Gestão</td></tr>
+        <tr><td>Realização</td><td>Levantamento independente, sem vínculo institucional</td></tr>
+        <tr><td>Contato</td><td><a href="mailto:[e-mail]">[e-mail]</a> — eu respondo.</td></tr>
+        <tr><td>Custeio</td><td>Produtize [CNPJ nº]. Sem financiamento externo, público ou de terceiros.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="nota">
+    <span class="rot">Declaração de conflito de interesse</span>
+    <p>Sou sócio da Produtize, que desenvolve um sistema de gestão para consultórios de psicologia, e é ela que custeia este levantamento. Fui atrás deste dado porque precisava dele, não achei, e resolvi produzi-lo. <strong>Nenhuma pergunta do questionário faz referência a produto, marca ou solução comercial</strong> — você pode conferir: o instrumento completo está publicado abaixo, antes de você responder.</p>
+    <p><strong>Os dados individuais não são compartilhados com a empresa.</strong> O produto deste levantamento é o relatório agregado, público e gratuito.</p>
+    <p>E uma coisa que eu poderia ter escondido: <strong>a hipótese central é a de que a psicóloga brasileira não tem a agenda cheia</strong> — o que é uma má notícia para o que eu estou construindo. Ela está registrada, com data, antes da primeira resposta.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">04</span>Método, ética e transparência</h2>
+  <ul>
+    <li><strong>Protocolo completo</strong>, com justificativa, método, hipóteses e plano de análise — <a href="/panorama/protocolo">baixar PDF</a>.</li>
+    <li><strong>Pré-registro</strong> no Open Science Framework, depositado <em>antes</em> da primeira resposta, com DOI: <a href="#">[DOI]</a>. Inclui as hipóteses e o que consideramos que as refuta.</li>
+    <li><strong>Instrumento na íntegra</strong>, as 44 perguntas, publicado junto ao protocolo.</li>
+    <li><strong>Regra de falha do próprio instrumento</strong>, fixada antes da coleta: se um tema aparecer em 15% ou mais das respostas abertas <em>sem</em> ter item correspondente na lista fechada, ele é reportado como falha nossa, nomeado, e apresentado antes do ranking.</li>
+    <li><strong>Base agregada e anonimizada</strong>, publicada junto ao relatório final.</li>
+  </ul>
+
+  <h3>Enquadramento normativo</h3>
+  <p>Pesquisa de opinião com participantes não identificados, <strong>dispensada de registro e avaliação pelo sistema CEP/CONEP</strong> nos termos da Resolução CNS nº 510/2016, art. 1º, parágrafo único, inciso I. O tratamento de dados observa a Lei nº 13.709/2018, com consentimento expresso colhido na abertura do questionário.</p>
+
+  <h3>Limitações, ditas antes e não depois</h3>
+  <p>A amostra é <strong>não probabilística</strong>: quem responde se autosseleciona, e isso tende a sobre-representar perfis mais organizados e mais conectados. Os dados são autorrelatados. <strong>Nenhuma inferência causal é possível.</strong> O levantamento descreve; não explica. Publicaremos o resultado qualquer que ele seja — inclusive se contrariar tudo o que esperávamos encontrar.</p>
+</section>
+
+<section>
+  <h2><span class="num">05</span>O que você recebe</h2>
+  <p>O relatório sai <strong>aberto e gratuito, sem cadastro</strong> — quem respondeu e quem não respondeu terão o mesmo acesso. Se quiser ser avisada quando sair, há um formulário separado no fim do questionário, que <strong>não se liga às suas respostas</strong>.</p>
+  <p>Consultório solo raramente tem acesso a uma coisa simples e cara: <strong>saber como as outras estão fazendo.</strong> É isso que o relatório devolve.</p>
+</section>
+
+<div class="instituicoes">
+  <h2>Para conselhos, institutos e comunidades</h2>
+  <p>Se você representa um Conselho Regional, um instituto de formação, uma comunidade profissional ou um escritório de contabilidade que atende psicólogas, <strong>a divulgação é bem-vinda e eu facilito tudo.</strong></p>
+
+  <h3>O que oferecemos em troca</h3>
+  <ul>
+    <li><strong>Aos Conselhos Regionais: o recorte separado da sua regional</strong> — quantas profissionais da região emitem pelo Receita Saúde, quanto tempo gastam com a parte administrativa, qual a taxa de faltas relatada. É um dado que hoje não existe, e ele fica com vocês para o uso que a gestão quiser fazer.</li>
+    <li><strong>A institutos e comunidades:</strong> o relatório antes da publicação, e menção nominal como apoiador.</li>
+    <li><strong>A escritórios de contabilidade:</strong> o recorte fiscal, antes da publicação.</li>
+  </ul>
+
+  <h3>O kit de divulgação, pronto</h3>
+  <div class="kit">
+    <div><b>Protocolo</b>PDF com justificativa, método e ética</div>
+    <div><b>Instrumento</b>As 44 perguntas, na íntegra</div>
+    <div><b>Parágrafo de boletim</b>60 palavras, para colar</div>
+    <div><b>Card e story</b>1080×1080 e 1080×1920</div>
+    <div><b>Texto de WhatsApp</b>Quatro linhas</div>
+    <div><b>Link com código</b>Um por canal, para medir o alcance de cada um</div>
+  </div>
+
+  <p>Podemos apresentar o protocolo à comissão responsável, presencialmente ou por vídeo. Escreva para <a href="mailto:[e-mail]">[e-mail]</a>.</p>
+</div>
+
+<footer>
+  <p>Panorama da Prática Psicológica — levantamento independente conduzido por Leandro [sobrenome], economista e contador, custeado pela Produtize. Protocolo v1.0, de 31 de agosto de 2026. Pré-registro: [DOI].</p>
+  <p>Dúvidas sobre a pesquisa, pedidos de esclarecimento ou solicitação de exclusão de dados: <a href="mailto:[e-mail]">[e-mail]</a>.</p>
+</footer>
+
+</div>
+
+</body>
+</html>
