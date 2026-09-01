@@ -16,20 +16,23 @@
  */
 
 /**
- * O limite que a cliente vê: pacientes ativos.
+ * Quantos pacientes ativos a conta tem — e é **medida, não porteiro**.
  *
- * Desde a OP3 é este o limite do plano, e o de mensagens virou rede de
- * segurança muda. O motivo é duplo, e o segundo pesa mais:
+ * A OP3 chegou a pôr limite de cinco pacientes no Grátis, e a 0048 desfez:
+ * um teto de pacientes limita o **registro**, que é a parte que devia ser
+ * livre. A regra do cardápio ficou sendo uma só —
  *
- *   · "o Grátis vai até 5 pacientes" se explica em cinco palavras; "60
- *     mensagens de fila e cobrança por mês, e lembrete não conta" precisa de
- *     três frases e de um conceito nosso;
- *   · o teto de mensagens **não limitava o custo que existia para limitar** —
- *     ele só alcança as não-essenciais, e lembrete de véspera é o grosso do
- *     volume. Uma conta gratuita com quarenta pacientes mandava 160 lembretes
- *     por mês sem nunca encostar no teto de 60.
+ *     **o Grátis dá tudo o que é registro; o que se cobra é o que economiza
+ *     tempo.**
  *
- * O limite de pacientes bounda os três de uma vez: sessão, mensagem e custo.
+ * Agenda, prontuário, anamnese, livro-razão: é o trabalho dela ficando
+ * guardado, e cobrar por isso é cobrar para ela poder existir organizada. O
+ * plano pago vende a máquina trabalhando no lugar dela — a fila que oferece
+ * sozinha, a régua que cobra sem ela mandar a mensagem —, que é o que custa
+ * dinheiro por unidade e é onde o valor aparece.
+ *
+ * O tipo fica porque o número continua útil: o tamanho da conta é informação
+ * do painel do negócio, mesmo sem limite nenhum em cima.
  */
 export type Pacientes = {
   tem_limite: boolean;

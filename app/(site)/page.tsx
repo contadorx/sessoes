@@ -58,9 +58,9 @@ const PLANOS = [
   {
     nome: "Grátis",
     preco: "R$ 0",
-    detalhe: "até 5 pacientes ativos",
+    detalhe: "pacientes sem limite",
     linhas: [
-      "Agenda, pacientes e o livro-razão da sessão",
+      "Agenda, prontuário e o livro-razão da sessão",
       "Lembrete de véspera e aviso de desmarque, sem limite",
       "60 mensagens de fila e cobrança por mês",
     ],
@@ -71,7 +71,7 @@ const PLANOS = [
     detalhe: "por mês",
     destaque: true,
     linhas: [
-      "Pacientes sem limite",
+      "Fila e cobrança sem teto de mensagens",
       "Conciliação do Pix com a sessão",
       "Cobrança proposta com a política congelada",
       "Modo Receita Saúde e pasta do contador",
@@ -139,8 +139,14 @@ export default function Home() {
             a parte do consultório que não é atender
           </span>
           <a
+            href="#cfp"
+            className="ml-auto hidden text-[12.5px] font-medium text-tinta2 transition-colors hover:text-vaga sm:inline"
+          >
+            CFP e sigilo
+          </a>
+          <a
             href="#lista"
-            className="ml-auto rounded-full border border-linha2 px-4 py-1.5 text-[12.5px] font-medium text-tinta2 transition-colors hover:border-vaga hover:text-vaga"
+            className="rounded-full border border-linha2 px-4 py-1.5 text-[12.5px] font-medium text-tinta2 transition-colors hover:border-vaga hover:text-vaga"
           >
             Entrar na lista
           </a>
@@ -151,7 +157,7 @@ export default function Home() {
         {/* ---------------- hero ---------------- */}
         <section className="mx-auto max-w-5xl px-5 pb-14 pt-14 sm:px-8 sm:pb-20 sm:pt-24">
           <h1 className="max-w-[18ch] font-serif text-[38px] leading-[1.08] tracking-[-0.022em] text-balance sm:text-[62px]">
-            Sua semana tem 25 horas de atendimento. Quantas viraram receita?
+            Vinte e cinco horas de atendimento numa semana comum. Quantas viraram receita?
           </h1>
 
           <p className="mt-6 max-w-[58ch] text-[16px] leading-relaxed text-tinta2 sm:text-[17px]">
@@ -229,7 +235,7 @@ export default function Home() {
               realizada, &ldquo;cancelada&rdquo; não diz se houve receita e
               &ldquo;remarcada&rdquo; não diz se consumiu outra hora. Aqui a
               sessão carrega os cinco separados: agenda, confirmação,
-              financeiro, fiscal e o que aconteceu com a hora.
+              pagamento, fiscal e o que aconteceu com a hora.
             </Cartao>
             <Cartao titulo="Antecipado não é atendido">
               Receber por uma sessão que ainda não aconteceu entra como pago, e
@@ -317,7 +323,7 @@ export default function Home() {
           id="planos"
           rotulo="Planos"
           titulo="Preço em estudo, com quem vai usar."
-          linha="Estes números são hipótese, e estão sendo testados com as primeiras psicólogas que conversam com a gente. Quem entrar na lista participa dessa conversa — e do piloto. No Grátis, arquivar quem encerrou o processo devolve a vaga, e a ficha continua guardada com o histórico inteiro. Lembrete de véspera e aviso de desmarque nunca entram em limite nenhum: quem ficaria sem eles é o paciente."
+          linha="Estes números são hipótese, e estão sendo testados com as primeiras psicólogas que conversam com a gente. Quem entrar na lista participa dessa conversa — e do piloto. A regra do cardápio é uma só: o Grátis dá tudo o que é registro — agenda, prontuário, livro-razão, pacientes sem limite — e o que se cobra é o que economiza tempo. Lembrete de véspera e aviso de desmarque nunca entram em teto nenhum, em plano nenhum: quem ficaria sem eles é o paciente."
           fundo="folha"
         >
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -354,6 +360,60 @@ export default function Home() {
               </div>
             ))}
           </div>
+        </Secao>
+
+        {/* ---------------- o CFP ---------------- */}
+        <Secao
+          id="cfp"
+          rotulo="As regras da profissão"
+          titulo="A conformidade com o CFP é sua. O sistema existe para você não ter que pensar nela."
+          linha="Quem responde pelo prontuário perante o Conselho é você — isso não se terceiriza para software nenhum, e quem disser o contrário está vendendo o que não pode entregar. O que dá para fazer é construir o sistema de um jeito que cumprir seja o caminho de menor esforço, e não uma disciplina extra no fim do dia."
+        >
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Cartao titulo="O prontuário nos blocos que o Manual pede">
+              Identificação, avaliação da demanda, evolução e encerramento — a
+              estrutura da Resolução 001/2009 com a linguagem do Manual
+              Orientativo de novembro de 2025, não um campo de texto livre com
+              outro nome.
+            </Cartao>
+            <Cartao titulo="Evolução que não se reescreve">
+              O que foi registrado fica com a data em que foi registrado. O que
+              chega depois entra como acréscimo, com a data em que chegou — um
+              registro que se reescreve por cima não é registro, é a versão de
+              hoje da história.
+            </Cartao>
+            <Cartao titulo="O que está em branco aparece em branco">
+              O Manual pede que não se deixe espaço em branco no prontuário. Aqui
+              a seção vazia é mostrada como vazia, em vez de sumir da tela — a
+              lacuna que você não vê é a que fica.
+            </Cartao>
+            <Cartao titulo="Cinco anos, e do menor conta da maioridade">
+              O prazo de guarda é calculado por ficha, e o sistema recusa apagar
+              o que ainda está dentro dele. Quando o paciente é menor, o relógio
+              começa quando ele completa dezoito.
+            </Cartao>
+            <Cartao titulo="Trilha de quem viu o quê">
+              Cada abertura de prontuário fica registrada, e a trilha é sua —
+              não um log interno nosso. É o que permite responder com fato, e
+              não com memória, se alguém perguntar.
+            </Cartao>
+            <Cartao titulo="Nosso suporte não vê prontuário">
+              Não é promessa de conduta: é limitação escrita no código, com
+              teste automático que reprova a alteração se alguma função de
+              suporte encostar em prontuário, evolução ou anamnese. Nós vemos
+              conta, plano e erro técnico. Nada além disso.
+            </Cartao>
+          </div>
+
+          <p className="mt-6 max-w-[74ch] text-[12.5px] leading-relaxed text-tinta3">
+            Base normativa: <b className="font-medium text-tinta2">Resolução CFP nº 001/2009</b> (prontuário
+            psicológico e guarda), <b className="font-medium text-tinta2">Resolução CFP nº 06/2019</b> (documentos
+            escritos), <b className="font-medium text-tinta2">Resolução CFP nº 09/2024</b> (atendimento por
+            tecnologias) e o <b className="font-medium text-tinta2">Manual Orientativo de nov/2025</b>, que é o
+            texto que traz os quadros comparativos e a distinção entre prontuário
+            e registro documental. Conferimos as quatro em 01/09/2026, e o que
+            estiver desatualizado aqui é erro nosso — se você encontrar, escreva.
+          </p>
         </Secao>
 
         {/* ---------------- fronteiras ---------------- */}

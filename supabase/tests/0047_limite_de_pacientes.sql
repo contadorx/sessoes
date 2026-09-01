@@ -1,5 +1,21 @@
 -- Teste do limite de pacientes (critério de pronto da OP3).
 --
+-- **Desde a 0048 nenhum plano usa este limite.** O Grátis dá tudo o que é
+-- registro — agenda, prontuário, livro-razão — e cobra só o que economiza
+-- tempo, que é a mensageria; um teto de pacientes limitaria justamente a parte
+-- que devia ser livre.
+--
+-- A suíte fica, e o mecanismo fica, por um motivo: ele está provado, custa
+-- nada em repouso (o gatilho sai na primeira linha quando o limite é nulo), e
+-- se um plano precisar de teto de pacientes um dia, é um `update` que vale na
+-- hora. Uma máquina testada e desligada é barata; reconstruí-la em seis meses,
+-- não.
+--
+-- Por isso a suíte **configura o próprio limite** e devolve `null` no fim —
+-- ela não depende mais do que está em produção, que é a lição que a 0046
+-- custou caro para aprender: suíte que sabe um número de produção de cor é
+-- suíte que pode reverter um deploy.
+--
 -- A verificação que decide o build é a **3**, e ela existe porque todo limite
 -- por contagem tem uma porta dos fundos de uma linha: arquivar cinco, criar
 -- cinco, desarquivar os cinco primeiros. Sem o gatilho do UPDATE o limite é
@@ -20,7 +36,7 @@
 --   8. `pacientes_da_conta` não é sonda de conta alheia
 --   9. ...e não é rota para o anônimo
 --  10. **arquivar continua possível com a conta lotada** — a saída não se fecha
---  11. os DOIS limites convivem — pacientes bounda o tamanho, mensagens a conversa
+--  11. **nenhum plano limita pacientes** — o único limite é o de mensagens
 --  12. ...mas a máquina da OP2 continua de pé: o essencial nunca é barrado
 --
 -- Levanta exceção no primeiro furo. Silêncio = passou.
@@ -68,6 +84,9 @@ begin
 
   update public.contas set nome = 'Ana Limite', plano = 'gratis' where id = a_conta;
   update public.contas set nome = 'Bia Limite', plano = 'solo'   where id = b_conta;
+
+  -- A suíte liga o limite para si mesma. Em produção ele é nulo desde a 0048.
+  update public.planos set limite_pacientes_ativos = 5 where codigo = 'gratis';
 
   perform set_config('request.jwt.claims',
                      json_build_object('sub', a_auth, 'role', 'authenticated')::text, true);
@@ -163,8 +182,19 @@ begin
   update public.planos set limite_pacientes_ativos = 50 where codigo = 'gratis';
   select * into t from public.pacientes_da_conta(a_conta);
   if t.lotou then raise exception '6 · subi o limite para 50 e a conta continua lotada'; end if;
-  update public.planos set limite_pacientes_ativos = 5 where codigo = 'gratis';
-  raise notice '6 · o limite é dado, não deploy: ok';
+
+  -- E desligar de vez também é um update: é assim que ele está em produção.
+  update public.planos set limite_pacientes_ativos = null where codigo = 'gratis';
+  select * into t from public.pacientes_da_conta(a_conta);
+  if t.tem_limite then raise exception '6 · zerei o limite e a conta continua limitada'; end if;
+  insert into public.pacientes (conta_id, profissional_id, nome, msg_canal, telefone)
+  values (a_conta, a_prof, 'Limite Sem Teto', 'whatsapp', '11977770099');
+
+  -- E fica desligado, que é o estado de produção. A primeira versão desta
+  -- parte religava o limite aqui, e a parte 2 exigia que nenhum plano
+  -- limitasse — as duas metades da mesma suíte discordando.
+  update public.planos set limite_pacientes_ativos = null;
+  raise notice '6 · o limite é dado, e desligar também: ok';
 end $do$;
 
 -- ==================== parte 2 · quem pergunta, e a rede de segurança
@@ -203,23 +233,25 @@ begin
   end if;
   raise notice '9 · o anônimo não alcança: ok';
 
-  -- 11 · os DOIS limites convivem, e cada um bounda um eixo.
+  -- 11 · O ÚNICO limite de produção é o de mensagens.
   --
-  -- A 0046 alertou contra dois limites para a mesma coisa — foi o que custou
-  -- cobrança em dobro no Enquadria. Estes não são a mesma coisa: pacientes
-  -- bounda o **tamanho** da conta, mensagens bounda a **conversa** dela, que é
-  -- volume discricionário e não é proporcional a quantos pacientes ela tem.
-  -- Uma conta de cinco pacientes manda quinze mensagens num mês normal e
-  -- duzentas num mês em que tudo desmarca e a fila roda três vezes por vaga.
+  -- Desde a 0048 o Grátis dá tudo o que é registro e cobra só o que economiza
+  -- tempo. Se um dia alguém puser teto de pacientes em produção, esta
+  -- verificação cai — e é para cair: o limite existiria de novo sobre a parte
+  -- que devia ser livre, e alguém teria de dizer por quê.
+  select count(*) into n from public.planos where limite_pacientes_ativos is not null;
+  if n > 0 then
+    raise exception '11 · % plano(s) voltaram a limitar pacientes — o registro é a parte que não se cobra', n;
+  end if;
+
   select limite_mensagens_mes into n from public.planos where codigo = 'gratis';
   if n is null then
-    raise exception '11 · o teto de mensagens sumiu — o limite de pacientes não alcança o mês em que tudo desmarca';
+    raise exception '11 · o teto de mensagens sumiu, e ele é o único limite que sobrou';
   end if;
   if n > 200 then
     raise exception '11 · o teto de mensagens subiu para %, alto o bastante para não limitar nada', n;
   end if;
-  raise notice '11 · os dois limites convivem (% pacientes, % mensagens): ok',
-    (select limite_pacientes_ativos from public.planos where codigo = 'gratis'), n;
+  raise notice '11 · o único limite é o de mensagens (%): ok', n;
 
   -- E em uso normal a fila não pausa mais. Cinco pacientes não geram 500
   -- mensagens não-essenciais em mês nenhum.
@@ -266,14 +298,16 @@ begin
   end loop;
   delete from auth.users where email like '%@teste.limite.com.br';
 
-  -- O limite volta ao valor de produção aconteça o que acontecer: uma suíte
-  -- que deixasse 50 aqui abriria o plano Grátis para todo mundo, em silêncio.
-  update public.planos set limite_pacientes_ativos = 5 where codigo = 'gratis';
+  -- O valor de produção é NULO — nenhum plano limita pacientes desde a 0048.
+  -- A suíte ligou o limite para si mesma; desligar de volta é obrigação dela.
+  update public.planos set limite_pacientes_ativos = null;
 
   select count(*) into n from public.contas where nome like '%Limite';
   if n <> 0 then raise exception 'parte 3 · sobraram % contas de teste', n; end if;
-  select limite_pacientes_ativos into n from public.planos where codigo = 'gratis';
-  if n <> 5 then raise exception 'parte 3 · o limite do Grátis ficou em %', n; end if;
+  select count(*) into n from public.planos where limite_pacientes_ativos is not null;
+  if n <> 0 then
+    raise exception 'parte 3 · a suíte deixou limite de pacientes ligado em % plano(s)', n;
+  end if;
 
   raise notice 'parte 3 · rastro recolhido: ok';
   raise notice '=== 0047 · o limite de pacientes: 12 verificações, todas passaram ===';

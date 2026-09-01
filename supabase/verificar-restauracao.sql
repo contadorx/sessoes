@@ -251,14 +251,24 @@ begin
 
   -- ------------------------------------------ 8b. o limite do plano Grátis
   --
-  -- Se `limite_pacientes_ativos` voltar nulo, o plano Grátis fica **aberto**:
-  -- ninguém recebe erro, ninguém percebe, e o único sinal seria o custo
-  -- subindo meses depois. Um limite que some é sempre pior que um limite que
-  -- reclama.
-  select coalesce(limite_pacientes_ativos, 0) into n
+  -- Desde a 0048 o limite é um só: **mensagens**. O Grátis dá tudo o que é
+  -- registro — agenda, prontuário, livro-razão, pacientes sem limite — e cobra
+  -- o que economiza tempo.
+  --
+  -- Se `limite_mensagens_mes` voltar nulo no Grátis, o plano fica **aberto**:
+  -- ninguém recebe erro, ninguém percebe, e o único sinal seria o custo subindo
+  -- meses depois. Um limite que some é sempre pior que um limite que reclama.
+  select coalesce(limite_mensagens_mes, 0) into n
     from public.planos where codigo = 'gratis';
   if n = 0 then
-    raise exception 'O PLANO GRÁTIS VOLTOU SEM LIMITE DE PACIENTES — ele fica aberto, e o primeiro sinal seria a fatura';
+    raise exception 'O PLANO GRÁTIS VOLTOU SEM TETO DE MENSAGENS — ele fica aberto, e o primeiro sinal seria a fatura';
+  end if;
+
+  -- E o inverso também é defeito: um restore que trouxesse limite de pacientes
+  -- de volta cobraria pela parte que devia ser livre.
+  select count(*) into n from public.planos where limite_pacientes_ativos is not null;
+  if n > 0 then
+    raise exception '% plano(s) voltaram limitando PACIENTES — o registro é a parte que não se cobra (0048)', n;
   end if;
 
   -- ------------------------------------------ 9. os três essenciais

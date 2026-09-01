@@ -215,7 +215,7 @@ describe("rotuloEstadoMensagem — a barrada diz que não saiu", () => {
 
 // ============================================ o limite que a cliente vê (OP3)
 
-describe("o limite de pacientes — o único que aparece na tela", () => {
+describe("pacientes: medida, não porteiro (0048)", () => {
   const pac = (p: Partial<Pacientes> = {}): Pacientes => ({
     tem_limite: true, limite: 5, ativos: 2, restantes: 3, lotou: false, ...p,
   });
@@ -224,17 +224,20 @@ describe("o limite de pacientes — o único que aparece na tela", () => {
     tem_limite: false, limite: null, ativos: 40, restantes: null, lotou: false,
   };
 
-  it("se explica em uma frase, com o número na frente", () => {
-    // É este o teste da decisão inteira: o limite antigo precisava de três
-    // frases e de um conceito nosso ("mensagem não-essencial") para virar
-    // entendimento. Este cabe numa linha.
-    expect(fraseDosPacientes(pac())).toBe("2 de 5 pacientes ativos.");
-    expect(fraseDosPacientes(lotado)).toMatch(/vai até 5 pacientes ativos/);
-  });
-
-  it("plano pago não mostra limite nenhum", () => {
+  it("hoje NENHUM plano limita paciente — o registro é a parte que não se cobra", () => {
+    // A regra do cardápio, e é ela que este teste guarda: o Grátis dá tudo o
+    // que é registro (agenda, prontuário, livro-razão) e o que se cobra é o
+    // que economiza tempo. Um teto de pacientes limitaria justamente a parte
+    // que devia ser livre.
     expect(fraseDosPacientes(semLimite)).toMatch(/não tem limite/);
     expect(fraseDaSaida_pacientes(semLimite)).toBe("");
+  });
+
+  it("a máquina continua funcionando se um plano voltar a limitar", () => {
+    // Ela fica desligada, não apagada: está provada por suíte, custa nada em
+    // repouso, e religar é um update. Reconstruir em seis meses, não.
+    expect(fraseDosPacientes(pac())).toBe("2 de 5 pacientes ativos.");
+    expect(fraseDosPacientes(lotado)).toMatch(/vai até 5 pacientes ativos/);
   });
 
   it("quando lota, a saída vem junto — limite sem saída é parede", () => {
