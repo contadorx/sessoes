@@ -3,6 +3,14 @@ import { Marca } from "@/components/site/Marca";
 import { Cascata } from "@/components/site/Cascata";
 import { Discricao } from "@/components/site/Discricao";
 import { Espera } from "@/components/site/Espera";
+import {
+  AgendaEExtrato,
+  CincoLugares,
+  UmRegistro,
+  GlifoDoDestino,
+  FolhaDoProntuario,
+  Fio,
+} from "@/components/site/Figuras";
 
 /**
  * A landing, depois da auditoria externa e da virada para produção.
@@ -70,7 +78,10 @@ function Secao({
       className={`scroll-mt-16 border-t border-linha ${fundo === "folha" ? "bg-folha2" : ""}`}
     >
       <div className="mx-auto max-w-5xl px-5 py-14 sm:px-8 sm:py-20">
-        <span className="rotulo">{rotulo}</span>
+        <span className="flex items-center gap-2.5">
+          <Fio className="shrink-0" />
+          <span className="rotulo">{rotulo}</span>
+        </span>
         <h2 className="mt-2 max-w-[24ch] font-serif text-[27px] leading-[1.18] tracking-[-0.015em] text-balance sm:text-[34px]">
           {titulo}
         </h2>
@@ -225,43 +236,84 @@ export default function Home() {
             Descreve o problema, não a leitora. A versão anterior perguntava
             quantas horas viraram receita — e cobrava um número que ela não
             tem, de alguém que já se sente mal com números. */}
-        <section className="mx-auto max-w-5xl px-5 pb-14 pt-14 sm:px-8 sm:pb-20 sm:pt-24">
-          <h1 className="max-w-[19ch] font-serif text-[38px] leading-[1.08] tracking-[-0.022em] text-balance sm:text-[62px]">
-            Sua agenda diz uma coisa. O Pix, outra. No fim do mês, o <Marca />{" "}
-            junta tudo.
-          </h1>
+        <section className="relative overflow-hidden">
+          {/* A ordem do DOM é a ordem do celular: frase, figura, botão. A figura
+              entra como prova **antes** da ação — na versão anterior ela ficava
+              depois de todo o texto e de todos os botões, ou seja, longe da
+              dobra num aparelho de 390px: quem chega pelo telefone via a
+              promessa e nunca via o desenho que a sustenta.
 
-          <p className="mt-6 max-w-[60ch] text-[16px] leading-relaxed text-tinta2 sm:text-[17px]">
-            Você registra o atendimento uma vez. O <Marca /> acompanha o que foi
-            realizado, o que já foi pago, o que ficou a receber, os recibos
-            necessários e o que precisa chegar ao contador.
-          </p>
+              No desktop as três peças voltam ao lugar pelas coordenadas de
+              grade: texto em cima à esquerda, botão embaixo à esquerda, figura
+              à direita ocupando as duas linhas. */}
+          <div className="relative mx-auto grid max-w-5xl gap-8 px-5 pb-14 pt-14 sm:px-8 sm:pb-20 sm:pt-24 lg:grid-cols-[minmax(0,1fr)_minmax(0,400px)] lg:gap-x-14 lg:gap-y-9">
+            <div className="lg:col-start-1 lg:row-start-1">
+              {/* 46px, não 56. A relação com o logo do cabeçalho (21px) sai de
+                  2,7× para 2,2×, e o salto para os títulos de seção (34px)
+                  deixa de ser um degrau. Uma hero de cinco linhas em serif
+                  pesada não é ênfase — é a página inteira gritando a primeira
+                  frase e sussurrando o resto. */}
+              <h1 className="max-w-[20ch] font-serif text-[34px] leading-[1.1] tracking-[-0.02em] text-balance sm:text-[46px]">
+                Sua agenda diz uma coisa. O Pix, outra. No fim do mês, o{" "}
+                <Marca peso="texto" /> junta tudo.
+              </h1>
 
-          <p className="mt-3 max-w-[56ch] text-[14.5px] leading-relaxed text-tinta3">
-            Tudo o que não é atender — sem transformar seu consultório num
-            painel financeiro.
-          </p>
+              <p className="mt-6 max-w-[54ch] text-[16px] leading-relaxed text-tinta2 sm:text-[17px]">
+                Você registra o atendimento uma vez. O <Marca peso="texto" /> acompanha o que
+                foi realizado, o que já foi pago, o que ficou a receber, os
+                recibos necessários e o que precisa chegar ao contador.
+              </p>
 
-          <div className="mt-8 flex flex-wrap items-center gap-4">
-            <Link
-              href="/entrar"
-              className="rounded-full bg-vaga px-6 py-3 text-[13.5px] font-semibold text-white transition-opacity hover:opacity-90"
-            >
-              Começar de graça
-            </Link>
-            <a
-              href="#mes"
-              className="text-[13.5px] font-medium text-tinta2 underline decoration-linha2 underline-offset-4 transition-colors hover:text-vaga"
-            >
-              Ver como um mês inteiro funciona
-            </a>
+              <p className="mt-3 max-w-[52ch] text-[14.5px] leading-relaxed text-tinta3">
+                Tudo o que não é atender — sem transformar seu consultório num
+                painel financeiro.
+              </p>
+
+            </div>
+
+            {/* A hero em desenho — e ela mostra também o que não bate, porque
+                a copy ao lado promete comparação, não mágica. */}
+            <figure className="rounded-cartao border border-linha bg-folha p-4 shadow-[0_1px_0_rgba(31,38,42,0.04)] sm:p-5 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-center">
+              <AgendaEExtrato className="h-auto w-full" />
+              <figcaption className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-linha pt-3 text-[11px] text-tinta3">
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="inline-block h-2 w-2 rounded-[1px] bg-cheia" />
+                  pagamento identificado
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="inline-block h-2 w-2 rounded-[1px] bg-aviso" />
+                  a resolver
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="inline-block h-2 w-2 rounded-[1px] bg-vaga" />
+                  horário não ocupado
+                </span>
+              </figcaption>
+            </figure>
+
+            <div className="lg:col-start-1 lg:row-start-2">
+              <div className="flex flex-wrap items-center gap-4">
+                <Link
+                  href="/entrar"
+                  className="rounded-full bg-vaga px-6 py-3 text-[13.5px] font-semibold text-white transition-opacity hover:opacity-90"
+                >
+                  Começar de graça
+                </Link>
+                <a
+                  href="#mes"
+                  className="text-[13.5px] font-medium text-tinta2 underline decoration-linha2 underline-offset-4 transition-colors hover:text-vaga"
+                >
+                  Ver como um mês inteiro funciona
+                </a>
+              </div>
+
+              <p className="mt-4 max-w-[52ch] text-[12.5px] leading-relaxed text-tinta3">
+                O plano Grátis não expira e não pede cartão. Agenda, prontuário
+                e o registro do mês são dele; o que se cobra é o trabalho que o
+                sistema faz no seu lugar.
+              </p>
+            </div>
           </div>
-
-          <p className="mt-4 max-w-[56ch] text-[12.5px] leading-relaxed text-tinta3">
-            O plano Grátis não expira e não pede cartão. Agenda, prontuário e o
-            registro do mês são dele; o que se cobra é o trabalho que o sistema
-            faz no seu lugar.
-          </p>
         </section>
 
         {/* ---------------- o mês espalhado ----------------
@@ -276,6 +328,14 @@ export default function Home() {
           linha="Agenda num app, pagamento no extrato, recibo no site da Receita, controle numa planilha e o resto no WhatsApp. Aqui a sessão carrega tudo — quem confirmou, quem pagou, quem tem recibo, o que ficou a receber."
           fundo="folha"
         >
+          <figure className="mb-10 rounded-cartao border border-linha bg-folha p-5 sm:p-7">
+            <CincoLugares className="mx-auto h-auto w-full max-w-[660px]" />
+            <figcaption className="mt-4 border-t border-linha pt-3 text-[12px] leading-relaxed text-tinta3">
+              À esquerda, o mês de hoje. À direita, o mesmo mês — e é a sessão
+              que passa a carregar o que antes estava em cinco lugares.
+            </figcaption>
+          </figure>
+
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Cartao titulo="O Pix é comparado com as sessões previstas">
               Quando o valor e a referência batem, o pagamento é identificado
@@ -317,6 +377,10 @@ export default function Home() {
           titulo="Você registra a sessão uma vez. O restante acompanha esse registro."
           linha="Marcar que a sessão aconteceu é o único gesto obrigatório do dia. Dele saem a cobrança, o lembrete de pagamento, a linha do recibo, o número que o contador precisa e o fechamento do mês — como consequência do registro, e não como cinco tarefas novas que aparecem depois."
         >
+          <figure className="mb-10 rounded-cartao border border-linha bg-folha p-5 sm:p-7">
+            <UmRegistro className="mx-auto h-auto w-full max-w-[620px]" />
+          </figure>
+
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Cartao titulo="A sessão responde por si">
               Registrar o que aconteceu, ver cobrança e pagamento, enviar ou
@@ -354,31 +418,41 @@ export default function Home() {
           linha="Quatro situações, e elas não se confundem: um horário realizado pode estar pago ou a receber, e um horário que não foi ocupado é um fato da agenda, não um julgamento sobre você ou sobre o paciente. A reposição é a conta que ninguém faz — duas horas de capacidade, uma receita só —, e é onde a receita some sem ninguém perceber."
           fundo="folha"
         >
+          {/* Cada destino ganha o glifo da própria célula da grade — o mesmo
+              vocabulário que ela encontra na agenda depois de criar a conta.
+              Só o terceiro é rosa, porque só o terceiro é hora vazia. */}
           <dl className="grid gap-px overflow-hidden rounded-cartao border border-linha bg-linha sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              {
-                r: "Realizada e recebida",
-                c: "text-cheia",
-                n: "a sessão aconteceu e o pagamento foi identificado",
-              },
-              {
-                r: "Realizada, a receber",
-                c: "text-aviso",
-                n: "o atendimento aconteceu e o pagamento ainda não entrou",
-              },
-              {
-                r: "Horário não ocupado",
-                c: "text-vaga",
-                n: "o horário existia na agenda e ninguém o ocupou — pode ter razão clínica, e o registro não opina",
-              },
-              {
-                r: "Reposição realizada",
-                c: "text-vaga",
-                n: "você deu outro horário pelo mesmo dinheiro — duas horas, uma receita",
-              },
-            ].map((i) => (
+            {(
+              [
+                {
+                  r: "Realizada e recebida",
+                  c: "text-cheia",
+                  g: "recebida",
+                  n: "a sessão aconteceu e o pagamento foi identificado",
+                },
+                {
+                  r: "Realizada, a receber",
+                  c: "text-aviso",
+                  g: "receber",
+                  n: "o atendimento aconteceu e o pagamento ainda não entrou",
+                },
+                {
+                  r: "Horário não ocupado",
+                  c: "text-vaga",
+                  g: "vazio",
+                  n: "o horário existia na agenda e ninguém o ocupou — pode ter razão clínica, e o registro não opina",
+                },
+                {
+                  r: "Reposição realizada",
+                  c: "text-tinta",
+                  g: "reposicao",
+                  n: "você deu outro horário pelo mesmo dinheiro — duas horas, uma receita",
+                },
+              ] as const
+            ).map((i) => (
               <div key={i.r} className="bg-folha px-5 py-5">
-                <dt className={`font-serif text-[17px] leading-snug ${i.c}`}>{i.r}</dt>
+                <GlifoDoDestino tipo={i.g} />
+                <dt className={`mt-3 font-serif text-[17px] leading-snug ${i.c}`}>{i.r}</dt>
                 <dd className="mt-1.5 text-[12.5px] leading-relaxed text-tinta3">
                   {i.n}
                 </dd>
@@ -439,7 +513,18 @@ export default function Home() {
           titulo="A responsabilidade profissional continua sendo sua. O sistema reduz o trabalho de cumpri-la."
           linha="Nenhum software assume a responsabilidade da psicóloga pelo prontuário — quem disser o contrário está vendendo o que não pode entregar. O que dá para fazer é organizar registros, prazos, acessos e correções para que o cumprimento não dependa de memória nem de uma revisão apressada no fim do mês. O sistema orienta o caminho e preserva o histórico; a decisão profissional continua com você."
         >
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {/* A folha, ao lado dos cartões: é o que a frase "o que está em
+              branco aparece em branco" nunca conseguiu dizer sozinha. */}
+          <div className="grid items-start gap-8 lg:grid-cols-[300px_minmax(0,1fr)]">
+            <figure className="order-last rounded-cartao border border-linha bg-folha p-4 lg:order-first lg:sticky lg:top-20">
+              <FolhaDoProntuario className="h-auto w-full" />
+              <figcaption className="mt-3 border-t border-linha pt-3 text-[11.5px] leading-relaxed text-tinta3">
+                Os quatro blocos da Res. CFP 001/2009. O que falta fica marcado
+                em vez de sumir da tela.
+              </figcaption>
+            </figure>
+
+            <div className="grid gap-4 sm:grid-cols-2">
             <Cartao titulo="O prontuário nos blocos que o Manual pede">
               Identificação, avaliação da demanda, evolução e encerramento — a
               estrutura da Resolução 001/2009 com a linguagem do Manual
@@ -475,6 +560,7 @@ export default function Home() {
               conteúdo clínico. Se um incidente exigir mais que isso, você é
               avisada antes, e a trilha registra.
             </Cartao>
+            </div>
           </div>
 
           <p className="mt-6 max-w-[74ch] text-[12.5px] leading-relaxed text-tinta3">
