@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { supabaseSessao } from "@/lib/supabase/server";
 import { sessaoAtual } from "@/lib/conta";
 import { FormPix, FormRitmo, FormAssinatura, FormRegua } from "@/components/app/Conta";
+import { TetoNaConta } from "@/components/app/Teto";
+import { tetoDaConta } from "@/app/(app)/fila/dados";
 
 export const metadata = { title: "Conta" };
 
@@ -55,12 +57,21 @@ export default async function Conta() {
   )) as unknown as ProfLinha[];
 
   const prof = profs[0];
+  const teto = await tetoDaConta();
 
   return (
     <div className="mx-auto max-w-2xl">
       <h1 className="font-serif text-[28px] leading-tight tracking-[-0.015em]">
         {conta.nome}
       </h1>
+
+      {/* ---------------------------------------------------------- o plano */}
+      <section className="mt-8">
+        <h2 className="rotulo">Mensagens do plano</h2>
+        <div className="mt-3 rounded-cartao border border-linha bg-folha px-5 py-4">
+          <TetoNaConta teto={teto} />
+        </div>
+      </section>
 
       {/* ------------------------------------------------------ assinatura */}
       <section className="mt-8">

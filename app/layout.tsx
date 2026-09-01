@@ -23,13 +23,16 @@ const mono = IBM_Plex_Mono({
   weight: ["400", "500"],
 });
 
+// A frase do produto. Trocada em 01/09/2026 junto com a tese: a anterior
+// ("sua agenda não fura mais de graça") prometia recuperar a hora, que depende
+// de haver demanda represada — hipótese que ainda não foi medida.
 const FRASE =
-  "Sua agenda não fura mais de graça, e você nunca mais precisa cobrar ninguém.";
+  "A operação financeira do consultório, com a agenda dentro. Quanto da sua capacidade virou receita, e por onde o resto foi.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://sessoes.com.br"),
   title: {
-    default: "Sessões — a agenda que não fura de graça",
+    default: "Sessões — a operação financeira do consultório",
     template: "%s · Sessões",
   },
   description: FRASE,

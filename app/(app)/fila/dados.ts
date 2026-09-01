@@ -1,7 +1,9 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { supabaseSessao } from "@/lib/supabase/server";
+import { sessaoAtual } from "@/lib/conta";
 import type { Janela } from "@/lib/janela";
+import type { Teto } from "@/lib/teto";
 
 export type NaFila = {
   id: string;
@@ -258,4 +260,31 @@ export async function taxaDePreenchimento(
     | undefined;
 
   return l ?? { canceladas: 0, oferecidas: 0, preenchidas: 0, taxa: null };
+}
+
+/**
+ * O teto do plano da conta.
+ *
+ * Mora aqui e não em `lib/` porque é leitura de banco, e a tela da fila é a
+ * primeira que precisa dele: com o teto estourado, abrir uma vaga não oferece
+ * para ninguém, e uma fila parada sem motivo escrito é indistinguível de uma
+ * fila com defeito.
+ */
+export async function tetoDaConta(): Promise<Teto> {
+  const supabase = await supabaseSessao();
+  const sessao = await sessaoAtual();
+  const linhas = await db<Teto[]>(
+    "fila.teto",
+    supabase.rpc("teto_da_conta", { p_conta: sessao.contaId }),
+  );
+  return (
+    linhas?.[0] ?? {
+      tem_teto: false,
+      limite: null,
+      usadas: 0,
+      restantes: null,
+      estourou: false,
+      pct: 0,
+    }
+  );
 }

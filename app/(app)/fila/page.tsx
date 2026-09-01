@@ -5,7 +5,9 @@ import {
   vagasAbertas,
   regrasDaConta,
   taxaDePreenchimento,
+  tetoDaConta,
 } from "./dados";
+import { AvisoDoTeto } from "@/components/app/Teto";
 import { EditorFila } from "@/components/app/EditorFila";
 import { RegrasDaFila } from "@/components/app/RegrasDaFila";
 import { formatar, paraCentavos } from "@/lib/dinheiro";
@@ -26,12 +28,13 @@ const QUANDO = new Intl.DateTimeFormat("pt-BR", {
 export default async function Fila() {
   const hojeStr = hoje();
 
-  const [fila, candidatos, vagas, regras, metrica] = await Promise.all([
+  const [fila, candidatos, vagas, regras, metrica, teto] = await Promise.all([
     filaDaConta(),
     foraDaFila(),
     vagasAbertas(),
     regrasDaConta(),
     taxaDePreenchimento(somarDias(hojeStr, -30), hojeStr),
+    tetoDaConta(),
   ]);
 
   const semOferta = vagas.filter((v) => v.ofertas === 0);
@@ -44,6 +47,12 @@ export default async function Fila() {
         que você definiu, e passa para a próxima se ninguém responder. Você não
         pede nada a ninguém.
       </p>
+
+      {/* O teto vem logo depois da promessa da tela — se a fila não vai
+          oferecer, ela precisa saber disso antes de ler o resto. */}
+      <div className="mt-5">
+        <AvisoDoTeto teto={teto} />
+      </div>
 
       {/* a métrica que decide o produto */}
       <dl className="mt-5 grid gap-px overflow-hidden rounded-cartao border border-linha bg-linha sm:grid-cols-4">

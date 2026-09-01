@@ -29,7 +29,11 @@ begin
       -- banco e some no mesmo restore.
       'pesquisa_abertas','pesquisa_respostas','pesquisa_contatos',
       -- O painel do negócio (OP1). Não é dado dela, e some no mesmo restore.
-      'planos','assinaturas','faturas','precos_canal','custos_fixos'
+      'planos','assinaturas','faturas','precos_canal','custos_fixos',
+      -- O teto (OP2). `templates` carrega a classificação de qual mensagem
+      -- pode ser barrada — sem ela, a FK de `mensagens.template` cai e o
+      -- outbox inteiro para de aceitar linha.
+      'templates'
     ]) as t
    where to_regclass('public.' || t) is null;
 
@@ -122,7 +126,8 @@ begin
       'pesquisa_contato_existe','esquecer_contato_da_pesquisa',
       'e_operador','painel_do_negocio','contas_do_painel','valor_da_conta',
       'custo_da_conta','churn_do_mes','operador_nao_se_promove',
-      'fatura_paga_nao_regride','assinatura_carimba'
+      'fatura_paga_nao_regride','assinatura_carimba',
+      'teto_da_conta','cabe_no_teto','mensagem_carimba_saida'
     ]) as f
    where not exists (
      select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -151,7 +156,8 @@ begin
       'sessao_espelha','sessao_apagada_espelha','modo_reescreve_o_futuro',
       'cobranca_nao_e_de_importada','consumo_nao_e_de_importada',
       'nota_so_na_ausencia','evolucao_nao_se_reescreve','anamnese_fechada_nao_muda',
-      'operador_nao_se_promove','fatura_paga_nao_regride','assinatura_carimba'
+      'operador_nao_se_promove','fatura_paga_nao_regride','assinatura_carimba',
+      'mensagem_carimba_saida'
     ]) as g
    where not exists (
      select 1 from pg_trigger t
@@ -242,6 +248,22 @@ begin
     raise exception 'VIEWS DO PANORAMA ABERTAS: % — sem security_invoker ou com SELECT para anon, a pesquisa inteira está legível com a chave que está no formulário. Reaplique o bloco final da 0044b.', faltando;
   end if;
 
+  -- ------------------------------------------ 9. os três essenciais
+  --
+  -- `templates.essencial` decide quem fica sem aviso quando o teto estoura.
+  -- Um restore que trouxesse a tabela vazia, ou com os três essenciais
+  -- rebaixados, faria o lembrete de véspera parar de sair numa conta gratuita
+  -- — e o sintoma seria um paciente faltando, não um erro.
+  select string_agg(t, ', ') into faltando
+    from unnest(array['lembrete_de_sessao','aviso_de_desmarque','encaixe_confirmado']) as t
+   where not exists (
+     select 1 from public.templates x where x.codigo = t and x.essencial
+   );
+
+  if faltando is not null then
+    raise exception 'TEMPLATES ESSENCIAIS AUSENTES OU REBAIXADOS: % — sem isto o teto do plano passa a barrar mensagem que o paciente precisa receber', faltando;
+  end if;
+
   raise notice 'ESTRUTURA OK — tabelas, RLS, políticas, funções, gatilhos, índices, extensões e as views fechadas do Panorama voltaram.';
 end $$;
 
@@ -284,6 +306,7 @@ union all select 'pesquisa_contatos', count(*) from public.pesquisa_contatos
 union all select 'planos', count(*) from public.planos
 union all select 'assinaturas', count(*) from public.assinaturas
 union all select 'faturas', count(*) from public.faturas
+union all select 'templates', count(*) from public.templates
 union all select 'trilha_acesso', count(*) from public.trilha_acesso
 union all select 'auth.users', count(*) from auth.users
 order by 1;

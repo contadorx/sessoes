@@ -21,6 +21,19 @@ declare
   a_conta uuid; a_prof uuid; a_pac uuid; a_enq uuid; novo_enq uuid;
   n int; esperado int; hoje date; prox_terca date; falhou boolean; ex uuid;
 begin
+  -- Ordem de dependência. Este preâmbulo é da B5, de quando existiam seis
+  -- tabelas, e `vagas_fixas` só apareceu na B22 com FK `restrict` para
+  -- `enquadres` — então apagar enquadre trava se a 0036 tiver rodado antes,
+  -- com um erro de chave estrangeira que não fala de nenhuma das duas suítes.
+  -- É a lição da B29 (o preâmbulo mais antigo é o que quebra primeiro),
+  -- repetida aqui porque preâmbulo envelhece sozinho.
+  delete from public.ofertas_fixas where conta_id in (select id from public.contas where nome = 'Ana Solo');
+  delete from public.vagas_fixas where conta_id in (select id from public.contas where nome = 'Ana Solo');
+  delete from public.fila_entrada where conta_id in (select id from public.contas where nome = 'Ana Solo');
+  delete from public.ofertas where conta_id in (select id from public.contas where nome = 'Ana Solo');
+  delete from public.mensagens where conta_id in (select id from public.contas where nome = 'Ana Solo');
+  delete from public.eventos_fila where conta_id in (select id from public.contas where nome = 'Ana Solo');
+  delete from public.fila_encaixe where conta_id in (select id from public.contas where nome = 'Ana Solo');
   delete from public.sessoes where conta_id in (select id from public.contas where nome = 'Ana Solo');
   delete from public.excecoes_agenda where conta_id in (select id from public.contas where nome = 'Ana Solo');
   delete from public.enquadres where conta_id in (select id from public.contas where nome = 'Ana Solo');

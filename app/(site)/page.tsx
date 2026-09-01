@@ -1,6 +1,5 @@
 import { Marca } from "@/components/site/Marca";
 import { Cascata } from "@/components/site/Cascata";
-import { Simulador } from "@/components/site/Simulador";
 import { Discricao } from "@/components/site/Discricao";
 import { Espera } from "@/components/site/Espera";
 
@@ -59,8 +58,12 @@ const PLANOS = [
   {
     nome: "Grátis",
     preco: "R$ 0",
-    detalhe: "até 20 sessões por mês",
-    linhas: ["Agenda e lembretes", "Fila com um preenchimento por mês", "Cadastro de pacientes"],
+    detalhe: "para começar",
+    linhas: [
+      "Agenda, pacientes e o livro-razão da sessão",
+      "Lembrete de véspera sem limite",
+      "60 mensagens de fila e cobrança por mês",
+    ],
   },
   {
     nome: "Solo",
@@ -68,9 +71,9 @@ const PLANOS = [
     detalhe: "por mês",
     destaque: true,
     linhas: [
-      "Fila de espera completa",
-      "Política de falta que se aplica sozinha",
-      "Cobrança, recibo e régua impessoal",
+      "Mensagens sem teto",
+      "Conciliação do Pix com a sessão",
+      "Cobrança proposta com a política congelada",
       "Modo Receita Saúde e pasta do contador",
     ],
   },
@@ -80,9 +83,9 @@ const PLANOS = [
     detalhe: "por mês",
     linhas: [
       "Tudo do Solo",
-      "NFS-e para quem tem CNPJ",
-      "Briefing antes da sessão e radar de furo",
-      "Portal do paciente e evolução por ditado",
+      "NFS-e e a ramificação PJ, sem pendência falsa",
+      "Página do paciente: confirmar, pagar, receber documento",
+      "Receita por hora disponível e perda por causa",
     ],
   },
   {
@@ -90,19 +93,39 @@ const PLANOS = [
     preco: "R$ 249",
     detalhe: "+ R$ 39 por profissional",
     linhas: [
-      "Repasse automático e demonstrativo",
-      "Fila cruzada entre profissionais",
+      "Repasse e demonstrativo",
       "Agenda de salas",
+      "Fiscal consolidado",
       "Sigilo entre profissionais por construção",
     ],
   },
 ];
 
 const FRONTEIRAS = [
-  ["Não entramos na sala.", "Nada de gravar paciente, transcrever sessão ou IA opinando sobre diagnóstico, conduta ou risco."],
-  ["Não vendemos pacientes.", "Não somos marketplace, não rankeamos profissional e não intermediamos demanda."],
-  ["A fila não é leilão.", "A regra de prioridade é clínica e é sua. Dinheiro não compra posição."],
-  ["O contador vê finanças, nunca clínica.", "Minimização de dados por construção, não por promessa."],
+  [
+    "Não entramos na sala.",
+    "Nada de gravar paciente, transcrever sessão ou IA opinando sobre diagnóstico, conduta ou risco.",
+  ],
+  [
+    "Não opinamos sobre frequência.",
+    "O Código de Ética veda induzir alguém a recorrer aos seus serviços e prolongar desnecessariamente o atendimento. Nenhuma tela aqui sugere que alguém podia vir mais vezes.",
+  ],
+  [
+    "Não reativamos ex-paciente, e não damos desconto para vender horário parado.",
+    "Preço não é propaganda, e vínculo clínico não é lista de remarketing.",
+  ],
+  [
+    "Não vendemos pacientes.",
+    "Não somos marketplace, não rankeamos profissional e não intermediamos demanda.",
+  ],
+  [
+    "A fila não é leilão.",
+    "A regra de prioridade é clínica e é sua. Dinheiro não compra posição.",
+  ],
+  [
+    "O contador vê finanças, nunca clínica.",
+    "Minimização de dados por construção, não por promessa.",
+  ],
 ];
 
 export default function Home() {
@@ -127,15 +150,14 @@ export default function Home() {
       <main>
         {/* ---------------- hero ---------------- */}
         <section className="mx-auto max-w-5xl px-5 pb-14 pt-14 sm:px-8 sm:pb-20 sm:pt-24">
-          <h1 className="max-w-[17ch] font-serif text-[38px] leading-[1.08] tracking-[-0.022em] text-balance sm:text-[62px]">
-            Sua agenda não fura mais de graça, e você nunca mais precisa cobrar
-            ninguém.
+          <h1 className="max-w-[18ch] font-serif text-[38px] leading-[1.08] tracking-[-0.022em] text-balance sm:text-[62px]">
+            Sua semana tem 25 horas de atendimento. Quantas viraram receita?
           </h1>
 
           <p className="mt-6 max-w-[58ch] text-[16px] leading-relaxed text-tinta2 sm:text-[17px]">
-            O <Marca /> é o sistema que preenche a hora que abriu e cobra por
-            você. O prontuário está lá, bem-feito — mas ele nunca foi a sua
-            maior dor.
+            O <Marca /> é a operação financeira do consultório, com a agenda
+            dentro. Ele mostra quanto da capacidade disponível virou receita —
+            e por onde o resto foi.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-4">
@@ -146,112 +168,138 @@ export default function Home() {
               Entrar na lista de espera
             </a>
             <a
-              href="#conta"
+              href="#destino"
               className="text-[13.5px] font-medium text-tinta2 underline decoration-linha2 underline-offset-4 transition-colors hover:text-vaga"
             >
-              Ver quanto a hora vazia te custa
+              Ver os quatro destinos de uma hora
             </a>
           </div>
 
-          {/* a aritmética, em três números */}
-          <dl className="mt-14 grid gap-px overflow-hidden rounded-cartao border border-linha bg-linha sm:grid-cols-3">
+          {/* Os quatro destinos. Substituiu os três números da versão
+              anterior — "1 hora / R$ 800 / 0 conversas" —, que projetavam
+              receita recuperada em cima de uma hipótese que ainda não foi
+              medida: a de que existe alguém querendo aquele horário. */}
+          <dl className="mt-14 grid gap-px overflow-hidden rounded-cartao border border-linha bg-linha sm:grid-cols-2 lg:grid-cols-4">
             {[
               {
-                v: "1 hora",
-                c: "text-vaga",
-                r: "o que fura",
-                n: "não é revendável nem recuperável — você já estava lá",
-              },
-              {
-                v: "R$ 800",
+                r: "atendida e paga",
                 c: "text-cheia",
-                r: "por mês",
-                n: "o que volta se a fila recuperar um horário por semana",
+                n: "a hora virou receita, e a receita ficou",
               },
               {
-                v: "0",
-                c: "text-tinta",
-                r: "conversas de cobrança",
-                n: "quem fala de dinheiro passa a ser o sistema",
+                r: "atendida e em aberto",
+                c: "text-aviso",
+                n: "o atendimento aconteceu e o dinheiro ainda não entrou",
+              },
+              {
+                r: "perdida",
+                c: "text-vaga",
+                n: "não produziu nada, e ninguém ocupou o lugar",
+              },
+              {
+                r: "reposta",
+                c: "text-vaga",
+                n: "você deu outro horário pelo mesmo dinheiro — duas horas, uma receita",
               },
             ].map((i) => (
               <div key={i.r} className="bg-folha px-5 py-5">
-                <dt className="rotulo">{i.r}</dt>
-                <dd>
-                  <span
-                    className={`tabular mt-1 block font-mono text-[30px] font-medium leading-none tracking-[-0.02em] ${i.c}`}
-                  >
-                    {i.v}
-                  </span>
-                  <span className="mt-2 block text-[12.5px] leading-relaxed text-tinta3">
-                    {i.n}
-                  </span>
+                <dt className={`font-serif text-[17px] leading-snug ${i.c}`}>
+                  {i.r}
+                </dt>
+                <dd className="mt-1.5 text-[12.5px] leading-relaxed text-tinta3">
+                  {i.n}
                 </dd>
               </div>
             ))}
           </dl>
         </section>
 
-        {/* ---------------- a fila ---------------- */}
+        {/* ---------------- o destino da hora ---------------- */}
         <Secao
-          id="fila"
-          rotulo="A hora vazia"
-          titulo="A fila que preenche o buraco antes de você perceber."
-          linha="Sete sistemas de prontuário resolveram a mesma dor — escrever a evolução — e nenhum deles tem lista de espera. Aqui, o cancelamento vira uma cascata de ofertas: uma pessoa por vez, na ordem que você definiu, e a primeira que responder fica com o horário."
-          fundo="folha"
-        >
-          <Cascata />
-        </Secao>
-
-        {/* ---------------- o simulador ---------------- */}
-        <Secao
-          id="conta"
-          rotulo="A conta"
-          titulo="Quanto a hora vazia já te custou este ano."
-          linha="Mexa nos dois números e veja a sua própria conta. É a única promessa deste mercado que fecha em aritmética de padaria — e dá para conferir na primeira semana de uso."
-        >
-          <Simulador />
-        </Secao>
-
-        {/* ---------------- o dinheiro ---------------- */}
-        <Secao
-          rotulo="O dinheiro"
-          titulo="Falar de dinheiro com quem chorou na sua frente é o trabalho mais pesado da profissão."
-          linha="Por isso tanta gente simplesmente não cobra a falta — e some com a própria receita para não constranger ninguém. O acordo você escreve uma vez; quem executa é o sistema."
+          id="destino"
+          rotulo="O livro-razão"
+          titulo="Cada hora tem um destino, e ele fica registrado."
+          linha="Atendida e paga, atendida e em aberto, perdida, ou reposta — quando você dá outro horário pelo mesmo dinheiro. A última é a conta que ninguém faz, e é onde a receita some: duas horas de capacidade, uma receita só. Nenhum sistema deste mercado separa essas quatro."
           fundo="folha"
         >
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <Cartao titulo="A política se aplica sozinha">
-              Vinte e quatro horas, cinquenta por cento — o que você combinou. O
-              cancelamento tardio já sai cobrado, com o texto que você escreveu
-              uma vez, sem você dizer nada.
+            <Cartao titulo="Cinco eixos, não um estado">
+              Hoje, num sistema comum, &ldquo;paga&rdquo; não diz se foi
+              realizada, &ldquo;cancelada&rdquo; não diz se houve receita e
+              &ldquo;remarcada&rdquo; não diz se consumiu outra hora. Aqui a
+              sessão carrega os cinco separados: agenda, confirmação,
+              financeiro, fiscal e o que aconteceu com a hora.
+            </Cartao>
+            <Cartao titulo="Antecipado não é atendido">
+              Receber por uma sessão que ainda não aconteceu entra como pago, e
+              não como receita reconhecida. Sem essa separação, o número mais
+              importante do mês sobe recebendo por hora que ainda não existiu.
+            </Cartao>
+            <Cartao titulo="Quatro números, sempre juntos">
+              Ocupação realizada, ocupação paga, receita por hora disponível e a
+              perda por causa. Ocupação subindo com receita por hora caindo é
+              sintoma, não sucesso — e só se enxerga com os dois lado a lado.
+            </Cartao>
+          </div>
+        </Secao>
+
+        {/* ---------------- os cinco lugares ---------------- */}
+        <Secao
+          rotulo="O mês"
+          titulo="O mês não fecha porque a conta está em cinco lugares."
+          linha="Agenda num app, pagamento no extrato, recibo no site da Receita, controle numa planilha e o resto no WhatsApp. Aqui a sessão carrega tudo — quem confirmou, quem pagou, quem tem recibo, o que ficou em aberto."
+        >
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Cartao titulo="O Pix encontra a sessão sozinho">
+              Pagamento sem sessão, sessão sem pagamento, valor divergente — os
+              três viram uma fila de divergências em vez de uma conferência de
+              extrato no fim do dia.
+            </Cartao>
+            <Cartao titulo="A política vem congelada na sessão">
+              Vinte e quatro horas, cinquenta por cento — o que você combinou, na
+              versão que valia <em>naquele dia</em>. O sistema propõe a cobrança
+              com essa política e o histórico; quem confirma, perdoa ou ajusta é
+              você. Exceção clínica não é decidível por regra.
             </Cartao>
             <Cartao titulo="A régua é impessoal">
               O lembrete de pagamento em atraso não vem de você. Vem da agenda —
               e o alívio de não precisar mandar aquela mensagem é o que faz
               trocar de sistema.
             </Cartao>
-            <Cartao titulo="Recibo, reembolso e o contador">
-              Recibo emitido sozinho, PDF do mês para o convênio, informe anual
-              em janeiro e o pacote mensal que vai direto para o seu contador —
-              com finanças, nunca com prontuário.
+            <Cartao titulo="Receita Saúde, com a ramificação certa">
+              A obrigação é de quem atende como pessoa física. Tratar como
+              universal gera pendência falsa em toda conta PJ — e o recibo
+              errado tem dez dias para ser corrigido.
             </Cartao>
-            <Cartao titulo="Receita Saúde sem multa">
-              Desde 2025 cada atendimento precisa de recibo emitido, sob multa
-              por omissão. O sistema sabe quais sessões pagas ainda estão sem
-              recibo e avisa antes do prazo virar.
-            </Cartao>
-            <Cartao titulo="Reajuste sem saia justa">
-              A segunda conversa mais adiada da profissão. O sistema marca o
-              aniversário do enquadre, sugere o valor, comunica com
-              antecedência e aplica na data.
+            <Cartao titulo="No fim do mês, o contador recebe pronto">
+              Receitas, estornos, recibos, taxas e pendências no formato que ele
+              pede. Finanças, nunca prontuário.
             </Cartao>
             <Cartao titulo="Do jeito que você cobra">
               Por sessão, mensalidade fixa ou pacote fechado — com regra clara
               para o mês de cinco semanas e para a falta dentro da mensalidade.
-              Você decide, o sistema aplica.
             </Cartao>
           </div>
+        </Secao>
+
+        {/* ---------------- a fila ---------------- */}
+        <Secao
+          id="fila"
+          rotulo="Quando um horário abre"
+          titulo="O horário é oferecido a quem pediu para ser avisado, no valor combinado."
+          linha="Uma pessoa por vez, na ordem que você definiu, e a primeira que responder fica com o horário. Não é leilão e não tem desconto: quem entra paga o mesmo que já estava combinado. Se ninguém quiser, a hora fica registrada como perdida — e aparece na conta do mês pelo nome."
+          fundo="folha"
+        >
+          <Cascata />
+          <p className="mt-6 max-w-[70ch] text-[12.5px] leading-relaxed text-tinta3">
+            <b className="font-medium text-tinta2">
+              E não prometemos que isso enche a sua agenda.
+            </b>{" "}
+            Enquanto não houver medida de que existe gente querendo as horas que
+            vagam, prometer ocupação é vender hipótese. Estamos medindo isso num
+            levantamento aberto, com o método publicado antes da coleta — e o
+            resultado sai mesmo se for contra nós.
+          </p>
         </Secao>
 
         {/* ---------------- discrição ---------------- */}
@@ -267,8 +315,8 @@ export default function Home() {
         <Secao
           id="planos"
           rotulo="Planos"
-          titulo="Um horário recuperado paga o plano quase três vezes."
-          linha="Preços em estudo, junto com as primeiras psicólogas que estão conversando com a gente. Quem entrar na lista de espera participa dessa conversa — e do piloto."
+          titulo="Preço em estudo, com quem vai usar."
+          linha="Estes números são hipótese, e estão sendo testados com as primeiras psicólogas que conversam com a gente. Quem entrar na lista participa dessa conversa — e do piloto. O plano Grátis tem teto de mensagens, não de sessões: lembrete de véspera e aviso de desmarque saem sempre, em qualquer plano, porque quem ficaria sem eles é o paciente."
           fundo="folha"
         >
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -310,8 +358,8 @@ export default function Home() {
         {/* ---------------- fronteiras ---------------- */}
         <Secao
           rotulo="As linhas que não atravessamos"
-          titulo="O Sessões vive fora da sala."
-          linha="Um software que administra a agenda, o dinheiro e a papelada — e que nunca entra na sessão. Isto não é uma promessa de marketing: é decisão de arquitetura, escrita antes da primeira linha de código."
+          titulo="O Sessões vive fora da sala, e não opina sobre a clínica."
+          linha="Um software que administra a agenda, o dinheiro e a papelada — e que nunca entra na sessão nem sugere o que fazer com um paciente. Isto não é promessa de marketing: são decisões de arquitetura, escritas antes da primeira linha de código, e algumas delas vêm direto do Código de Ética."
         >
           <div className="grid gap-px overflow-hidden rounded-cartao border border-linha bg-linha sm:grid-cols-2">
             {FRONTEIRAS.map(([t, d]) => (
@@ -337,9 +385,10 @@ export default function Home() {
               Estamos construindo isto com psicólogas de verdade.
             </h2>
             <p className="mt-3 max-w-[58ch] text-[14.5px] leading-relaxed text-tinta2">
-              Antes de escrever o produto inteiro, estamos ouvindo quem vive a
-              agenda que fura. Deixe seu e-mail para acompanhar — e, se quiser,
-              para conversar vinte minutos com a gente sobre como é o seu mês.
+              Antes de escrever o produto inteiro, estamos ouvindo quem fecha o
+              mês. Deixe seu e-mail para acompanhar — e, se quiser, para
+              conversar vinte minutos com a gente sobre como é o seu mês de
+              verdade: onde a conta trava, e o que você já resolve numa planilha.
             </p>
             <div className="mt-8">
               <Espera />
@@ -352,6 +401,9 @@ export default function Home() {
       <footer className="border-t border-linha bg-folha">
         <div className="mx-auto flex max-w-5xl flex-col gap-3 px-5 py-8 text-[12px] text-tinta3 sm:flex-row sm:items-center sm:px-8">
           <Marca className="text-[16px]" />
+          <span className="max-w-[46ch] text-tinta2">
+            Feito por um contador que resolveu olhar a conta do consultório.
+          </span>
           <span className="sm:ml-auto">
             Em construção · São Paulo ·{" "}
             <a
