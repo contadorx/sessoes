@@ -286,7 +286,21 @@ begin
   if n <> 1 then raise exception '23 FUROU: duplicou a mensagem da mesma oferta'; end if;
 
   -- ---------------------------------------------------------------- 24
-  update public.mensagens set estado='entregue' where id=m1;
+  -- Esta verificação é da B9, de quando `mensagens` não tinha política de
+  -- update nenhuma: o UPDATE afetava zero linha, em silêncio. A B12 (0023)
+  -- deu à conta o direito de **cancelar** o que ainda não saiu, com
+  -- `using (estado='pendente')` e `with check (estado='cancelada')` — e a
+  -- partir daí o mesmo UPDATE passa no USING e é recusado pelo WITH CHECK,
+  -- ou seja, levanta exceção em vez de não fazer nada.
+  --
+  -- As duas formas cumprem a regra, que é "o app não mexe em estado de
+  -- envio". O teste é que exigia uma delas em particular, e ficou vermelho
+  -- por o banco ter ganhado uma política mais precisa. Passa a aceitar as
+  -- duas, e a reprovar só o que interessa: a mensagem ter virado 'entregue'.
+  begin
+    update public.mensagens set estado='entregue' where id=m1;
+  exception when insufficient_privilege then null;
+  end;
   if (select estado from public.mensagens where id=m1) = 'entregue' then
     raise exception '24 FUROU: o app mudou estado de envio'; end if;
 

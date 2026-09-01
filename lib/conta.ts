@@ -14,6 +14,8 @@ export type Sessao = {
   contaTipo: "solo" | "clinica";
   plano: string;
   profissionalId: string | null;
+  /** Opera a plataforma (eu). Não é papel da conta e não muda nada do produto. */
+  operador: boolean;
 };
 
 /**
@@ -38,7 +40,7 @@ export async function sessaoAtual(): Promise<Sessao> {
     supabase
       .from("usuarios")
       .select(
-        "id, conta_id, papel, nome, email, contas ( nome, tipo, plano ), profissionais ( id )",
+        "id, conta_id, papel, nome, email, operador, contas ( nome, tipo, plano ), profissionais ( id )",
       )
       .eq("auth_user_id", user.id)
       .limit(1),
@@ -65,5 +67,6 @@ export async function sessaoAtual(): Promise<Sessao> {
     contaTipo: (conta?.tipo as Sessao["contaTipo"]) ?? "solo",
     plano: (conta?.plano as string) ?? "gratis",
     profissionalId: (profissional?.id as string | undefined) ?? null,
+    operador: (u.operador as boolean | null) === true,
   };
 }

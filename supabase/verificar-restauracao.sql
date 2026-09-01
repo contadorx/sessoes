@@ -27,7 +27,9 @@ begin
       'espelhos_calendario','registros','evolucoes','anamneses','anamnese_adendos',
       -- O Panorama. Não é do produto (não tem conta_id), mas mora no mesmo
       -- banco e some no mesmo restore.
-      'pesquisa_abertas','pesquisa_respostas','pesquisa_contatos'
+      'pesquisa_abertas','pesquisa_respostas','pesquisa_contatos',
+      -- O painel do negócio (OP1). Não é dado dela, e some no mesmo restore.
+      'planos','assinaturas','faturas','precos_canal','custos_fixos'
     ]) as t
    where to_regclass('public.' || t) is null;
 
@@ -117,7 +119,10 @@ begin
       'roteiro_padrao','abrir_anamnese','salvar_anamnese','fechar_anamnese',
       'acrescentar_adendo','aviso_de_anamnese','anamnese_do_paciente',
       'sessoes_ate_fechar_anamnese','anamnese_fechada_nao_muda',
-      'pesquisa_contato_existe','esquecer_contato_da_pesquisa'
+      'pesquisa_contato_existe','esquecer_contato_da_pesquisa',
+      'e_operador','painel_do_negocio','contas_do_painel','valor_da_conta',
+      'custo_da_conta','churn_do_mes','operador_nao_se_promove',
+      'fatura_paga_nao_regride','assinatura_carimba'
     ]) as f
    where not exists (
      select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -145,7 +150,8 @@ begin
       'cobrancas_geram_recibo_rfb','recibos_rfb_imutaveis','pastas_imutaveis',
       'sessao_espelha','sessao_apagada_espelha','modo_reescreve_o_futuro',
       'cobranca_nao_e_de_importada','consumo_nao_e_de_importada',
-      'nota_so_na_ausencia','evolucao_nao_se_reescreve','anamnese_fechada_nao_muda'
+      'nota_so_na_ausencia','evolucao_nao_se_reescreve','anamnese_fechada_nao_muda',
+      'operador_nao_se_promove','fatura_paga_nao_regride','assinatura_carimba'
     ]) as g
    where not exists (
      select 1 from pg_trigger t
@@ -165,7 +171,8 @@ begin
       'mensalidade_por_competencia','consumo_unico_por_sessao',
       'remarcacao_viva_por_sessao',
       'vaga_fixa_viva','oferta_fixa_viva','oferta_fixa_por_pessoa',
-      'recibo_rfb_por_cobranca','pasta_por_competencia'
+      'recibo_rfb_por_cobranca','pasta_por_competencia',
+      'assinatura_viva_por_conta','fatura_do_provedor'
     ]) as i
    where to_regclass('public.' || i) is null;
 
@@ -274,6 +281,9 @@ union all select 'anamnese_adendos', count(*) from public.anamnese_adendos
 union all select 'pesquisa_abertas', count(*) from public.pesquisa_abertas
 union all select 'pesquisa_respostas', count(*) from public.pesquisa_respostas
 union all select 'pesquisa_contatos', count(*) from public.pesquisa_contatos
+union all select 'planos', count(*) from public.planos
+union all select 'assinaturas', count(*) from public.assinaturas
+union all select 'faturas', count(*) from public.faturas
 union all select 'trilha_acesso', count(*) from public.trilha_acesso
 union all select 'auth.users', count(*) from auth.users
 order by 1;

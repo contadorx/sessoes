@@ -78,6 +78,15 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
             <Link href="/conta" className="text-tinta2 hover:text-vaga">
               Conta
             </Link>
+            {/* O painel do negócio, e ele só existe para mim. Para todo mundo
+                mais o link não aparece **e** a rota devolve 404 — não "acesso
+                negado", que confirmaria a existência de uma tela escondida
+                dentro do sistema onde ela guarda prontuário. */}
+            {sessao.operador && (
+              <Link href="/negocio" className="text-tinta3 hover:text-vaga">
+                Negócio
+              </Link>
+            )}
             <Sair />
           </nav>
         </div>
