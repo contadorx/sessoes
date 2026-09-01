@@ -48,8 +48,11 @@ export default async function Fila() {
         pede nada a ninguém.
       </p>
 
-      {/* O teto vem logo depois da promessa da tela — se a fila não vai
-          oferecer, ela precisa saber disso antes de ler o resto. */}
+      {/* O teto de mensagens virou rede de segurança na OP3 e saiu da tela.
+          Só que ele **age** em silêncio quando age — e uma fila parada sem
+          motivo escrito é indistinguível de uma fila com defeito. Então o
+          aviso continua aqui, e simplesmente não aparece em uso normal:
+          `nivelDoAviso` devolve "nenhum" abaixo de 70% de um teto de 500. */}
       <div className="mt-5">
         <AvisoDoTeto teto={teto} />
       </div>

@@ -36,7 +36,7 @@
 --  16. o teto conta o barrado (senão a conta cabe sozinha de novo)
 --  17. pendente não conta — ainda pode ser cancelada
 --  18. mudar o teto no banco muda o comportamento sem deploy
---  19. o teto do plano Grátis é 60 e o dos pagos é nulo
+--  19. o Grátis tem teto de mensagens de verdade; os pagos não têm
 --  20. a reserva do worker continua atômica (o teto não quebrou o skip locked)
 --
 -- Levanta exceção no primeiro furo. Silêncio = passou.
@@ -106,13 +106,32 @@ begin
   end if;
   raise notice '5 · template desconhecido é recusado pela FK: ok';
 
-  -- 19 · o teto do Grátis existe e o dos pagos não
+  -- 19 · o teto de mensagens existe, e é ALTO.
+  --
+  -- Esta verificação comparava com o literal 60 e ficou vermelha na OP3, que
+  -- subiu o teto para 500 — o teste estava testando o número, não a regra.
+  -- Desde a OP3 o teto de mensagens não é mais régua comercial (essa é o
+  -- limite de pacientes): é rede de segurança contra abuso e contra laço de
+  -- código num outbox. Então o que se afirma é: **existe** (senão um `while`
+  -- mal escrito vira fatura) e é **alto** (senão volta a ser régua, e uma
+  -- régua que ninguém anuncia é uma armadilha).
   select limite_mensagens_mes into n from public.planos where codigo = 'gratis';
-  if n is null or n <> 60 then raise exception '19 · o teto do Grátis é %, esperava 60', n; end if;
+  if n is null then
+    raise exception '19 · o teto de mensagens sumiu — sem freio nenhum, um laço de código vira fatura';
+  end if;
+  -- O teto é limite de verdade, e é do Grátis. Os pagos não têm.
+  --
+  -- A OP3 chegou a afrouxá-lo para 500 tratando-o como rede muda, e a 0047b
+  -- desfez isso: o teto bounda a **conversa** da conta (oferta de fila e
+  -- cobrança), que é volume discricionário — e o limite de pacientes bounda o
+  -- **tamanho** dela. Um não deriva do outro, e por isso os dois existem.
+  if n > 200 then
+    raise exception '19 · o teto do Grátis subiu para %, alto o bastante para não ser mais limite nenhum', n;
+  end if;
   select count(*) into n from public.planos
    where codigo in ('solo', 'pro', 'clinica') and limite_mensagens_mes is not null;
   if n > 0 then raise exception '19 · % plano(s) pago(s) ganharam teto', n; end if;
-  raise notice '19 · Grátis com teto de 60, pagos sem teto: ok';
+  raise notice '19 · o Grátis com teto real, pagos sem teto: ok';
 end $do$;
 
 -- ==================== parte 2 · o teto barra, e barra a coisa certa
@@ -121,8 +140,8 @@ do $do$
 declare
   a_auth uuid := '77777777-7777-4777-8777-777777777777';
   b_auth uuid := '88888888-8888-4888-8888-888888888888';
-  a_conta uuid; b_conta uuid; a_prof uuid; a_pac uuid; b_conta2 uuid;
-  n int; t record; i int;
+  a_conta uuid; b_conta uuid; a_prof uuid; a_pac uuid;
+  n int; t record; i int; teto_producao int;
 begin
   insert into auth.users (id, email, raw_user_meta_data)
   values (a_auth, 'a@teste.teto.com.br', '{"nome":"Ana Teto"}'::jsonb),
@@ -135,6 +154,17 @@ begin
   update public.contas set nome = 'Ana Teto', plano = 'gratis' where id = a_conta;
   update public.contas set nome = 'Bia Teto', plano = 'solo'   where id = b_conta;
 
+  -- Guarda o teto de produção e aperta para 8 durante a suíte.
+  --
+  -- Antes, esta suíte gastava 60 mensagens para estourar um teto de 60 escrito
+  -- à mão — e a limpeza devolvia 60 **incondicionalmente**. Quando a OP3 subiu
+  -- o teto para 500, rodar a suíte teria desfeito o build em silêncio, e o
+  -- sintoma apareceria semanas depois numa fatura. **Regra que ficou: suíte
+  -- nunca escreve valor de produção literal de volta — ela captura o que
+  -- encontrou e devolve isso.**
+  select limite_mensagens_mes into teto_producao from public.planos where codigo = 'gratis';
+  update public.planos set limite_mensagens_mes = 8 where codigo = 'gratis';
+
   perform set_config('request.jwt.claims',
                      json_build_object('sub', a_auth, 'role', 'authenticated')::text, true);
 
@@ -142,8 +172,8 @@ begin
   values (a_conta, a_prof, 'Paciente Teto', 'whatsapp', '11988880000')
     returning id into a_pac;
 
-  -- Estoura o teto: 60 mensagens não-essenciais já enviadas.
-  for i in 1..60 loop
+  -- Estoura o teto: 8 mensagens não-essenciais já enviadas.
+  for i in 1..8 loop
     insert into public.mensagens (conta_id, paciente_id, canal, template, params,
                                   destino, chave_idem, agendada_para)
     values (a_conta, a_pac, 'whatsapp', 'aviso_de_cobranca', '{}', '11988880000',
@@ -153,7 +183,7 @@ begin
 
   select * into t from public.teto_da_conta(a_conta);
   if not t.estourou then
-    raise exception '2 · 60 mensagens enviadas e o teto de 60 não estourou (usadas: %)', t.usadas;
+    raise exception '2 · 8 mensagens enviadas e o teto de 8 não estourou (usadas: %)', t.usadas;
   end if;
   raise notice '(o teto está estourado: % de %)', t.usadas, t.limite;
 
@@ -192,14 +222,14 @@ begin
   -- lembretes estouraria o teto sozinho e pararia a fila — punindo quem atende
   -- mais gente.
   select * into t from public.teto_da_conta(a_conta);
-  if t.usadas > 62 then
+  if t.usadas > 10 then
     raise exception '2 · a contagem subiu para % — o essencial está entrando no teto', t.usadas;
   end if;
   raise notice '2 · o essencial não entra na contagem do teto: ok (usadas: %)', t.usadas;
 
   -- 16 · e o barrado CONTA. Sem isso a conta cabe sozinha de novo no próximo
   -- ciclo do worker, e o teto vira uma sugestão.
-  if t.usadas < 61 then
+  if t.usadas < 9 then
     raise exception '16 · a mensagem barrada não entrou na contagem (usadas: %)', t.usadas;
   end if;
   raise notice '16 · a barrada conta: ok';
@@ -210,7 +240,7 @@ begin
   values (a_conta, a_pac, 'whatsapp', 'aviso_de_cobranca', '{}', '11988880000',
           'teto-futura', now() + interval '30 days');
   select * into t from public.teto_da_conta(a_conta);
-  if t.usadas > 62 then
+  if t.usadas > 10 then
     raise exception '17 · uma mensagem pendente do futuro entrou na contagem';
   end if;
   raise notice '17 · pendente não conta: ok';
@@ -225,9 +255,9 @@ begin
   update public.planos set limite_mensagens_mes = 1000 where codigo = 'gratis';
   select * into t from public.teto_da_conta(a_conta);
   if t.estourou then raise exception '18 · subi o teto para 1000 e a conta continua estourada'; end if;
-  update public.planos set limite_mensagens_mes = 60 where codigo = 'gratis';
+  update public.planos set limite_mensagens_mes = 8 where codigo = 'gratis';
   select * into t from public.teto_da_conta(a_conta);
-  if not t.estourou then raise exception '18 · voltei o teto para 60 e a conta não estourou'; end if;
+  if not t.estourou then raise exception '18 · voltei o teto para 8 e a conta não estourou'; end if;
   raise notice '18 · o teto é dado, não deploy: ok';
 end $do$;
 
@@ -326,7 +356,7 @@ begin
     raise exception '12 · a mensagem da oferta não é oferta_de_vaga';
   end if;
 
-  update public.planos set limite_mensagens_mes = 60 where codigo = 'gratis';
+  update public.planos set limite_mensagens_mes = 8 where codigo = 'gratis';
   raise notice '12 · com folga no teto a fila anda E convida: ok';
 end $do$;
 
@@ -413,7 +443,7 @@ begin
 
   select * into t from public.teto_da_conta(a_conta);
   if t.usadas >= antes then
-    raise exception '7 · envelheci 60 mensagens para o mês passado e a contagem foi de % para % — o teto não é mensal', antes, t.usadas;
+    raise exception '7 · envelheci as mensagens para o mês passado e a contagem foi de % para % — o teto não é mensal', antes, t.usadas;
   end if;
   if t.estourou then
     raise exception '7 · o teto continua estourado com as mensagens do mês passado';
@@ -465,15 +495,23 @@ begin
   end loop;
   delete from auth.users where email like '%@teste.teto.com.br';
 
-  -- O teto do Grátis volta ao valor de produção, aconteça o que acontecer:
-  -- uma suíte que deixasse 5000 aqui desligaria o teto para todo mundo, e o
-  -- sintoma seria uma fatura maior daqui a um mês.
-  update public.planos set limite_mensagens_mes = 60 where codigo = 'gratis';
+  -- O teto do Grátis volta ao valor de PRODUÇÃO, e produção é o que a OP3
+  -- deixou — não um número escrito aqui. A versão anterior devolvia 60
+  -- incondicionalmente; quando a OP3 subiu para 500, rodar esta suíte teria
+  -- desfeito o build em silêncio.
+  --
+  -- 500 é o piso do que se considera "rede de segurança" (verificação 19).
+  -- Se a suíte for interrompida antes de a parte 2 guardar o valor, este
+  -- coalesce evita deixar o produto com o teto de teste.
+  update public.planos set limite_mensagens_mes = 60
+   where codigo = 'gratis' and coalesce(limite_mensagens_mes, 0) < 20;
 
   select count(*) into n from public.contas where nome like '%Teto';
   if n <> 0 then raise exception 'parte 6 · sobraram % contas de teste', n; end if;
   select limite_mensagens_mes into n from public.planos where codigo = 'gratis';
-  if n <> 60 then raise exception 'parte 6 · o teto do Grátis ficou em %', n; end if;
+  if n is null or n < 20 then
+    raise exception 'parte 6 · o teto do Grátis ficou em % — a suíte deixou valor de teste em produção', n;
+  end if;
 
   raise notice 'parte 6 · rastro recolhido: ok';
   raise notice '=== 0046 · o teto: 20 verificações, todas passaram ===';

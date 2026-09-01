@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { supabaseSessao } from "@/lib/supabase/server";
 import { sessaoAtual } from "@/lib/conta";
 import type { Janela } from "@/lib/janela";
-import type { Teto } from "@/lib/teto";
+import type { Teto, Pacientes } from "@/lib/teto";
 
 export type NaFila = {
   id: string;
@@ -285,6 +285,27 @@ export async function tetoDaConta(): Promise<Teto> {
       restantes: null,
       estourou: false,
       pct: 0,
+    }
+  );
+}
+
+/**
+ * Quantos pacientes ativos cabem no plano.
+ *
+ * Desde a OP3 é este o limite que a cliente vê — o de mensagens virou rede de
+ * segurança muda. Mora aqui pelo mesmo motivo do outro: é leitura de banco, e
+ * a tela de pacientes é a primeira que precisa dele.
+ */
+export async function pacientesDaConta(): Promise<Pacientes> {
+  const supabase = await supabaseSessao();
+  const sessao = await sessaoAtual();
+  const linhas = await db<Pacientes[]>(
+    "fila.pacientes",
+    supabase.rpc("pacientes_da_conta", { p_conta: sessao.contaId }),
+  );
+  return (
+    linhas?.[0] ?? {
+      tem_limite: false, limite: null, ativos: 0, restantes: null, lotou: false,
     }
   );
 }

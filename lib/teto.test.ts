@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
+  fraseDosPacientes,
+  fraseDaSaida_pacientes,
   ESSENCIAIS,
   ehEssencial,
   nivelDoAviso,
@@ -13,6 +15,7 @@ import {
   terminal,
   type Teto,
   type EstadoMensagem,
+  type Pacientes,
 } from "./teto";
 
 const teto = (p: Partial<Teto> = {}): Teto => ({
@@ -207,5 +210,55 @@ describe("rotuloEstadoMensagem — a barrada diz que não saiu", () => {
   it("...e pendente e falhou não são", () => {
     expect(terminal("pendente")).toBe(false);
     expect(terminal("falhou")).toBe(false);
+  });
+});
+
+// ============================================ o limite que a cliente vê (OP3)
+
+describe("o limite de pacientes — o único que aparece na tela", () => {
+  const pac = (p: Partial<Pacientes> = {}): Pacientes => ({
+    tem_limite: true, limite: 5, ativos: 2, restantes: 3, lotou: false, ...p,
+  });
+  const lotado = pac({ ativos: 5, restantes: 0, lotou: true });
+  const semLimite: Pacientes = {
+    tem_limite: false, limite: null, ativos: 40, restantes: null, lotou: false,
+  };
+
+  it("se explica em uma frase, com o número na frente", () => {
+    // É este o teste da decisão inteira: o limite antigo precisava de três
+    // frases e de um conceito nosso ("mensagem não-essencial") para virar
+    // entendimento. Este cabe numa linha.
+    expect(fraseDosPacientes(pac())).toBe("2 de 5 pacientes ativos.");
+    expect(fraseDosPacientes(lotado)).toMatch(/vai até 5 pacientes ativos/);
+  });
+
+  it("plano pago não mostra limite nenhum", () => {
+    expect(fraseDosPacientes(semLimite)).toMatch(/não tem limite/);
+    expect(fraseDaSaida_pacientes(semLimite)).toBe("");
+  });
+
+  it("quando lota, a saída vem junto — limite sem saída é parede", () => {
+    const f = fraseDaSaida_pacientes(lotado);
+    expect(f).toMatch(/[Aa]rquivar/);
+    expect(f).toMatch(/devolve a vaga/);
+  });
+
+  it("...e a saída diz que a ficha continua guardada", () => {
+    // O medo certo de quem lê "arquivar" é perder o histórico — que é
+    // obrigação de guarda de cinco anos, não consumo de plano. Se a frase não
+    // disser isso, ninguém arquiva e o limite vira parede na prática.
+    expect(fraseDaSaida_pacientes(lotado)).toMatch(/continua guardada|histórico/);
+  });
+
+  it("a frase não empurra o plano pago", () => {
+    // "Mude de plano" é uma saída legítima e está na mensagem do banco, onde
+    // ela é resposta a uma ação bloqueada. Na tela, em repouso, o limite
+    // informa — não vende.
+    const todas = [fraseDosPacientes(lotado), fraseDaSaida_pacientes(lotado)].join(" ");
+    expect(todas).not.toMatch(/assine|contrate|upgrade|R\$|aproveite/i);
+  });
+
+  it("sem limite, quarenta pacientes não geram aviso", () => {
+    expect(fraseDaSaida_pacientes(semLimite)).toBe("");
   });
 });

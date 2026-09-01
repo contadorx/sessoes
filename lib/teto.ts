@@ -1,5 +1,5 @@
 /**
- * O teto de mensagens — do lado do app (OP2).
+ * Os limites do plano — do lado do app (OP2 e OP3).
  *
  * A regra que este módulo existe para carregar, e que vale mais que a
  * aritmética: **o teto barra o que gera negócio novo, nunca o que o paciente
@@ -14,6 +14,49 @@
  * Gêmeo de `teto_da_conta` no banco, com os mesmos valores esperados da suíte
  * 0046.
  */
+
+/**
+ * O limite que a cliente vê: pacientes ativos.
+ *
+ * Desde a OP3 é este o limite do plano, e o de mensagens virou rede de
+ * segurança muda. O motivo é duplo, e o segundo pesa mais:
+ *
+ *   · "o Grátis vai até 5 pacientes" se explica em cinco palavras; "60
+ *     mensagens de fila e cobrança por mês, e lembrete não conta" precisa de
+ *     três frases e de um conceito nosso;
+ *   · o teto de mensagens **não limitava o custo que existia para limitar** —
+ *     ele só alcança as não-essenciais, e lembrete de véspera é o grosso do
+ *     volume. Uma conta gratuita com quarenta pacientes mandava 160 lembretes
+ *     por mês sem nunca encostar no teto de 60.
+ *
+ * O limite de pacientes bounda os três de uma vez: sessão, mensagem e custo.
+ */
+export type Pacientes = {
+  tem_limite: boolean;
+  limite: number | null;
+  ativos: number;
+  restantes: number | null;
+  lotou: boolean;
+};
+
+export function fraseDosPacientes(p: Pacientes): string {
+  if (!p.tem_limite) return "Seu plano não tem limite de pacientes.";
+  if (p.lotou) return `Seu plano vai até ${p.limite} pacientes ativos, e você tem ${p.ativos}.`;
+  return `${p.ativos} de ${p.limite} pacientes ativos.`;
+}
+
+/**
+ * O que fazer quando lota — e há saída, sempre.
+ *
+ * Um limite sem saída é uma parede, e a saída aqui não é só "pague": arquivar
+ * quem encerrou o processo devolve a vaga. É o motivo de o limite ser de
+ * pacientes **ativos** e não de pacientes cadastrados — o histórico continua
+ * lá inteiro, e ele é obrigação de guarda, não consumo de plano.
+ */
+export function fraseDaSaida_pacientes(p: Pacientes): string {
+  if (!p.lotou) return "";
+  return "Arquivar quem encerrou o processo devolve a vaga — a ficha continua guardada, com o histórico inteiro.";
+}
 
 export type Teto = {
   tem_teto: boolean;
@@ -43,7 +86,12 @@ export function ehEssencial(template: string): boolean {
 }
 
 /**
- * Quando avisar, e quando calar.
+ * Quando avisar sobre o teto de MENSAGENS, e quando calar.
+ *
+ * Desde a OP3 a resposta é quase sempre "calar": o teto virou rede de
+ * segurança alta e saiu da tela e da página de preços. Estas funções ficam
+ * porque a rede precisa ser visível **quando ela agir** — uma mensagem que
+ * não sai sem ninguém saber é o pior modo de falha do outbox.
  *
  * Abaixo de 70% o aviso é ruído: ela não precisa pensar no teto num mês
  * normal. De 70 a 99 é aviso; a partir de 100 é estado, não aviso.

@@ -58,10 +58,10 @@ const PLANOS = [
   {
     nome: "Grátis",
     preco: "R$ 0",
-    detalhe: "para começar",
+    detalhe: "até 5 pacientes ativos",
     linhas: [
       "Agenda, pacientes e o livro-razão da sessão",
-      "Lembrete de véspera sem limite",
+      "Lembrete de véspera e aviso de desmarque, sem limite",
       "60 mensagens de fila e cobrança por mês",
     ],
   },
@@ -71,7 +71,7 @@ const PLANOS = [
     detalhe: "por mês",
     destaque: true,
     linhas: [
-      "Mensagens sem teto",
+      "Pacientes sem limite",
       "Conciliação do Pix com a sessão",
       "Cobrança proposta com a política congelada",
       "Modo Receita Saúde e pasta do contador",
@@ -136,7 +136,7 @@ export default function Home() {
         <div className="mx-auto flex max-w-5xl items-center gap-4 px-5 py-3 sm:px-8">
           <Marca className="text-[21px]" />
           <span className="hidden text-[12px] text-tinta3 sm:inline">
-            para psicólogas e clínicas de psicologia
+            a parte do consultório que não é atender
           </span>
           <a
             href="#lista"
@@ -155,9 +155,10 @@ export default function Home() {
           </h1>
 
           <p className="mt-6 max-w-[58ch] text-[16px] leading-relaxed text-tinta2 sm:text-[17px]">
-            O <Marca /> é a operação financeira do consultório, com a agenda
-            dentro. Ele mostra quanto da capacidade disponível virou receita —
-            e por onde o resto foi.
+            O <Marca /> organiza tudo o que não é atender: a agenda, os
+            recebimentos, os recibos e o fechamento do mês com o contador. E
+            mostra quanto da sua capacidade virou receita — e por onde o resto
+            foi.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-4">
@@ -316,7 +317,7 @@ export default function Home() {
           id="planos"
           rotulo="Planos"
           titulo="Preço em estudo, com quem vai usar."
-          linha="Estes números são hipótese, e estão sendo testados com as primeiras psicólogas que conversam com a gente. Quem entrar na lista participa dessa conversa — e do piloto. O plano Grátis tem teto de mensagens, não de sessões: lembrete de véspera e aviso de desmarque saem sempre, em qualquer plano, porque quem ficaria sem eles é o paciente."
+          linha="Estes números são hipótese, e estão sendo testados com as primeiras psicólogas que conversam com a gente. Quem entrar na lista participa dessa conversa — e do piloto. No Grátis, arquivar quem encerrou o processo devolve a vaga, e a ficha continua guardada com o histórico inteiro. Lembrete de véspera e aviso de desmarque nunca entram em limite nenhum: quem ficaria sem eles é o paciente."
           fundo="folha"
         >
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

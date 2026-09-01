@@ -3,8 +3,8 @@ import { db } from "@/lib/db";
 import { supabaseSessao } from "@/lib/supabase/server";
 import { sessaoAtual } from "@/lib/conta";
 import { FormPix, FormRitmo, FormAssinatura, FormRegua } from "@/components/app/Conta";
-import { TetoNaConta } from "@/components/app/Teto";
-import { tetoDaConta } from "@/app/(app)/fila/dados";
+import { LimiteDePacientes, TetoNaConta } from "@/components/app/Teto";
+import { pacientesDaConta, tetoDaConta } from "@/app/(app)/fila/dados";
 
 export const metadata = { title: "Conta" };
 
@@ -57,7 +57,7 @@ export default async function Conta() {
   )) as unknown as ProfLinha[];
 
   const prof = profs[0];
-  const teto = await tetoDaConta();
+  const [limite, teto] = await Promise.all([pacientesDaConta(), tetoDaConta()]);
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -67,8 +67,17 @@ export default async function Conta() {
 
       {/* ---------------------------------------------------------- o plano */}
       <section className="mt-8">
-        <h2 className="rotulo">Mensagens do plano</h2>
-        <div className="mt-3 rounded-cartao border border-linha bg-folha px-5 py-4">
+        <h2 className="rotulo">O seu plano</h2>
+        {/* Os dois limites, e nesta ordem. O de pacientes bounda o tamanho da
+            conta e é o que vai na página de preços; o de mensagens bounda a
+            conversa — oferta de fila e cobrança —, que é volume
+            discricionário e não é proporcional a quantos pacientes ela tem.
+            Um limite que só aparece quando morde é armadilha, então os dois
+            ficam visíveis o tempo todo. */}
+        <div className="mt-3">
+          <LimiteDePacientes p={limite} />
+        </div>
+        <div className="rounded-cartao border border-linha bg-folha px-5 py-4">
           <TetoNaConta teto={teto} />
         </div>
       </section>

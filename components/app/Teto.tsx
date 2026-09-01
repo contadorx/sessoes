@@ -1,4 +1,6 @@
 import {
+  fraseDosPacientes,
+  fraseDaSaida_pacientes,
   nivelDoAviso,
   fraseDoTeto,
   fraseDoQueParou,
@@ -7,7 +9,51 @@ import {
   filaPausada,
   fraseDaFilaPausada,
   type Teto,
+  type Pacientes,
 } from "@/lib/teto";
+
+/**
+ * O limite de pacientes — o único que a cliente vê.
+ *
+ * Aparece o tempo todo, e não só quando lota: um plano cujo limite só aparece
+ * quando estoura não é plano, é armadilha. E a frase da saída vem junto,
+ * porque limite sem saída é parede — arquivar quem encerrou devolve a vaga, e
+ * a ficha continua guardada com o histórico inteiro (obrigação de guarda não
+ * é consumo de plano).
+ */
+export function LimiteDePacientes({ p }: { p: Pacientes }) {
+  if (!p.tem_limite) return null;
+
+  const pct = Math.min(100, Math.round((100 * p.ativos) / Math.max(p.limite ?? 1, 1)));
+
+  return (
+    <div
+      className={
+        p.lotou
+          ? "mb-5 rounded-cartao border border-vaga-linha bg-vaga-bg px-5 py-4"
+          : "mb-5 rounded-cartao border border-linha bg-folha px-5 py-3"
+      }
+    >
+      <div className="flex items-baseline justify-between gap-3">
+        <span className={`text-[13px] ${p.lotou ? "font-medium text-vaga" : "text-tinta2"}`}>
+          {fraseDosPacientes(p)}
+        </span>
+        <span className="font-mono text-[11.5px] tabular-nums text-tinta3">{pct}%</span>
+      </div>
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-folha2">
+        <div
+          className={`h-full ${p.lotou ? "bg-vaga" : "bg-cheia"}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      {p.lotou && (
+        <p className="mt-2 max-w-2xl text-[12.5px] leading-relaxed text-tinta2">
+          {fraseDaSaida_pacientes(p)}
+        </p>
+      )}
+    </div>
+  );
+}
 
 /**
  * O aviso do teto.

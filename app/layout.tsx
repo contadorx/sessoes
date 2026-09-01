@@ -27,12 +27,12 @@ const mono = IBM_Plex_Mono({
 // ("sua agenda não fura mais de graça") prometia recuperar a hora, que depende
 // de haver demanda represada — hipótese que ainda não foi medida.
 const FRASE =
-  "A operação financeira do consultório, com a agenda dentro. Quanto da sua capacidade virou receita, e por onde o resto foi.";
+  "Organiza o que não é atender: agenda, recebimentos, recibos e o fechamento com o contador. E mostra quanto da sua capacidade virou receita.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://sessoes.com.br"),
   title: {
-    default: "Sessões — a operação financeira do consultório",
+    default: "Sessões — tudo o que não é atender, num lugar só",
     template: "%s · Sessões",
   },
   description: FRASE,

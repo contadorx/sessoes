@@ -127,7 +127,8 @@ begin
       'e_operador','painel_do_negocio','contas_do_painel','valor_da_conta',
       'custo_da_conta','churn_do_mes','operador_nao_se_promove',
       'fatura_paga_nao_regride','assinatura_carimba',
-      'teto_da_conta','cabe_no_teto','mensagem_carimba_saida'
+      'teto_da_conta','cabe_no_teto','mensagem_carimba_saida',
+      'pacientes_da_conta','paciente_cabe_no_plano','desarquivar_cabe_no_plano'
     ]) as f
    where not exists (
      select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -157,7 +158,7 @@ begin
       'cobranca_nao_e_de_importada','consumo_nao_e_de_importada',
       'nota_so_na_ausencia','evolucao_nao_se_reescreve','anamnese_fechada_nao_muda',
       'operador_nao_se_promove','fatura_paga_nao_regride','assinatura_carimba',
-      'mensagem_carimba_saida'
+      'mensagem_carimba_saida','paciente_cabe_no_plano','desarquivar_cabe_no_plano'
     ]) as g
    where not exists (
      select 1 from pg_trigger t
@@ -246,6 +247,18 @@ begin
 
   if faltando is not null then
     raise exception 'VIEWS DO PANORAMA ABERTAS: % — sem security_invoker ou com SELECT para anon, a pesquisa inteira está legível com a chave que está no formulário. Reaplique o bloco final da 0044b.', faltando;
+  end if;
+
+  -- ------------------------------------------ 8b. o limite do plano Grátis
+  --
+  -- Se `limite_pacientes_ativos` voltar nulo, o plano Grátis fica **aberto**:
+  -- ninguém recebe erro, ninguém percebe, e o único sinal seria o custo
+  -- subindo meses depois. Um limite que some é sempre pior que um limite que
+  -- reclama.
+  select coalesce(limite_pacientes_ativos, 0) into n
+    from public.planos where codigo = 'gratis';
+  if n = 0 then
+    raise exception 'O PLANO GRÁTIS VOLTOU SEM LIMITE DE PACIENTES — ele fica aberto, e o primeiro sinal seria a fatura';
   end if;
 
   -- ------------------------------------------ 9. os três essenciais

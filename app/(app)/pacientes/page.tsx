@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { LimiteDePacientes } from "@/components/app/Teto";
+import { pacientesDaConta } from "@/app/(app)/fila/dados";
 import { listarPacientes, enquadreAberto } from "./dados";
 import { ROTULO_ESTADO, ROTULO_CANAL, formatarTelefone } from "@/lib/paciente";
 import { rotuloHorario, rotuloPolitica } from "@/lib/enquadre";
@@ -9,7 +11,7 @@ const brl = (v: string) =>
   Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export default async function Pacientes() {
-  const pacientes = await listarPacientes();
+  const [pacientes, limite] = await Promise.all([listarPacientes(), pacientesDaConta()]);
 
   return (
     <div>
@@ -21,6 +23,12 @@ export default async function Pacientes() {
         >
           Cadastrar
         </Link>
+      </div>
+
+      {/* O limite fica logo abaixo do botão que o gasta — é onde ele tem
+          serventia. Escondê-lo até lotar transformaria o plano em armadilha. */}
+      <div className="mt-5">
+        <LimiteDePacientes p={limite} />
       </div>
 
       {pacientes.length === 0 ? (
