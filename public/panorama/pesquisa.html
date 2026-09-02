@@ -156,13 +156,13 @@
     // segurança vem da RLS, e as tabelas da pesquisa são insert-only.
     // Esta chave é rotacionável sem mexer na chave anon legada do produto.
     SUPABASE_ANON_KEY: "sb_publishable_7XvMflZ0v5m1gHNuaDUzHA_aiSLTD4b",
-    LINK_RELATORIO:    "/panorama/contato?quero=relatorio",
-    LINK_CONVERSA:     "/panorama/contato?quero=conversa"
+    LINK_RELATORIO:    "/panorama/contato.html?quero=relatorio",
+    LINK_CONVERSA:     "/panorama/contato.html?quero=conversa"
   };
 </script>
 
 <div class="progresso oculto" id="progresso">
-  <div class="passo-rot"><span id="passo-nome">Abertura</span><span id="passo-num">1 de 9</span></div>
+  <div class="passo-rot"><span id="passo-nome">Abertura</span><span id="passo-num">1 / 8</span></div>
   <div class="trilho"><div class="barra" id="barra"></div></div>
 </div>
 
@@ -176,7 +176,7 @@
 
   <div class="nota verde">
     <span class="rot">O combinado</span>
-    <p><strong>São 9 minutos, e não pedimos seu nome nem seu e-mail.</strong> As respostas são anônimas e serão analisadas em conjunto.</p>
+    <p><strong>São cerca de 15 minutos, e não pedimos seu nome nem seu e-mail.</strong> Metade do tempo é nas quatro perguntas abertas logo a seguir — nelas você escreve uma linha ou dez, como preferir. As respostas são anônimas e serão analisadas em conjunto.</p>
     <p>O relatório final será publicado <strong>aberto e gratuito, sem cadastro</strong>. No fim, se você quiser recebê-lo, há um formulário separado — que não se liga a estas respostas.</p>
     <p>Feita por quem desenvolve ferramentas para a prática clínica. <strong>Nenhuma pergunta é sobre produto, e não há nada para comprar.</strong></p>
   </div>
@@ -207,33 +207,28 @@
   <h2>Sobre a sua última semana de trabalho</h2>
   <p class="sub">Quatro perguntas abertas. Escreva com as suas palavras, do jeito que vier — não existe resposta certa e ninguém vai saber que foi você.</p>
 
-  <div class="nota">
-    <span class="rot">Antes de escrever</span>
-    <p><strong>Não escreva o nome de nenhum paciente, nem o seu.</strong> O que interessa aqui é a rotina, não o caso: &ldquo;uma paciente desmarcou em cima da hora&rdquo; diz tudo o que a pesquisa precisa. Estes textos são lidos por pessoas na análise, e a única coisa que pode identificar alguém aqui é o que for escrito nestes campos.</p>
-  </div>
-
   <div class="q">
     <span class="rot"><span class="cod">Q1.1</span>Pense no <strong>último dia em que você atendeu</strong>. Fora das sessões em si, o que você fez? <span class="obrig">*</span></span>
     <p class="dica">Do começo do dia até você fechar. Tudo o que não foi estar com o paciente na sessão — inclusive o que parece pequeno demais para contar.</p>
-    <textarea name="q11" required minlength="20" maxlength="8000" placeholder="Pode ser em ordem, pode ser solto. Do jeito que lembrar."></textarea>
+    <textarea name="q11" required minlength="20" placeholder="Pode ser em ordem, pode ser solto. Do jeito que lembrar."></textarea>
     <div class="erro oculto" data-erro="q11">Escreva ao menos uma frase.</div>
   </div>
 
   <div class="q">
     <span class="rot"><span class="cod">Q1.2</span>Qual foi a parte mais irritante ou cansativa da sua semana passada que <em>não</em> foi atender paciente? <span class="obrig">*</span></span>
-    <textarea name="q12" required minlength="10" maxlength="8000" placeholder="Pode ser específico — o que aconteceu, em que dia."></textarea>
+    <textarea name="q12" required minlength="10" placeholder="Pode ser específico — o que aconteceu, em que dia."></textarea>
     <div class="erro oculto" data-erro="q12">Escreva ao menos uma frase.</div>
   </div>
 
   <div class="q">
     <span class="rot"><span class="cod">Q1.3</span>Tem alguma coisa na sua rotina que você resolve de um jeito improvisado, que você mesma inventou? Qual?</span>
     <p class="dica">Uma planilha própria, um grupo de WhatsApp, um caderno com um sistema seu, um lembrete no celular.</p>
-    <textarea name="q13" maxlength="8000"></textarea>
+    <textarea name="q13"></textarea>
   </div>
 
   <div class="q">
     <span class="rot"><span class="cod">Q1.4</span>O que mais te preocupa hoje em relação ao seu consultório? <span class="obrig">*</span></span>
-    <textarea name="q14" required minlength="10" maxlength="8000"></textarea>
+    <textarea name="q14" required minlength="10"></textarea>
     <div class="erro oculto" data-erro="q14">Escreva ao menos uma frase.</div>
   </div>
 
@@ -333,15 +328,7 @@
     <div class="erro oculto" data-erro="q27">Escolha uma opção.</div>
   </div>
 
-  <div class="q oculto" id="q28-wrap">
-    <span class="rot"><span class="cod">Q2.8</span>Quantos profissionais atendem no mesmo espaço?</span>
-    <div class="opts">
-      <label class="opt"><input type="radio" name="q28" value="2 a 3"><span>2 a 3</span></label>
-      <label class="opt"><input type="radio" name="q28" value="4 a 6"><span>4 a 6</span></label>
-      <label class="opt"><input type="radio" name="q28" value="7 a 12"><span>7 a 12</span></label>
-      <label class="opt"><input type="radio" name="q28" value="mais de 12"><span>Mais de 12</span></label>
-    </div>
-  </div>
+  
 </section>
 
 <!-- ============ 3 · A SEMANA EM NÚMEROS ============ -->
@@ -396,6 +383,24 @@
     <input type="number" name="q36" min="0" max="60" required>
     <div class="erro oculto" data-erro="q36">Informe um número (pode ser zero).</div>
   </div>
+
+  <div class="q">
+    <span class="rot"><span class="cod">Q3.7</span>Quantas horas por semana você reserva para atender pacientes particulares? <span class="obrig">*</span></span>
+    <p class="dica">Conte as horas que você deixa disponíveis para atendimento — inclusive as que não foram preenchidas.</p>
+    <input type="number" name="q37" min="0" max="80" required>
+    <div class="erro oculto" data-erro="q37">Informe um número.</div>
+  </div>
+
+  <div class="q oculto" id="q38-wrap">
+    <span class="rot"><span class="cod">Q3.8</span>Quando alguém desmarca e remarca para outro dia, o que costuma acontecer com o pagamento?</span>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="q38" value="cobra a remarcada"><span>A sessão remarcada é cobrada normalmente</span></label>
+      <label class="opt"><input type="radio" name="q38" value="vale o pagamento da desmarcada"><span>Vale o pagamento da que foi desmarcada</span></label>
+      <label class="opt"><input type="radio" name="q38" value="depende do paciente"><span>Depende de quem é o paciente</span></label>
+      <label class="opt"><input type="radio" name="q38" value="nao cobra nenhuma"><span>Não cobro a desmarcada nem a remarcada</span></label>
+      <label class="opt"><input type="radio" name="q38" value="nao acontece"><span>Isso não costuma acontecer</span></label>
+    </div>
+  </div>
 </section>
 
 <!-- ============ 4 · QUEM PROCURA ============ -->
@@ -421,16 +426,46 @@
   </div>
 
   <div class="q">
+    <span class="rot"><span class="cod">Q4.9</span>Quando alguém te procura e você não tem horário, o que costuma acontecer? <span class="obrig">*</span></span>
+    <p class="dica">Marque tudo que se aplica.</p>
+    <div class="opts" data-check="q49">
+      <label class="opt"><input type="checkbox" name="q49" value="encaminho para colega"><span>Encaminho para uma colega</span></label>
+      <label class="opt"><input type="checkbox" name="q49" value="aviso quando vagar"><span>Guardo o contato e aviso se vagar</span></label>
+      <label class="opt"><input type="checkbox" name="q49" value="abro horário"><span>Abro um horário que eu não tinha aberto</span></label>
+      <label class="opt"><input type="checkbox" name="q49" value="indico plataforma"><span>Indico uma plataforma ou serviço on-line</span></label>
+      <label class="opt"><input type="checkbox" name="q49" value="a pessoa se resolve"><span>A pessoa segue procurando por conta dela</span></label>
+      <label class="opt"><input type="checkbox" name="q49" value="não acontece"><span>Não costuma acontecer</span></label>
+    </div>
+    <div class="erro oculto" data-erro="q49">Marque ao menos uma.</div>
+  </div>
+
+  <div class="q">
     <span class="rot"><span class="cod">Q4.3</span>Hoje, quantas pessoas estão esperando por um horário seu? <span class="obrig">*</span></span>
-    <p class="dica">Pode ser zero — e zero é uma resposta tão útil quanto qualquer outra.</p>
-    <input type="number" name="q43" min="0" max="300" required>
-    <div class="erro oculto" data-erro="q43">Informe um número.</div>
+    <div class="opts">
+      <label class="opt"><input type="checkbox" name="q43_na" id="q43na" value="não se aplica"><span>Não se aplica ao meu jeito de trabalhar</span></label>
+    </div>
+    <div id="q43-num">
+      <p class="dica">Pode ser zero. Mas zero e “não se aplica” são coisas diferentes — se esperar por horário não faz sentido no seu caso, marque a opção acima.</p>
+      <input type="number" name="q43" min="0" max="300" required>
+      <div class="erro oculto" data-erro="q43">Informe um número, ou marque que não se aplica.</div>
+    </div>
+    <div id="q43-txt" class="oculto">
+      <input type="text" name="q43_como" placeholder="Como funciona no seu caso? (opcional)">
+    </div>
   </div>
 
   <div class="q">
     <span class="rot"><span class="cod">Q4.4</span>Nos últimos 3 meses, quantos pacientes <strong>novos</strong> você começou a atender? <span class="obrig">*</span></span>
-    <input type="number" name="q44" min="0" max="300" required>
-    <div class="erro oculto" data-erro="q44">Informe um número.</div>
+    <div class="opts">
+      <label class="opt"><input type="checkbox" name="q44_na" id="q44na" value="não se aplica"><span>Não se aplica ao meu jeito de trabalhar</span></label>
+    </div>
+    <div id="q44-num">
+      <input type="number" name="q44" min="0" max="300" required>
+      <div class="erro oculto" data-erro="q44">Informe um número, ou marque que não se aplica.</div>
+    </div>
+    <div id="q44-txt" class="oculto">
+      <input type="text" name="q44_como" placeholder="Como funciona no seu caso? (opcional)">
+    </div>
   </div>
 
   <div class="q">
@@ -453,14 +488,7 @@
     <div class="erro oculto" data-erro="q47">Escolha uma opção.</div>
   </div>
 
-  <div class="q">
-    <span class="rot"><span class="cod">Q4.8</span>Nos últimos 3 meses, você recusou alguém por não ter horário? <span class="obrig">*</span></span>
-    <div class="opts" data-radio="q48">
-      <label class="opt"><input type="radio" name="q48" value="sim"><span>Sim</span></label>
-      <label class="opt"><input type="radio" name="q48" value="não"><span>Não</span></label>
-    </div>
-    <div class="erro oculto" data-erro="q48">Escolha uma opção.</div>
-  </div>
+  
 
   <div class="q">
     <span class="rot"><span class="cod">Q4.5</span>Como eles chegaram até você?</span>
@@ -545,7 +573,7 @@
 
   <div class="q oculto" id="q57-wrap">
     <span class="rot"><span class="cod">Q5.7</span>Nas vezes em que não cobrou, o que pesou na hora?</span>
-    <textarea name="q57" maxlength="8000" placeholder="Opcional."></textarea>
+    <textarea name="q57" placeholder="Opcional."></textarea>
   </div>
 
   <div class="q">
@@ -585,6 +613,30 @@
     <div class="erro oculto" data-erro="q510">Escolha uma opção.</div>
   </div>
 
+  <div class="q oculto" id="q514-wrap">
+    <span class="rot"><span class="cod">Q5.14</span>Quando você emite pelo Receita Saúde, com que frequência isso acontece?</span>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="q514" value="a cada atendimento"><span>A cada atendimento</span></label>
+      <label class="opt"><input type="radio" name="q514" value="fim do dia"><span>Todo fim de dia</span></label>
+      <label class="opt"><input type="radio" name="q514" value="semanal"><span>Uma vez por semana</span></label>
+      <label class="opt"><input type="radio" name="q514" value="mensal"><span>Uma vez por mês</span></label>
+      <label class="opt"><input type="radio" name="q514" value="quando lembro"><span>Quando lembro</span></label>
+      <label class="opt"><input type="radio" name="q514" value="fevereiro"><span>Uma vez por ano, perto da declaração</span></label>
+      <label class="opt"><input type="radio" name="q514" value="contador"><span>Quem faz é o meu contador</span></label>
+    </div>
+  </div>
+
+  <div class="q oculto" id="q515-wrap">
+    <span class="rot"><span class="cod">Q5.15</span>Quando você senta para fazer, quantos recibos emite de uma vez?</span>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="q515" value="um por um na hora"><span>Não sento — faço um por um, na hora</span></label>
+      <label class="opt"><input type="radio" name="q515" value="1"><span>Um</span></label>
+      <label class="opt"><input type="radio" name="q515" value="2 a 5"><span>2 a 5</span></label>
+      <label class="opt"><input type="radio" name="q515" value="6 a 20"><span>6 a 20</span></label>
+      <label class="opt"><input type="radio" name="q515" value="mais de 20"><span>Mais de 20</span></label>
+    </div>
+  </div>
+
   <div class="q">
     <span class="rot"><span class="cod">Q5.11</span>Quanto tempo por mês você gasta com a parte fiscal? <span class="obrig">*</span></span>
     <div class="opts" data-radio="q511">
@@ -595,6 +647,28 @@
       <label class="opt"><input type="radio" name="q511" value="mais de 5 h"><span>Mais de 5 horas</span></label>
     </div>
     <div class="erro oculto" data-erro="q511">Escolha uma opção.</div>
+  </div>
+
+  <div class="q">
+    <span class="rot"><span class="cod">Q5.12</span>Você pede algum pagamento <strong>antes</strong> de a sessão acontecer? <span class="obrig">*</span></span>
+    <div class="opts" data-radio="q512">
+      <label class="opt"><input type="radio" name="q512" value="nao, sempre depois"><span>Não, sempre depois</span></label>
+      <label class="opt"><input type="radio" name="q512" value="sinal ou parte"><span>Sim, um sinal ou parte do valor</span></label>
+      <label class="opt"><input type="radio" name="q512" value="valor todo"><span>Sim, o valor todo</span></label>
+      <label class="opt"><input type="radio" name="q512" value="so paciente novo"><span>Só de paciente novo</span></label>
+      <label class="opt"><input type="radio" name="q512" value="so em alguns casos"><span>Só em alguns casos</span></label>
+    </div>
+    <div class="erro oculto" data-erro="q512">Escolha uma opção.</div>
+  </div>
+
+  <div class="q oculto" id="q513-wrap">
+    <span class="rot"><span class="cod">Q5.13</span>Pense nas desmarcações e faltas dos últimos 3 meses. Em quantas delas as <strong>três coisas</strong> aconteceram juntas?</span>
+    <p class="dica">
+      &mdash; você soube com antecedência suficiente para oferecer o horário a outra pessoa;<br>
+      &mdash; você não cobrou a sessão;<br>
+      &mdash; havia alguém que poderia ter ficado com aquele horário.
+    </p>
+    <input type="number" name="q513" min="0" max="200">
   </div>
 </section>
 
@@ -641,7 +715,7 @@
 
   <div class="q oculto" id="q64-wrap">
     <span class="rot"><span class="cod">Q6.4</span>O que te fez parar?</span>
-    <textarea name="q64" maxlength="8000" placeholder="Opcional, mas é uma das respostas mais úteis desta pesquisa."></textarea>
+    <textarea name="q64" placeholder="Opcional, mas é uma das respostas mais úteis desta pesquisa."></textarea>
   </div>
 
   <div class="q">
@@ -662,26 +736,18 @@
   </div>
 
   <div class="q">
-    <span class="rot"><span class="cod">Q6.7</span>Nos últimos 12 meses, você considerou deixar a atuação clínica? <span class="obrig">*</span></span>
-    <div class="opts" data-radio="q67">
-      <label class="opt"><input type="radio" name="q67" value="nunca"><span>Nunca</span></label>
-      <label class="opt"><input type="radio" name="q67" value="raramente"><span>Raramente</span></label>
-      <label class="opt"><input type="radio" name="q67" value="às vezes"><span>Às vezes</span></label>
-      <label class="opt"><input type="radio" name="q67" value="frequentemente"><span>Frequentemente</span></label>
+    <span class="rot"><span class="cod">Q6.9</span>Sobre a formalização do seu consultório, o que hoje ainda é dúvida para você?</span>
+    <p class="dica">Marque tudo que se aplica.</p>
+    <div class="opts">
+      <label class="opt"><input type="checkbox" name="q69" value="se compensa CNPJ"><span>Se compensa abrir CNPJ</span></label>
+      <label class="opt"><input type="checkbox" name="q69" value="regime de imposto"><span>Qual regime de imposto</span></label>
+      <label class="opt"><input type="checkbox" name="q69" value="ISS prefeitura"><span>Inscrição na prefeitura, ISS</span></label>
+      <label class="opt"><input type="checkbox" name="q69" value="alvara vigilancia"><span>Alvará, vigilância sanitária</span></label>
+      <label class="opt"><input type="checkbox" name="q69" value="CRP da PJ"><span>O que o CRP exige da pessoa jurídica</span></label>
+      <label class="opt"><input type="checkbox" name="q69" value="como declarar"><span>Como declarar o que recebo</span></label>
+      <label class="opt"><input type="checkbox" name="q69" value="nenhuma"><span>Nenhuma — está tudo resolvido</span></label>
+      <label class="opt"><input type="checkbox" name="q69" value="nao sei dizer"><span>Não sei dizer</span></label>
     </div>
-    <div class="erro oculto" data-erro="q67">Escolha uma opção.</div>
-  </div>
-
-  <div class="q">
-    <span class="rot"><span class="cod">Q6.8</span>Ao fim de um dia de trabalho, com que frequência você se sente esgotada? <span class="obrig">*</span></span>
-    <div class="opts" data-radio="q68">
-      <label class="opt"><input type="radio" name="q68" value="nunca"><span>Nunca</span></label>
-      <label class="opt"><input type="radio" name="q68" value="raramente"><span>Raramente</span></label>
-      <label class="opt"><input type="radio" name="q68" value="às vezes"><span>Às vezes</span></label>
-      <label class="opt"><input type="radio" name="q68" value="frequentemente"><span>Frequentemente</span></label>
-      <label class="opt"><input type="radio" name="q68" value="sempre"><span>Sempre</span></label>
-    </div>
-    <div class="erro oculto" data-erro="q68">Escolha uma opção.</div>
   </div>
 </section>
 
@@ -709,7 +775,7 @@
   <h2>Antes de terminar</h2>
   <div class="q">
     <span class="rot"><span class="cod">Q8.1</span>Tem alguma coisa que eu não perguntei e que você acha que eu deveria saber sobre o dia a dia de tocar um consultório?</span>
-    <textarea name="q81" maxlength="8000" style="min-height:8rem"></textarea>
+    <textarea name="q81" style="min-height:8rem"></textarea>
   </div>
   <div class="nota verde">
     <span class="rot">Obrigada</span>
@@ -759,54 +825,8 @@
 
   var CFG = window.CONFIG || {};
   var GRAVA = !!(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY);
-  // A coluna `sessao` é uuid not null. Um valor que não tenha a forma de uuid
-  // faz o PostgREST devolver 400 e a resposta se perde — e como o envio é
-  // best-effort, se perde em silêncio. `crypto.randomUUID` não existe em
-  // contexto não-seguro nem no Safari anterior ao 15.4, então há dois degraus
-  // abaixo dele, e os dois produzem um uuid de verdade.
-  var sessao = (function () {
-    try {
-      if (crypto && crypto.randomUUID) return crypto.randomUUID();
-      if (crypto && crypto.getRandomValues) {
-        var b = new Uint8Array(16);
-        crypto.getRandomValues(b);
-        b[6] = (b[6] & 0x0f) | 0x40;
-        b[8] = (b[8] & 0x3f) | 0x80;
-        var h = "";
-        for (var i = 0; i < 16; i++) {
-          h += (b[i] + 0x100).toString(16).slice(1);
-          if (i === 3 || i === 5 || i === 7 || i === 9) h += "-";
-        }
-        return h;
-      }
-    } catch (e) { /* cai no último degrau */ }
-    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
-      var r = (Math.random() * 16) | 0;
-      return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
-    });
-  })();
+  var sessao = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random());
   var inicio = Date.now();
-
-  /**
-   * Celular ou computador — e só isso.
-   *
-   * A coluna `ua` guardava o `navigator.userAgent` inteiro. Ele não tem nome
-   * de ninguém, mas é um quase-identificador: sistema, versão e build, que
-   * cruzados com estado e abordagem num N pequeno estreitam demais o conjunto
-   * de quem poderia ter respondido aquilo. E nenhuma das doze leituras usa o
-   * user agent para nada — o que se queria saber dele é se quem responde no
-   * celular abandona mais, e para isso bastam duas palavras.
-   *
-   * A promessa da tela é "participantes não identificados", nos termos da
-   * Res. CNS 510/2016. Guardar um quase-identificador sem uso analítico é
-   * passivo puro contra essa frase.
-   */
-  function plataforma() {
-    try {
-      var t = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      return t ? "celular" : "computador";
-    } catch (e) { return null; }
-  }
 
   // ---- código de canal vindo da URL (?c=crp06), mais confiável que o autodeclarado
   var canalUrl = null;
@@ -904,14 +924,8 @@
   montaItens(document.getElementById("lista-nao"), ordemNao, 3, naoProblema, "sel2");
 
   // ---- lógica condicional
-  document.querySelectorAll('input[name="q27"], input[name="q23"]').forEach(function (el) {
-    el.addEventListener("change", function () {
-      var pj = document.querySelector('input[name="q27"]:checked');
-      var clinica = document.querySelector('input[name="q23"][value="clínica com outros"]');
-      var mostra = (pj && (pj.value === "PJ" || pj.value === "os dois")) || (clinica && clinica.checked);
-      document.getElementById("q28-wrap").classList.toggle("oculto", !mostra);
-    });
-  });
+  // (o handler do antigo q28-wrap foi removido junto com a Q2.8 na revisão 2;
+  //  ele continuava disparando TypeError a cada clique na Q2.3 e na Q2.7)
 
   var q32 = document.getElementById("q32");
   q32.addEventListener("input", function () {
@@ -940,6 +954,57 @@
   }
   q55.addEventListener("input", confereCobranca);
   q56.addEventListener("input", confereCobranca);
+
+  // Q3.8 so aparece se houve sessao marcada que nao aconteceu (Q3.2 > 0)
+  // Q5.13 so aparece se houve falta ou desmarcacao em cima da hora (Q5.5 > 0)
+  function condicional(origem, alvo) {
+    var el = document.getElementById(origem);
+    var wrap = document.getElementById(alvo);
+    if (!el || !wrap) return;
+    function ver() {
+      var n = parseInt(el.value, 10);
+      wrap.classList.toggle("oculto", !(n > 0));
+    }
+    el.addEventListener("input", ver); ver();
+  }
+  // "não se aplica" não é zero. Sem esta saída, quem não trabalha com espera
+  // digita 0 e a mediana da H1 é confirmada por artefato do instrumento.
+  function saidaNA(chk, wrapNum, wrapTxt, campo) {
+    var c = document.getElementById(chk);
+    var wn = document.getElementById(wrapNum);
+    var wt = document.getElementById(wrapTxt);
+    if (!c || !wn || !wt) return;
+    c.addEventListener("change", function () {
+      wn.classList.toggle("oculto", c.checked);
+      wt.classList.toggle("oculto", !c.checked);
+      if (c.checked) {
+        var el = document.querySelector('input[name="' + campo + '"]');
+        if (el) el.value = "";
+      }
+    });
+  }
+  // Q5.14 e Q5.15 só existem para quem de fato emite pelo Receita Saúde.
+  // Quem não emite já foi classificado pela própria Q5.10 — perguntar ritmo a
+  // ela produziria uma categoria que não descreve comportamento nenhum.
+  function condicionalRadio(nomeOrigem, valoresQueMostram, alvos) {
+    var wraps = alvos.map(function (id) { return document.getElementById(id); });
+    function ver() {
+      var m = document.querySelector('input[name="' + nomeOrigem + '"]:checked');
+      var mostra = !!m && valoresQueMostram.indexOf(m.value) >= 0;
+      wraps.forEach(function (w) { if (w) w.classList.toggle("oculto", !mostra); });
+    }
+    document.querySelectorAll('input[name="' + nomeOrigem + '"]').forEach(function (el) {
+      el.addEventListener("change", ver);
+    });
+    ver();
+  }
+  condicionalRadio("q510", ["sempre", "quando pedem"], ["q514-wrap", "q515-wrap"]);
+
+  saidaNA("q43na", "q43-num", "q43-txt", "q43");
+  saidaNA("q44na", "q44-num", "q44-txt", "q44");
+
+  condicional("q32", "q38-wrap");
+  condicional("q55", "q513-wrap");
 
   document.querySelectorAll('input[name="q63"]').forEach(function (el) {
     el.addEventListener("change", function () {
@@ -1024,18 +1089,10 @@
     d.textContent += "[não gravou] " + msg + "\n";
   }
 
-  /**
-   * Uma tentativa de gravação.
-   *
-   * `keepalive` existe por um motivo específico: o bloco 1 é enviado sem que
-   * ninguém espere por ele — a respondente já está na tela seguinte. Sem
-   * keepalive, fechar a aba nos segundos seguintes cancela a requisição, e o
-   * dado mais valioso da pesquisa é justamente o de quem abandona.
-   */
-  function tenta(tabela, corpo) {
+  function envia(tabela, corpo) {
+    if (!GRAVA) return Promise.resolve({ previa: true });
     return fetch(CFG.SUPABASE_URL + "/rest/v1/" + tabela, {
       method: "POST",
-      keepalive: true,
       headers: {
         "Content-Type": "application/json",
         "apikey": CFG.SUPABASE_ANON_KEY,
@@ -1046,32 +1103,11 @@
     }).then(function (r) {
       if (r.ok) return { ok: true };
       return r.text().then(function (t) {
-        var err = new Error(tabela + " → HTTP " + r.status + " " + (t || "").slice(0, 300));
-        // 4xx é resposta recusada: repetir dá o mesmo 400 e só atrasa.
-        // 5xx e rede caída são passageiros, e esses valem uma segunda tentativa.
-        err.repetivel = r.status >= 500;
-        throw err;
+        throw new Error(tabela + " → HTTP " + r.status + " " + (t || "").slice(0, 300));
       });
-    });
-  }
-
-  /**
-   * Gravar, e insistir uma vez se a falha for passageira.
-   *
-   * Sem a segunda tentativa, um soluço de rede de dois segundos custa nove
-   * minutos de trabalho de alguém. A espera de 1,2 s é curta de propósito: no
-   * envio final a respondente está olhando para o botão.
-   */
-  function envia(tabela, corpo) {
-    if (!GRAVA) return Promise.resolve({ previa: true });
-    return tenta(tabela, corpo).catch(function (e) {
-      if (e && e.repetivel === false) { grita(e.message || String(e)); throw e; }
-      return new Promise(function (r) { setTimeout(r, 1200); }).then(function () {
-        return tenta(tabela, corpo);
-      }).catch(function (e2) {
-        grita((e2 && e2.message ? e2.message : String(e2)) + "  (2 tentativas)");
-        throw e2;
-      });
+    }).catch(function (e) {
+      grita(e.message || String(e));
+      throw e;
     });
   }
 
@@ -1108,7 +1144,7 @@
         irritante: document.querySelector('[name="q12"]').value.trim(),
         gambiarra: document.querySelector('[name="q13"]').value.trim() || null,
         preocupacao: document.querySelector('[name="q14"]').value.trim(),
-        ua: plataforma()
+        ua: navigator.userAgent.slice(0, 200)
       }).catch(function () { /* não bloqueia a respondente */ });
     }
 
@@ -1118,10 +1154,7 @@
         sessao: sessao,
         canal: d.q01 || null,
         canal_url: canalUrl,
-        // A policy recusa duração fora de 0–86400, e recusar significa perder o
-        // questionário inteiro. Uma aba esquecida aberta de um dia para o outro
-        // é comum; perder a resposta por causa disso, não. O teto vira teto.
-        duracao_seg: Math.max(0, Math.min(86400, Math.round((Date.now() - inicio) / 1000))),
+        duracao_seg: Math.round((Date.now() - inicio) / 1000),
         ordem_itens: ordemCusta.map(function (o) { return o.id; }),
         respostas: d
       }).then(fim).catch(function () { fim(); });
