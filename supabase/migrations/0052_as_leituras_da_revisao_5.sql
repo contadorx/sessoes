@@ -1,3 +1,18 @@
+-- ⚠ COLISÃO DE NÚMERO, e ela é real: existe outra `0052` neste diretório.
+--
+-- `0052_a_regua_da_assinatura_e_o_churn_com_causa.sql` é da trilha OP (a régua
+-- da assinatura, 01/09). Esta é da trilha do Panorama, e as duas foram
+-- numeradas por linhas de trabalho diferentes que compartilham o mesmo banco.
+--
+-- **Os nomes de arquivo são os que o banco registrou** — `supabase migration
+-- list` mostra `0052_a_regua…` na versão 20260901231529 e `0052_as_leituras…`
+-- na 20260902101326. Renomear aqui faria o repositório contar uma história que
+-- o banco não conta, que é pior do que o número repetido.
+--
+-- A régua para quem for numerar a próxima: **o número vem da última migração
+-- aplicada no banco, não da última do seu assunto.** A trilha do Panorama já
+-- perdeu as 0049, 0050 e 0051 por isso.
+
 -- 0052 · as leituras da revisão 5
 --
 -- Aplicada em 02/09/2026, depois da 0052a (os drops). Verificado no banco:
