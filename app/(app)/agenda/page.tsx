@@ -10,6 +10,8 @@ import {
   cobrancasDaSemana,
   retornoDoMes,
   decisoesPendentes,
+  cockpitDoMes,
+  alertasARever,
 } from "./dados";
 import { Semana } from "@/components/app/Semana";
 import { Retorno } from "@/components/app/Retorno";
@@ -19,6 +21,7 @@ import { semanaDe, rotuloSemana, somarDias } from "@/lib/semana";
 import { hoje } from "@/lib/tempo-servidor";
 import { FaixaDeConfirmacoes, NumerosDaConfirmacao } from "@/components/app/Confirmacoes";
 import { CaixaDeDecisoes } from "@/components/app/Decisoes";
+import { Cockpit } from "@/components/app/Cockpit";
 import { acessosDa } from "@/lib/conta";
 import { prazosDoMes } from "@/app/(app)/prazos";
 import { pendencias, fraseDasPendencias } from "@/lib/navegacao";
@@ -59,6 +62,21 @@ export default async function Agenda({
       // e, numa conta sem falta nenhuma, é o estado permanente.
       decisoesPendentes(),
     ]);
+
+  // O cockpit do mês (P5). Depende do profissional, então vem depois da sessão
+  // — e degrada para `null` sem derrubar a agenda.
+  const primeiro = hojeStr.slice(0, 8) + "01";
+  const ultimo = (() => {
+    const d = new Date(`${primeiro}T12:00:00Z`);
+    d.setUTCMonth(d.getUTCMonth() + 1);
+    d.setUTCDate(0);
+    return d.toISOString().slice(0, 10);
+  })();
+
+  const [cockpit, alertas] = await Promise.all([
+    cockpitDoMes(sessao.profissionalId, primeiro, ultimo),
+    alertasARever(sessao.profissionalId),
+  ]);
 
   // Depois das sessões, porque depende delas — e só busca se houver alguma
   // sessão cobrável na semana.
@@ -157,6 +175,16 @@ export default async function Agenda({
       <div className="mt-6">
         <CaixaDeDecisoes decisoes={decisoes} />
       </div>
+
+      {/* O cockpit do mês (P5), na primeira tela e não numa aba de relatórios.
+          É o critério de pronto do bloco 4 do doc 30, e é o mesmo argumento dos
+          dois números do P3: uma métrica que mora onde ninguém abre é uma
+          métrica que não muda decisão nenhuma. */}
+      {ehSemanaAtual && (
+        <div className="mt-6">
+          <Cockpit bruto={cockpit} alertas={alertas} mes={mesPorExtenso(hojeStr)} />
+        </div>
+      )}
 
       {/* A faixa da confirmação vem **antes** da semana porque ela é sobre
           hoje, e some sozinha quando ninguém foi perguntado. */}

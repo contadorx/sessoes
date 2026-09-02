@@ -79,10 +79,20 @@ export function Entrar() {
       if (modo === "cadastrar") {
         // O gatilho ao_criar_auth_user cria conta + usuário + profissional.
         // O `nome` viaja nos metadados e vira o nome da conta.
+        //
+        // E o `plano_desejado` viaja junto quando a pessoa clicou no card do
+        // Solo ou do Pro. Ele **não** liga plano nenhum — o gatilho ignora a
+        // chave, a conta nasce no Grátis e quem abre assinatura é uma pessoa
+        // (OP5). Ele existe para a escolha não se perder no clique: sem isso,
+        // os dois botões pagos da landing eram indistinguíveis do gratuito, e
+        // a única informação que eu tinha sobre demanda de plano era nenhuma.
+        const plano = params.get("plano");
+        const desejado = plano === "solo" || plano === "pro" ? plano : undefined;
+
         const { data, error } = await supabase.auth.signUp({
           email,
           password: senha,
-          options: { data: { nome } },
+          options: { data: desejado ? { nome, plano_desejado: desejado } : { nome } },
         });
         if (error) throw error;
 

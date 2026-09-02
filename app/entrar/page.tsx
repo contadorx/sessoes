@@ -15,10 +15,11 @@ const RECADO: Record<string, string> = {
 export default async function PaginaEntrar({
   searchParams,
 }: {
-  searchParams: Promise<{ erro?: string }>;
+  searchParams: Promise<{ erro?: string; plano?: string }>;
 }) {
-  const { erro } = await searchParams;
+  const { erro, plano } = await searchParams;
   const recado = erro ? RECADO[erro] : undefined;
+  const escolhido = plano === "solo" || plano === "pro" ? plano : null;
 
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center px-5 py-12">
@@ -43,6 +44,30 @@ export default async function PaginaEntrar({
           <Entrar />
         </Suspense>
       </div>
+
+      {/* **A escolha do plano volta a aparecer, e com a verdade junto.**
+
+          Os botões "Começar no Solo" e "Começar no Pro" da landing apontavam
+          para o mesmo `/entrar?criar`, e a intenção se perdia no clique. Pior:
+          o rótulo prometia um começo que não acontece — toda conta nasce no
+          Grátis, porque não existe assinatura self-service e quem abre a
+          assinatura sou eu, à mão (OP5).
+
+          Então o plano viaja na URL, aparece aqui, e vai nos metadados do
+          cadastro. O que esta frase não faz é fingir: ela diz que a conta nasce
+          no Grátis e que o plano entra quando eu ligar. Prometer o contrário
+          seria a mesma classe de erro do "acesso por convite" que a segunda
+          auditoria achou neste mesmo funil. */}
+      {escolhido && (
+        <p className="mt-6 max-w-[46ch] rounded-cartao border border-linha bg-folha2 px-4 py-3 text-center text-[12.5px] leading-relaxed text-tinta2">
+          Você veio pelo{" "}
+          <b className="font-semibold text-tinta">
+            {escolhido === "solo" ? "Solo" : "Pro"}
+          </b>
+          . A conta nasce no Grátis e nada é cobrado agora — eu ligo o plano
+          quando você pedir, e falo com você antes.
+        </p>
+      )}
 
       {/* O rodapé desta tela dizia "ainda em construção... se você chegou aqui
           sem convite, entre na lista de espera" — e apontava para `/#lista`,

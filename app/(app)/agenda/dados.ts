@@ -1,6 +1,7 @@
 import "server-only";
 import type { RespostaBruta } from "@/lib/confirmacao";
 import type { HistoricoBruto } from "@/lib/politica";
+import type { CockpitBruto, AlertasBrutos } from "@/lib/risco";
 import { db } from "@/lib/db";
 import { supabaseSessao } from "@/lib/supabase/server";
 import { diaEmSP, inicioDoDiaSP } from "@/lib/tempo";
@@ -361,5 +362,67 @@ export async function decisoesPendentes(): Promise<DecisaoPendente[]> {
   } catch (e) {
     console.error("[decisoes] falhou carregar", e);
     return [];
+  }
+}
+
+// ============================================================ P5 · o cockpit
+
+export type CockpitLinha = CockpitBruto;
+export type AlertasLinha = AlertasBrutos;
+
+/**
+ * Os quatro números do mês (P5).
+ *
+ * **Uma chamada só, e ela traz os quatro.** Não existe leitura que devolva
+ * ocupação sozinha — nem aqui, nem no banco. Ocupação subindo com receita por
+ * hora caindo é sintoma, e só se enxerga com os dois lado a lado.
+ *
+ * Degrada para `null` em vez de derrubar a agenda: a tela que mede não pode
+ * quebrar a tela que ela mede.
+ */
+export async function cockpitDoMes(
+  profissionalId: string | null,
+  de: string,
+  ate: string,
+): Promise<CockpitLinha | null> {
+  if (!profissionalId) return null;
+  const supabase = await supabaseSessao();
+
+  try {
+    return (await db(
+      "risco.cockpit",
+      supabase.rpc("cockpit_do_mes", {
+        p_profissional: profissionalId,
+        p_de: de,
+        p_ate: ate,
+      }),
+    )) as unknown as CockpitLinha;
+  } catch (e) {
+    console.error("[risco] falhou o cockpit", e);
+    return null;
+  }
+}
+
+/**
+ * Os alertas que apareceram e ninguém usou nos últimos três meses.
+ *
+ * É medida do **produto**, e o critério de pronto do P5 pede que ela exista
+ * desde o primeiro dia — uma feature que não traz consigo o instrumento que a
+ * mediria é uma feature que ninguém desliga depois.
+ */
+export async function alertasARever(
+  profissionalId: string | null,
+): Promise<AlertasLinha | null> {
+  if (!profissionalId) return null;
+  const supabase = await supabaseSessao();
+
+  try {
+    return (await db(
+      "risco.alertas",
+      supabase.rpc("alertas_a_rever", { p_profissional: profissionalId }),
+    )) as unknown as AlertasLinha;
+  } catch (e) {
+    console.error("[risco] falhou ler os alertas", e);
+    return null;
   }
 }

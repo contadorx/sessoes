@@ -9,8 +9,7 @@ import { RodapeDoSite } from "@/components/site/Moldura";
 import { Confirmar } from "@/components/app/Confirmar";
 import {
   AgendaEExtrato,
-  CincoLugares,
-  UmRegistro,
+  FiguraEditorial,
   GlifoDoDestino,
   FolhaDoProntuario,
   Fio,
@@ -191,8 +190,15 @@ const PLANOS = [
     detalhe: "por mês",
     destaque: true,
     selo: "para quem atende sozinha",
-    cta: "Começar no Solo",
-    href: "/entrar?criar",
+    // **A escolha deixou de se perder, e o rótulo deixou de mentir.** Os dois
+    // botões pagos apontavam para o mesmo `/entrar?criar`, e "Começar no Solo"
+    // prometia um começo que não acontece: toda conta nasce no Grátis, porque
+    // não existe assinatura self-service — quem abre é uma pessoa (OP5). Agora
+    // o plano viaja na URL, aparece de volta na tela de criar conta e vai junto
+    // nos metadados do cadastro, onde eu consigo lê-lo. E o rótulo diz o que o
+    // clique faz: cria a conta e **pede** o plano.
+    cta: "Criar conta e pedir o Solo",
+    href: "/entrar?criar&plano=solo",
     // A ordem importa: quem chegou por agenda, Pix e recibo lê o primeiro item
     // como resumo do plano. "Receita por hora disponível" abrindo a lista
     // reintroduzia o vocabulário financeiro que a hero passou a evitar — vai
@@ -209,8 +215,8 @@ const PLANOS = [
     nome: "Pro",
     preco: "R$ 129",
     detalhe: "por mês",
-    cta: "Começar no Pro",
-    href: "/entrar?criar",
+    cta: "Criar conta e pedir o Pro",
+    href: "/entrar?criar&plano=pro",
     linhas: [
       "Tudo do Solo",
       "NFS-e e a ramificação PJ, sem pendência falsa",
@@ -274,11 +280,14 @@ export default function Home() {
           >
             Preço
           </a>
+          {/* "Textos" não dizia se era documentação, normas, blog ou material
+              institucional — e num site que fala de CFP e de Receita Federal as
+              quatro leituras são plausíveis. "Artigos" é o que está lá. */}
           <Link
             href="/blog"
             className="hidden text-[12.5px] font-medium text-tinta2 transition-colors hover:text-vaga sm:inline"
           >
-            Textos
+            Artigos
           </Link>
           {/* Duas ações, e não uma. "Entrar" sozinho no topo parece destinado
               a quem já é cliente — e era a única porta visível para quem
@@ -405,13 +414,16 @@ export default function Home() {
           linha="Agenda num app, pagamento no extrato, recibo no site da Receita, controle numa planilha e o resto no WhatsApp. Aqui a sessão carrega tudo — quem confirmou, quem pagou, quem tem recibo, o que ficou a receber."
           fundo="folha"
         >
-          <figure className="mb-8 rounded-cartao border border-linha bg-folha p-5 sm:p-6">
-            <CincoLugares className="mx-auto h-auto w-full max-w-[660px]" />
-            <figcaption className="mt-4 border-t border-linha pt-3 text-[12px] leading-relaxed text-tinta3">
-              À esquerda, o mês de hoje. À direita, o mesmo mês — e é a sessão
-              que passa a carregar o que antes estava em cinco lugares.
-            </figcaption>
-          </figure>
+          {/* A figura antiga era um diagrama de cinco caixas inclinadas, uma
+              seta e outra caixa — e a copy acima já dizia exatamente isso. Um
+              desenho que repete a frase ao lado não acrescenta nada; ocupa
+              altura. Esta mostra a **convergência**: cinco origens diferentes,
+              cada uma com a matéria dela, entrando num registro só. */}
+          <FiguraEditorial
+            className="mb-8 max-w-[720px]"
+            src="/figuras/cinco-fontes-um-registro.webp"
+            legenda="Agenda, pagamento, recibo, planilha e mensagens deixam de ser conferidos separadamente. A sessão passa a reunir o que aconteceu em cada um deles."
+          />
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Cartao titulo="O Pix é comparado com as sessões previstas">
@@ -460,9 +472,16 @@ export default function Home() {
           titulo="Você registra a sessão uma vez. O restante acompanha esse registro."
           linha="Depois de registrar o que aconteceu com a sessão, o Sessões organiza as pendências que nascem desse registro: a cobrança, o lembrete de pagamento, a linha do recibo, o número que o contador precisa e o fechamento do mês. São consequências do que você já fez, e não cinco tarefas novas que aparecem depois."
         >
-          <figure className="mb-8 rounded-cartao border border-linha bg-folha p-5 sm:p-6">
-            <UmRegistro className="mx-auto h-auto w-full max-w-[620px]" />
-          </figure>
+          {/* O conceito da figura antiga estava certo e o desenho parecia um
+              fluxograma de arquitetura — com a frase de baixo espremida dentro
+              do card. Aqui a origem é visualmente dominante e os cinco viram
+              **consequências**, que é o argumento inteiro da seção: não são
+              cinco tarefas novas. */}
+          <FiguraEditorial
+            className="mb-8 max-w-[720px]"
+            src="/figuras/um-registro-cinco-consequencias.webp"
+            legenda="Depois que você registra o que aconteceu, cobrança, lembrete, recibo, contador e fechamento continuam ligados à mesma sessão."
+          />
 
           {/* Ficou UM cartão, não três.
 
@@ -552,14 +571,14 @@ export default function Home() {
             ))}
           </dl>
 
+          {/* Cortado pela metade. As quatro células acima já ensinam a
+              separação; este parágrafo repetia a lição e só então dizia a coisa
+              nova. Ficou a coisa nova. */}
           <p className="mt-6 max-w-[70ch] text-[13px] leading-relaxed text-tinta2">
-            Com as quatro separadas, dois números passam a existir e a fazer
-            sentido juntos: <b className="font-medium text-tinta">receita por hora disponível</b> e{" "}
+            Separadas, elas produzem dois números que só fazem sentido juntos:{" "}
+            <b className="font-medium text-tinta">receita por hora disponível</b> e{" "}
             <b className="font-medium text-tinta">a causa de cada horário não ocupado</b>. Ocupação
-            subindo com receita por hora caindo é sintoma, não sucesso — e só se
-            enxerga com os dois lado a lado. Antecipado, aliás, não é atendido:
-            receber por uma sessão que ainda não aconteceu entra como pago e não
-            como receita reconhecida.
+            subindo com receita por hora caindo é sintoma, não sucesso.
           </p>
         </Secao>
 
@@ -571,13 +590,15 @@ export default function Home() {
           linha="Uma pessoa por vez, na ordem que você definiu, e a primeira que responder fica com o horário. Não é leilão e não tem desconto: quem entra paga o mesmo que já estava combinado. Se ninguém quiser, o horário fica registrado como não ocupado — e aparece na conta do mês pelo nome."
         >
           <Cascata />
+          {/* A ressalva fica — é o que separa esta página das outras sete do
+              mercado —, mas em duas frases em vez de quatro. O método publicado
+              antes da coleta é assunto do Panorama, e é lá que ele se lê. */}
           <p className="mt-6 max-w-[70ch] text-[12.5px] leading-relaxed text-tinta3">
             <b className="font-medium text-tinta2">
               E não prometemos que isso enche a sua agenda.
             </b>{" "}
             Enquanto não houver medida de que existe gente querendo as horas que
-            vagam, prometer ocupação é vender hipótese. Estamos medindo isso num
-            levantamento aberto, com o método publicado antes da coleta — e o
+            vagam, prometer ocupação é vender hipótese — estamos medindo, e o
             resultado sai mesmo se for contra nós.
           </p>
         </Secao>
@@ -702,8 +723,15 @@ export default function Home() {
         <Secao
           id="planos"
           rotulo="Planos"
-          titulo="O que é registro é de graça. O que se cobra é o trabalho que o sistema faz no seu lugar."
-          linha="A regra do cardápio é uma só, e ela decide todo item desta tabela: o Grátis dá tudo o que é registro — agenda, prontuário, o que aconteceu com cada horário, pacientes sem limite — e o que se cobra é a máquina trabalhando por você: a fila que oferece sozinha, a régua que cobra sem você mandar a mensagem, o Pix conferido, o mês montado para o contador. Lembrete de véspera e aviso de desmarque nunca entram em teto nenhum, em plano nenhum: quem ficaria sem eles é o paciente."
+          // A frase antiga — "o que se cobra é o trabalho que o sistema faz no
+          // seu lugar" — se contradizia com a própria tabela logo abaixo: o
+          // Grátis já traz sessenta mensagens de fila e cobrança, e lembrete de
+          // véspera sem limite nenhum. Ou seja, parte do trabalho também é de
+          // graça. A régua certa não é "registro contra trabalho", é **limite**:
+          // o registro essencial não tem teto, e o plano pago tira os tetos e
+          // acrescenta conciliação, fechamento fiscal e equipe.
+          titulo="O registro essencial é de graça. O que se cobra é tirar o teto e fechar o mês."
+          linha="O Grátis dá o registro inteiro — agenda, prontuário, o que aconteceu com cada horário, pacientes sem limite — e já traz a fila e a cobrança dentro de um teto mensal. Os planos pagos removem esse teto e acrescentam o que fecha o mês. Lembrete de véspera e aviso de desmarque nunca entram em teto nenhum, em plano nenhum: quem ficaria sem eles é o paciente."
         >
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {PLANOS.map((p) => (
@@ -800,10 +828,13 @@ export default function Home() {
             Agora a ação principal do fim repete a do início, e a conversa fica
             onde ela é útil: como saída para quem não está pronta.
 
-            **A frase do título é do Leandro, e ficou.** A auditoria sugeriu
-            trocar "psicólogas de verdade" por achar que pode soar defensivo; o
-            pedido dele foi explícito e o sentido é outro — é o contraste com
-            software feito sobre suposição, que é o que o mercado fez. */}
+            **A frase do título mudou, e agora por decisão dele.** A primeira
+            auditoria sugeriu tirar "psicólogas de verdade" e eu mantive, com a
+            divergência registrada aqui, porque o pedido do Leandro tinha sido
+            explícito. A terceira leitura trouxe o argumento que faltava: a
+            expressão implica que existem psicólogas não-verdadeiras, e o que se
+            queria dizer era outra coisa — o contraste é com software feito sobre
+            suposição. A frase nova diz o contraste sem a implicação. */}
         <section id="conversa" className="scroll-mt-16 border-t border-linha bg-folha2">
           <div className="mx-auto max-w-3xl px-5 py-14 sm:px-8 sm:py-20">
             <span className="flex items-center gap-2.5">
@@ -815,11 +846,13 @@ export default function Home() {
               Comece pelo próximo atendimento.
             </h2>
 
+            {/* A tabela de planos, três seções acima, já diz que o Grátis não
+                expira e o que ele traz. Repetir a lista aqui era a terceira vez
+                na mesma página — e o fechamento não é lugar de reapresentar o
+                cardápio, é lugar de dizer o próximo passo. */}
             <p className="mt-3 max-w-[58ch] text-[14.5px] leading-relaxed text-tinta2">
-              A conta se cria em um minuto. O plano Grátis não expira, não pede
-              cartão, e já traz a agenda, o prontuário e o registro do que
-              aconteceu com cada horário — você escolhe um plano pago só quando
-              quiser que o sistema trabalhe no seu lugar.
+              A conta se cria em um minuto, sem cartão. Comece pelo horário que
+              você tem marcado para amanhã.
             </p>
 
             <div className="mt-7 flex flex-wrap items-center gap-4">
@@ -839,8 +872,8 @@ export default function Home() {
 
             <div className="mt-10 border-t border-linha pt-8">
               <h3 className="max-w-[30ch] font-serif text-[22px] leading-snug text-tinta">
-                Estamos sempre ouvindo psicólogas de verdade para reduzir o
-                trabalho que não é atendimento.
+                Estamos construindo o Sessões com quem fecha o mês de um
+                consultório real.
               </h3>
               <p className="mt-2.5 max-w-[58ch] text-[13.5px] leading-relaxed text-tinta2">
                 Cada tela daqui saiu de uma conversa com quem fecha o mês. Ainda

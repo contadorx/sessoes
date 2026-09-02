@@ -453,3 +453,24 @@ function traduzirDecisao(e: unknown): string {
   }
   return "Não consegui completar agora. Tente de novo em instantes.";
 }
+
+/**
+ * Registra que a ação de uma causa foi usada (P5).
+ *
+ * **Ela não faz nada com a navegação** — o link leva para onde tem de levar de
+ * qualquer jeito, e esta ação só conta. Se falhar, falha em silêncio: uma
+ * medição de produto nunca pode impedir a pessoa de chegar onde ia.
+ *
+ * O que se mede é o **alerta**, não a pessoa: uma linha por conta e por causa,
+ * sem paciente, sem sessão e sem rastro de navegação. É o instrumento do
+ * critério de pronto do P5 — alerta que ninguém usa por três meses é candidato
+ * a sumir da tela.
+ */
+export async function usarAlerta(causa: string): Promise<void> {
+  const supabase = await supabaseSessao();
+  try {
+    await db("risco.usar_alerta", supabase.rpc("registrar_uso_do_alerta", { p_causa: causa }));
+  } catch (e) {
+    console.error("[risco] falhou registrar uso do alerta", e);
+  }
+}
