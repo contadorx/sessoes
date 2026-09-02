@@ -136,10 +136,18 @@ export default function Privacidade() {
 
         <Bloco titulo="5. O que você apaga some na hora. E as cópias somem em até 7 dias.">
           <p>
-            Quando você exclui um documento, um contato ou a conta inteira, os
-            dados saem do banco em produção no momento da confirmação. A partir
-            dali eles não aparecem em nenhuma tela, exportação, relatório ou
-            integração.
+            Quando você apaga o contato de um paciente ou encerra a conta
+            inteira, os dados saem do banco em produção no momento da
+            confirmação. A partir dali eles não aparecem em nenhuma tela,
+            exportação, relatório ou integração.
+          </p>
+          <p>
+            <b className="font-medium">Documento emitido é a exceção, e é de
+            propósito:</b> recibo, declaração e informe não se apagam — se
+            cancelam, com data e motivo, e o cancelamento fica no lugar. Um
+            documento que some sem deixar rastro é um documento em que ninguém
+            pode confiar, inclusive você, no dia em que precisar provar que
+            emitiu.
           </p>
           <p>
             Mantemos cópias de segurança diárias para o caso de falha ou exclusão
@@ -189,12 +197,22 @@ export default function Privacidade() {
             emitidos, registros financeiros e fiscais. Ela é a sua cópia.
           </p>
           <p>
-            <b className="font-medium">Exporte antes de excluir a conta.</b> A
-            obrigação de guarda dos cinco anos continua sendo sua depois que a
-            conta acaba, e excluir sem exportar transfere para você um problema
-            sem solução. O sistema não impede a exclusão sem exportação — quem
-            decide é você —, mas esta página existe também para você decidir
-            sabendo.
+            <b className="font-medium">Sem exportar, a conta não é encerrada.</b>{" "}
+            A obrigação de guarda dos cinco anos continua sendo sua depois que a
+            conta acaba, e encerrar sem exportar transfere para você um problema
+            sem solução — o registro que o Conselho pode pedir daqui a quatro anos
+            deixaria de existir em qualquer lugar do mundo. Por isso o sistema
+            recusa: só encerra quem exportou nas últimas 24 horas.
+          </p>
+          <p>
+            As 24 horas não são burocracia. Uma exportação de duas semanas atrás
+            não tem as duas semanas — e o que você levaria seria um arquivo com
+            cara de completo e um buraco no fim.
+          </p>
+          <p>
+            Encerrar pede também <b className="font-medium">o nome da conta
+            digitado</b>, e só a titular pode fazê-lo. É a única operação
+            irreversível do produto, e um clique acidental não deve alcançá-la.
           </p>
         </Bloco>
 

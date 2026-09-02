@@ -83,8 +83,11 @@ export default function Seguranca() {
             exclusão — nem pela conta que a gerou.
           </p>
           <p>
-            A tela em que você lê a sua própria trilha ainda não existe. Está na
-            lista do item 6 desta página.
+            <b className="font-medium">E você lê a sua.</b> A trilha fica em{" "}
+            Perfil → Trilha de acesso: quem abriu, o quê, quando, e de qual
+            paciente. Registro que ninguém lê é registro que só serve depois do
+            problema — e é lendo a própria que você descobre, sozinha, o dia em
+            que algo parar de ser gravado.
           </p>
         </Bloco>
 
@@ -138,11 +141,6 @@ export default function Seguranca() {
           <p>
             Esta seção existe porque uma lista só de acertos se lê como material
             de venda.
-          </p>
-          <p>
-            <b className="font-medium">A tela da sua trilha de acesso.</b> A
-            trilha é gravada e é imutável desde o começo; a tela em que você a lê
-            está sendo construída. Enquanto isso, ela sai na exportação da conta.
           </p>
           <p>
             <b className="font-medium">Recuperação a ponto no tempo.</b> Ver o

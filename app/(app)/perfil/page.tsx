@@ -304,18 +304,45 @@ export default async function Perfil() {
           cobranças e a trilha de acesso. Sai num arquivo, num clique, sem pedir
           para ninguém.
         </p>
-        <a
-          href="/perfil/exportar"
-          className="mt-3 inline-block rounded-full border border-linha2 px-4 py-2 text-[12.5px] font-medium text-tinta2 transition-colors hover:bg-folha2"
-        >
-          Baixar tudo
-        </a>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <a
+            href="/perfil/exportar"
+            className="inline-block rounded-full border border-linha2 px-4 py-2 text-[12.5px] font-medium text-tinta2 transition-colors hover:bg-folha2"
+          >
+            Baixar tudo
+          </a>
+          {/* A trilha existe desde a B13 e ninguém nunca pôde lê-la. Ela vira
+              link daqui porque é aqui que a promessa está escrita — "e a trilha
+              de acesso" —, e registro que ninguém lê é registro que só serve
+              depois do problema. */}
+          <Link
+            href="/perfil/trilha"
+            className="inline-block rounded-full border border-linha2 px-4 py-2 text-[12.5px] font-medium text-tinta2 transition-colors hover:bg-folha2"
+          >
+            Ver a trilha de acesso
+          </Link>
+        </div>
+
         <p className="mt-3 text-[12px] leading-relaxed text-tinta3">
           Registro clínico fica guardado por {conta.retencao_anos} anos depois do
           último atendimento — é o que o Conselho exige.{" "}
           <Link href="/pacientes" className="underline underline-offset-2 hover:text-vaga">
             ver pacientes
           </Link>
+        </p>
+
+        {/* Discreto, e presente. Esconder a saída seria a mesma coisa que
+            dificultá-la: um sistema que guarda prontuário e não mostra a porta
+            não está retendo, está sequestrando — e é saber que a porta existe
+            que torna razoável entrar. */}
+        <p className="mt-4 text-[12px] leading-relaxed text-tinta3">
+          <Link
+            href="/perfil/encerrar"
+            className="underline underline-offset-2 hover:text-vaga"
+          >
+            Encerrar a conta
+          </Link>{" "}
+          — apaga tudo, e só depois de você levar a sua cópia.
         </p>
       </section>
     </div>

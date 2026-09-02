@@ -51,11 +51,16 @@ export default async function MolduraDoPaciente({
 
   return (
     <div className="mx-auto max-w-3xl">
-      <Link href="/pacientes" className="text-[12.5px] text-tinta3 hover:text-vaga">
+      {/* A moldura não vai para o papel. A única página desta ficha feita para
+          imprimir é a cópia do registro (B33), e ela traz o próprio cabeçalho:
+          um link "← pacientes" impresso numa folha entregue a alguém é lixo, e
+          o nome repetido logo acima do título do documento é ruído. As abas já
+          saem por serem `<nav>` (ver o bloco `@media print` do globals.css). */}
+      <Link href="/pacientes" className="nao-imprime text-[12.5px] text-tinta3 hover:text-vaga">
         ← pacientes
       </Link>
 
-      <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+      <div className="nao-imprime mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h1 className="font-serif text-[28px] leading-tight tracking-[-0.015em]">
           {paciente.nome}
         </h1>

@@ -67,9 +67,9 @@ export function Privacidade({
   const [rArquivar, despacharArquivar] = useActionState(arquivarPaciente, INICIAL);
   const [confirmando, setConfirmando] = useState<null | "esquecer" | "arquivar">(null);
 
-  const urlExport = restricaoJudicial
-    ? `/pacientes/${pacienteId}/exportar?ciente=1`
-    : `/pacientes/${pacienteId}/exportar`;
+  const sufixo = restricaoJudicial ? "?ciente=1" : "";
+  const urlPapel = `/pacientes/${pacienteId}/exportar/imprimir${sufixo}`;
+  const urlJson = `/pacientes/${pacienteId}/exportar${sufixo}`;
 
   return (
     <section className="mt-10 border-t border-linha pt-6">
@@ -81,9 +81,8 @@ export function Privacidade({
           Entregar o registro para {nome.split(" ")[0]}
         </p>
         <p className="mt-1 text-[12.5px] leading-relaxed text-tinta2">
-          Direito de acesso ao próprio prontuário. Sai um arquivo com o cadastro,
-          o combinado, as sessões e as cobranças — marcado como documento
-          sigiloso.
+          Direito de acesso ao próprio prontuário. Sai o cadastro, o combinado,
+          as sessões e as cobranças — marcado como documento sigiloso.
         </p>
 
         {restricaoJudicial && (
@@ -95,12 +94,28 @@ export function Privacidade({
           </p>
         )}
 
-        <a
-          href={urlExport}
-          className="mt-3 inline-block rounded-full border border-linha2 px-4 py-2 text-[12.5px] font-medium text-tinta2 transition-colors hover:bg-folha"
-        >
-          Baixar o registro
-        </a>
+        {/* Dois botões, e a ordem é a decisão.
+
+            Antes havia um só, e ele baixava JSON — um arquivo que a pessoa que
+            exerce o direito de acesso não sabe abrir. Portabilidade é direito
+            de máquina e legibilidade é direito de pessoa: o primeiro serve a
+            quem troca de sistema, o segundo a quem quer ler o próprio
+            prontuário. O primário é o segundo, porque quem pede a ficha na
+            sala é uma pessoa. */}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <a
+            href={urlPapel}
+            className="inline-block rounded-full border border-linha2 bg-folha px-4 py-2 text-[12.5px] font-medium text-tinta transition-colors hover:bg-folha2"
+          >
+            Ver e imprimir
+          </a>
+          <a
+            href={urlJson}
+            className="inline-block text-[12.5px] text-tinta3 underline underline-offset-2 transition-colors hover:text-vaga"
+          >
+            Baixar em JSON
+          </a>
+        </div>
       </div>
 
       {/* --------------------------------------------------- pedido de exclusão */}
