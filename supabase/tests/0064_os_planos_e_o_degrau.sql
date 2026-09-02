@@ -68,6 +68,7 @@
 --   parte 6 · nada disto virou cerca
 --    24. só `faixa_da_conta` lê `limite_sessoes_mes` no banco inteiro    ← decide
 --    25. "sem faixa" no cartão e `faixa_e_fair_use` no banco andam juntos ← decide
+--    26. o número próprio só é prometido no plano em que ele vai morar   ← decide
 --
 -- Levanta exceção no primeiro furo. Silêncio = passou.
 -- Rodar com: supabase db execute -f supabase/tests/0064_os_planos_e_o_degrau.sql
@@ -601,6 +602,35 @@ if v_txt is not null then
 end if;
 raise notice 'ok 25 · "sem faixa" no cartão e fair-use no banco andam juntos, nos dois sentidos';
 
+-- 26 · O número próprio só é prometido no plano em que ele vai morar.
+--
+-- Decisão do Leandro em 02/09, e a migração 0065 a aplicou. O `claude/25`
+-- desenhava o número próprio como add-on de R$ 19 comprável no Consultório; ele
+-- decidiu que é o Consultório Completo inteiro.
+--
+-- **Uma promessa no cartão errado é pior que promessa nenhuma:** a pessoa lê no
+-- Consultório que o número próprio está vindo, assina o Consultório, e descobre
+-- depois que ele nunca vem naquele plano. `por_vir` foi criada na 0064
+-- justamente para não virar um segundo lugar onde se promete sem conferir — e
+-- esta verificação é o que impede isso de acontecer com a primeira linha que
+-- ela recebeu.
+select string_agg(pl.codigo, ', ') into v_txt
+  from public.planos pl
+ where exists (select 1 from unnest(pl.por_vir) v where position('número próprio' in lower(v)) > 0)
+   and pl.codigo not in ('pro', 'clinica');
+if v_txt is not null then
+  raise exception 'FALHOU 26: % promete(m) número próprio, e ele mora no Completo e na Clínica', v_txt;
+end if;
+
+select count(*)::integer into v_n
+  from public.planos pl
+ where pl.codigo in ('pro', 'clinica')
+   and exists (select 1 from unnest(pl.por_vir) v where position('número próprio' in lower(v)) > 0);
+if v_n <> 2 then
+  raise exception 'FALHOU 26: só % dos dois planos que recebem o número próprio o anunciam', v_n;
+end if;
+raise notice 'ok 26 · o número próprio é prometido só onde vai morar';
+
 -- ============================================================ epílogo
 --
 -- As quarenta sessões da verificação 9 não podem ficar. Elas são exatamente o
@@ -621,6 +651,6 @@ delete from public.contas where nome in ('Planos Teste', 'Planos Vizinha');
 reset role;
 
 raise notice '';
-raise notice '=== 0064 · 25 verificações, e nenhuma delas construiu recurso ===';
+raise notice '=== 0064 · 26 verificações, e nenhuma delas construiu recurso ===';
 
 end $do$;

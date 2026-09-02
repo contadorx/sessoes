@@ -127,7 +127,12 @@ export const PLANOS: Plano[] = [
       "Régua de atraso impessoal",
       "Receita por hora disponível e o que aconteceu com cada horário",
     ],
-    porVir: ["Número próprio: as mensagens saindo do seu WhatsApp, sozinhas"],
+    // **Vazio, e é decisão de 02/09 (migração 0065).** O `claude/25` desenhava
+    // o número próprio como add-on de R$ 19 comprável aqui; o Leandro decidiu
+    // que ele é o Consultório Completo inteiro. Deixar a linha neste cartão
+    // faria a pessoa assinar o Consultório esperando um recurso que nunca vem
+    // neste plano — promessa feita no cartão errado.
+    porVir: [],
   },
   {
     codigo: "pro",
@@ -153,7 +158,7 @@ export const PLANOS: Plano[] = [
     ],
     porVir: [
       "NFS-e para quem atende como PJ",
-      "Número próprio incluso",
+      "Número próprio: as mensagens chegam do número que suas pacientes já conhecem",
       "Página do paciente: confirmar, pagar e receber documento",
       "Reajuste assistido e modo férias",
     ],

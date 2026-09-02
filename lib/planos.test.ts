@@ -188,6 +188,26 @@ describe("recursos é o que existe; porVir é o que não existe", () => {
     }
   });
 
+  it("o número próprio só é prometido onde ele vai morar", () => {
+    // Decisão do Leandro em 02/09 (migração 0065): o número próprio é o
+    // Consultório Completo inteiro, e não um add-on de R$ 19 comprável no
+    // Consultório. Uma promessa no cartão errado é pior que promessa nenhuma —
+    // a pessoa assina o plano de baixo esperando o recurso que nunca vem nele.
+    for (const p of PLANOS) {
+      const promete = p.porVir.join(" ").toLowerCase().includes("número próprio");
+      const deveria = p.codigo === "pro" || p.codigo === "clinica";
+      expect(promete, `${p.codigo}: promessa de número próprio no cartão errado`).toBe(deveria);
+    }
+  });
+
+  it("...e não há preço de add-on em lugar nenhum", () => {
+    // O que não existe não tem preço. O número próprio depende de BSP com
+    // Embedded Signup e Coexistence, que não existem — e preço de coisa
+    // inexistente é o defeito que a 0064 inteira existe para fechar.
+    const tudo = PLANOS.flatMap((p) => [...p.recursos, ...p.porVir]).join(" ");
+    expect(tudo).not.toMatch(/R\$\s*\d/);
+  });
+
   it("o Gratuito não promete nada", () => {
     // Uma lista de "em breve" no plano de entrada é lida por quem está
     // avaliando como "ainda não serve".
