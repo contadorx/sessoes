@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Marca } from "@/components/site/Marca";
 import { Entrar } from "@/components/app/Entrar";
 import { Confirmar } from "@/components/app/Confirmar";
+import { nomeDoPlano } from "@/lib/planos";
 
 export const metadata = { title: "Entrar" };
 
@@ -50,21 +51,28 @@ export default async function PaginaEntrar({
           Os botões "Começar no Solo" e "Começar no Pro" da landing apontavam
           para o mesmo `/entrar?criar`, e a intenção se perdia no clique. Pior:
           o rótulo prometia um começo que não acontece — toda conta nasce no
-          Grátis, porque não existe assinatura self-service e quem abre a
+          Gratuito, porque não existe assinatura self-service e quem abre a
           assinatura sou eu, à mão (OP5).
 
           Então o plano viaja na URL, aparece aqui, e vai nos metadados do
           cadastro. O que esta frase não faz é fingir: ela diz que a conta nasce
-          no Grátis e que o plano entra quando eu ligar. Prometer o contrário
+          no Gratuito e que o plano entra quando eu ligar. Prometer o contrário
           seria a mesma classe de erro do "acesso por convite" que a segunda
-          auditoria achou neste mesmo funil. */}
+          auditoria achou neste mesmo funil.
+
+          **E o nome vem do `lib/planos.ts`, não de uma condicional aqui.** A
+          linha era `escolhido === "solo" ? "Solo" : "Pro"` — que, além de ter
+          envelhecido no rename da 0064, dizia "Pro" para qualquer valor que não
+          fosse "solo", inclusive um plano que não existe. `nomeDoPlano` devolve
+          o código cru quando não conhece o plano: o que some numa tela é sempre
+          o que ninguém previu. */}
       {escolhido && (
         <p className="mt-6 max-w-[46ch] rounded-cartao border border-linha bg-folha2 px-4 py-3 text-center text-[12.5px] leading-relaxed text-tinta2">
           Você veio pelo{" "}
           <b className="font-semibold text-tinta">
-            {escolhido === "solo" ? "Solo" : "Pro"}
+            {nomeDoPlano(escolhido)}
           </b>
-          . A conta nasce no Grátis e nada é cobrado agora — eu ligo o plano
+          . A conta nasce no Gratuito e nada é cobrado agora — eu ligo o plano
           quando você pedir, e falo com você antes.
         </p>
       )}
@@ -82,7 +90,7 @@ export default async function PaginaEntrar({
           O produto está em produção. Então esta tela diz isso, e o que ela
           oferece agora é o que a landing prometeu. */}
       <p className="mt-6 max-w-[46ch] text-center text-[12px] leading-relaxed text-tinta2">
-        O plano Grátis não expira e não pede cartão. Agenda, prontuário e o
+        O plano Gratuito não expira e não pede cartão. Agenda, prontuário e o
         registro do mês são dele — você escolhe um plano pago só quando quiser
         que o sistema trabalhe no seu lugar.
       </p>

@@ -102,7 +102,7 @@ export default function Termos() {
 
         <Bloco titulo="4. A conta, os planos e o que cada um dá">
           <p>
-            O plano Grátis não expira e não pede cartão. Ele inclui tudo o que é{" "}
+            O plano Gratuito não expira e não pede cartão. Ele inclui tudo o que é{" "}
             <b className="font-medium">registro</b>: agenda, prontuário,
             anamnese, pacientes sem limite e o registro do que aconteceu com cada
             horário. Cobrar por isso seria cobrar para você poder existir
@@ -126,12 +126,12 @@ export default function Termos() {
             sugerimos o plano seguinte a partir do próximo ciclo.
           </p>
           <p>
-            <b className="font-medium">No plano Grátis, a fila e a cobrança são
+            <b className="font-medium">No plano Gratuito, a fila e a cobrança são
             enviadas por você.</b> A mensagem é preparada pelo sistema, com o
             texto pronto, e sai do seu próprio WhatsApp quando você toca — não
             enviamos nada por você nesses dois casos. Lembrete de véspera, aviso
             de desmarque e confirmação de encaixe continuam saindo
-            automaticamente, no Grátis também. Nos planos pagos, tudo é
+            automaticamente, no Gratuito também. Nos planos pagos, tudo é
             automático, pelo número do Sessões.
           </p>
           <p>

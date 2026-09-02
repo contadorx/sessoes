@@ -7,6 +7,8 @@ import { Telas } from "@/components/site/Telas";
 import { UltimosTextos } from "@/components/site/UltimosTextos";
 import { RodapeDoSite } from "@/components/site/Moldura";
 import { Confirmar } from "@/components/app/Confirmar";
+import { PLANOS, ROTULO_POR_VIR, precoDeTabela, precoDaClinicaCom } from "@/lib/planos";
+import { formatar } from "@/lib/dinheiro";
 import {
   AgendaEExtrato,
   FiguraEditorial,
@@ -144,103 +146,52 @@ function Cartao({
  * Os quatro planos ficam — decisão do Leandro, e ela é coerente com estar em
  * produção: um produto que cobra precisa dizer quanto custa.
  *
- * O que saiu foi o selo "a maioria" no Solo. Ele afirmava um fato sobre uma
- * base de clientes que ainda está se formando, e uma página que inventa
- * consenso social gasta a credibilidade que as outras seções levantam.
+ * **A tabela saiu daqui em 02/09, e a razão é um defeito.** Ela era uma
+ * constante escrita à mão nesta página, e o banco tinha os mesmos números com
+ * valores diferentes — a Clínica custava "R$ 249 + R$ 39 por profissional" aqui
+ * e R$ 249 fixos em `planos.preco_centavos`, que é a coluna que a
+ * `abrir_assinatura` lê para gerar fatura. Ninguém foi cobrado errado porque
+ * ninguém foi cobrado ainda.
  *
- * "Pacientes sem limite" desceu de destaque: é argumento de preço, não de
- * resultado — quem escolhe software por isso está comparando planilha com
- * planilha.
- */
-/**
- * **O que saiu do Pro, e por quê.** A lista dele trazia "acesso separado para
- * secretaria e administração" como recurso pago. A segunda auditoria matou o
- * argumento numa frase: *"não se deve cobrar pela proteção mínima que impede a
- * secretária de ler prontuário"*.
+ * Agora os números moram em `lib/planos.ts`, com os mesmos valores esperados da
+ * suíte SQL 0064, e esta página só desenha.
+ *
+ * **O que a mesma conferência achou e a 0064 consertou:**
+ *
+ *   · o Grátis virou **Gratuito**, o Solo virou **Consultório**, o Pro virou
+ *     **Consultório Completo** — nomes que descrevem onde ela atende, e não
+ *     quanto ela cabe. "Eu tenho um consultório" é uma frase que ela diz; "eu
+ *     sou Pro" não é;
+ *   · a Clínica dava **60 sessões por profissional** contra 200 do Pro: uma
+ *     clínica de uma pessoa pagava R$ 120 a mais para receber 140 a menos. A
+ *     escada subia de preço e descia de faixa no último degrau;
+ *   · o Gratuito tinha **faixa de 8 sessões**, e com 8 sessões a fila que este
+ *     produto vende funciona 0,8 vez por mês — ou seja, ela não a vê acontecer.
+ *     O limite do Gratuito é o **canal**: a mensagem espera o dedo dela;
+ *   · e seis linhas vendiam software que não existe. NFS-e, página do paciente,
+ *     repasse, salas e fiscal consolidado saíram da lista do que se vende e
+ *     entraram no bloco **"ainda não existe, e não está no preço"**, que é a
+ *     `por_vir` do banco. Some ≠ resolvido: a pergunta "vocês vão ter NFS-e?"
+ *     tem de ter resposta em algum lugar, e o lugar não pode ser a lista do
+ *     que a pessoa está pagando.
+ *
+ * **O que saiu do Completo, e por quê.** A lista dele trazia "acesso separado
+ * para secretaria e administração" como recurso pago. A segunda auditoria matou
+ * o argumento numa frase: *"não se deve cobrar pela proteção mínima que impede
+ * a secretária de ler prontuário"*.
  *
  * E ela está certa, com uma consequência técnica boa: a migração 0049 pôs esse
  * isolamento na **RLS**, não numa condicional de plano — a secretária de uma
- * conta Grátis já não lê evolução hoje, e não haveria como cobrar por isso sem
- * construir de propósito um jeito de desligar a proteção. O que se cobra no
- * Pro passa a ser o que de fato é trabalho a mais: matriz de permissões e
+ * conta Gratuita já não lê evolução hoje, e não haveria como cobrar por isso
+ * sem construir de propósito um jeito de desligar a proteção. O que se cobra no
+ * Completo passa a ser o que de fato é trabalho a mais: matriz de permissões e
  * aprovação em etapas.
  *
- * **E o Solo ganhou um rótulo factual.** A borda colorida sugeria recomendação
- * sem dizer nada; "a maioria" saiu na primeira auditoria porque afirmava um
- * fato sobre uma base que não existe. O que ficou descreve para quem o plano é,
- * que é verdade no dia em que a primeira pessoa assina.
+ * **E o Consultório ganhou um rótulo factual.** A borda colorida sugeria
+ * recomendação sem dizer nada; "a maioria" saiu na primeira auditoria porque
+ * afirmava um fato sobre uma base que não existe. O que ficou descreve para
+ * quem o plano é, que é verdade no dia em que a primeira pessoa assina.
  */
-const PLANOS = [
-  {
-    nome: "Grátis",
-    preco: "R$ 0",
-    detalhe: "para sempre",
-    cta: "Criar conta grátis",
-    href: "/entrar?criar",
-    linhas: [
-      "Agenda, prontuário e o registro do que aconteceu com cada horário",
-      "Lembrete de véspera e aviso de desmarque saem sozinhos, sem limite",
-      "Pacientes sem limite",
-      "8 sessões por mês",
-      "A fila e a cobrança saem do seu WhatsApp, com um toque seu",
-    ],
-  },
-  {
-    nome: "Solo",
-    preco: "R$ 69",
-    detalhe: "por mês",
-    destaque: true,
-    selo: "para quem atende sozinha",
-    // **A escolha deixou de se perder, e o rótulo deixou de mentir.** Os dois
-    // botões pagos apontavam para o mesmo `/entrar?criar`, e "Começar no Solo"
-    // prometia um começo que não acontece: toda conta nasce no Grátis, porque
-    // não existe assinatura self-service — quem abre é uma pessoa (OP5). Agora
-    // o plano viaja na URL, aparece de volta na tela de criar conta e vai junto
-    // nos metadados do cadastro, onde eu consigo lê-lo. E o rótulo diz o que o
-    // clique faz: cria a conta e **pede** o plano.
-    cta: "Criar conta e pedir o Solo",
-    href: "/entrar?criar&plano=solo",
-    // A ordem importa: quem chegou por agenda, Pix e recibo lê o primeiro item
-    // como resumo do plano. "Receita por hora disponível" abrindo a lista
-    // reintroduzia o vocabulário financeiro que a hero passou a evitar — vai
-    // por último, onde é consequência e não porta de entrada.
-    linhas: [
-      "Pix comparado com as sessões previstas",
-      "60 sessões por mês",
-      "A fila e a cobrança saem sozinhas, na hora em que a vaga abre",
-      "Modo Receita Saúde e pasta do contador",
-      "Cobrança proposta com a política congelada",
-      "Receita por hora disponível e o que aconteceu com cada horário",
-    ],
-  },
-  {
-    nome: "Pro",
-    preco: "R$ 129",
-    detalhe: "por mês",
-    cta: "Criar conta e pedir o Pro",
-    href: "/entrar?criar&plano=pro",
-    linhas: [
-      "Tudo do Solo, sem faixa de sessões",
-      "NFS-e e a ramificação PJ, sem pendência falsa",
-      "Página do paciente: confirmar, pagar e receber documento — sem nenhum campo clínico",
-      "Permissões por pessoa: quem vê o quê, com aprovação em etapas",
-    ],
-  },
-  {
-    nome: "Clínica",
-    preco: "R$ 249",
-    detalhe: "+ R$ 39 por profissional que atende",
-    cta: "Conversar sobre a clínica",
-    href: "/#conversa",
-    linhas: [
-      "60 sessões por mês, por profissional que atende",
-      "Repasse e demonstrativo",
-      "Agenda de salas",
-      "Fiscal consolidado",
-      "Sigilo entre profissionais por construção",
-    ],
-  },
-];
 
 
 /**
@@ -397,7 +348,7 @@ export default function Home() {
               </div>
 
               <p className="mt-4 max-w-[52ch] text-[12.5px] leading-relaxed text-tinta3">
-                O plano Grátis não expira e não pede cartão. Agenda, prontuário
+                O plano Gratuito não expira e não pede cartão. Agenda, prontuário
                 e o registro do mês são dele; o que se cobra é o trabalho que o
                 sistema faz no seu lugar.
               </p>
@@ -738,12 +689,12 @@ export default function Home() {
           // passar dela não trava nada e não gera cobrança extra. Por isso a
           // frase abaixo diz "prevê" e não "permite".
           titulo="O registro é de graça. O que se cobra é o tamanho do mês e o que fecha ele."
-          linha="O Grátis dá o registro inteiro — agenda, prontuário, o que aconteceu com cada horário, pacientes sem limite — e traz a fila e a cobrança funcionando, com o seu dedo: a mensagem nasce pronta e você toca para mandar, do seu próprio WhatsApp. Nos planos pagos ela sai sozinha, na hora. O que cada plano prevê é uma faixa de sessões por mês, e atender acima dela não bloqueia nada e não gera cobrança extra. E não existe limite de mensagem em plano nenhum — quem ficaria sem receber é o seu paciente, que não escolheu plano."
+          linha="O Gratuito dá o registro inteiro — agenda, prontuário, o que aconteceu com cada horário, pacientes e sessões sem limite — e traz a fila e a cobrança funcionando, com o seu dedo: a mensagem nasce pronta e você toca para mandar, do seu próprio WhatsApp. O que muda no Consultório é que ela sai sozinha, na hora em que a vaga abre, e é aí que a fila passa a funcionar sem você estar no celular. O Consultório prevê uma faixa de 60 sessões por mês, e atender acima dela não bloqueia nada e não gera cobrança extra. E não existe limite de mensagem em plano nenhum — quem ficaria sem receber é o seu paciente, que não escolheu plano."
         >
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {PLANOS.map((p) => (
               <div
-                key={p.nome}
+                key={p.codigo}
                 className={`flex flex-col rounded-cartao border bg-folha p-5 ${
                   p.destaque ? "border-vaga-linha ring-1 ring-vaga-linha" : "border-linha"
                 }`}
@@ -755,12 +706,12 @@ export default function Home() {
                   </span>
                 )}
                 <span className="tabular mt-3 font-mono text-[26px] font-medium leading-none text-tinta">
-                  {p.preco}
+                  {precoDeTabela(p)}
                 </span>
                 <span className="mt-1 text-[12px] text-tinta3">{p.detalhe}</span>
 
-                <ul className="mt-4 flex flex-1 flex-col gap-2 border-t border-linha pt-4">
-                  {p.linhas.map((l) => (
+                <ul className="mt-4 flex flex-col gap-2 border-t border-linha pt-4">
+                  {p.recursos.map((l) => (
                     <li
                       key={l}
                       className="grid grid-cols-[12px_minmax(0,1fr)] gap-2 text-[12.5px] leading-snug text-tinta2"
@@ -770,6 +721,48 @@ export default function Home() {
                     </li>
                   ))}
                 </ul>
+
+                {/* **O bloco do que ainda não existe.**
+
+                    Ele está aqui porque a alternativa era pior nas duas
+                    direções. Até 02/09 esta lista trazia NFS-e, página do
+                    paciente, repasse, salas e fiscal consolidado misturados com
+                    o que existe — cinco linhas de software não construído,
+                    vendidas como recurso. E simplesmente apagá-las deixaria a
+                    página honesta e muda: a pergunta "vocês vão ter NFS-e?"
+                    continuaria sem resposta em lugar nenhum, e quem precisa de
+                    NFS-e iria embora achando que nunca vai ter.
+
+                    Então o roadmap fica visível, e fica **fora** da lista do
+                    que ela está pagando: sem preço, sem data, e com o rótulo
+                    dizendo as três coisas de uma vez. No banco as duas listas
+                    são disjuntas por restrição (`planos_promessa_nao_e_recurso`),
+                    não por disciplina de quem edita — vender e prometer a mesma
+                    linha é um `update` que não passa.
+
+                    Espaçamento: o `flex-1` saiu do `<ul>` de cima e veio para
+                    este bloco, senão o cartão sem roadmap (o Gratuito) e o com
+                    cinco linhas (a Clínica) desalinhavam os botões. */}
+                <div className="mt-4 flex flex-1 flex-col justify-end">
+                  {p.porVir.length > 0 && (
+                    <div className="border-t border-dashed border-linha pt-3">
+                      <span className="text-[11px] font-medium uppercase tracking-wider text-tinta3">
+                        {ROTULO_POR_VIR}
+                      </span>
+                      <ul className="mt-2 flex flex-col gap-1.5">
+                        {p.porVir.map((l) => (
+                          <li
+                            key={l}
+                            className="grid grid-cols-[12px_minmax(0,1fr)] gap-2 text-[12px] leading-snug text-tinta3"
+                          >
+                            <span aria-hidden>·</span>
+                            <span>{l}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
 
                 {/* **Cada plano tem uma porta.** Sem isto, a pessoa comparava os
                     quatro preços, decidia, e não achava onde clicar — o
@@ -797,11 +790,14 @@ export default function Home() {
           <div className="mt-5 rounded-cartao border border-linha bg-folha px-5 py-4">
             <p className="text-[13px] leading-relaxed text-tinta2">
               <b className="font-medium text-tinta">Clínica, na prática:</b> a
-              base de R$ 249 já inclui uma profissional que atende. Cinco
-              profissionais custam R$ 249 + 4 × R$ 39 ={" "}
-              <b className="font-medium text-tinta">R$ 405 por mês</b>. Secretaria
-              e administração <b className="font-medium text-tinta">não contam</b>{" "}
-              como profissional e não são cobradas.
+              base de {precoDeTabela(PLANOS[3])} já inclui uma profissional que
+              atende. Cinco profissionais custam{" "}
+              <b className="font-medium text-tinta">
+                {formatar(precoDaClinicaCom(5))} por mês
+              </b>
+              . Secretaria e administração{" "}
+              <b className="font-medium text-tinta">não contam</b> como
+              profissional e não são cobradas.
             </p>
           </div>
 
@@ -818,7 +814,7 @@ export default function Home() {
           <div className="mt-5 rounded-cartao border border-linha bg-folha px-5 py-4">
             <p className="text-[13px] leading-relaxed text-tinta2">
               <b className="font-medium text-tinta">De qual número sai:</b> no
-              Grátis, do seu — a mensagem nasce escrita e você toca para enviar
+              Gratuito, do seu — a mensagem nasce escrita e você toca para enviar
               pelo seu WhatsApp, como já faz hoje, só que sem digitar. Nos planos
               pagos ela sai sozinha, pelo número do Sessões, pela API oficial da
               Meta. Enviar do <i>seu</i> número automaticamente ainda não
@@ -874,7 +870,7 @@ export default function Home() {
               Comece pelo próximo atendimento.
             </h2>
 
-            {/* A tabela de planos, três seções acima, já diz que o Grátis não
+            {/* A tabela de planos, três seções acima, já diz que o Gratuito não
                 expira e o que ele traz. Repetir a lista aqui era a terceira vez
                 na mesma página — e o fechamento não é lugar de reapresentar o
                 cardápio, é lugar de dizer o próximo passo. */}

@@ -36,7 +36,8 @@
 --   8. `pacientes_da_conta` não é sonda de conta alheia
 --   9. ...e não é rota para o anônimo
 --  10. **arquivar continua possível com a conta lotada** — a saída não se fecha
---  11. **nenhum plano limita paciente nem mensagem** — a unidade é a sessão (0060)
+--  11. **nenhum plano limita paciente nem mensagem** — a unidade é a sessão (0060),
+--      e a única faixa ausente é a do Gratuito, que é travado pelo canal (0064)
 --  12. ...mas a máquina da OP2 continua de pé: o essencial nunca é barrado
 --
 -- Levanta exceção no primeiro furo. Silêncio = passou.
@@ -261,11 +262,27 @@ begin
     raise exception '11 · % plano(s) voltaram a limitar mensagem — a unidade cobrada é a sessão desde a 0060', n;
   end if;
 
+  -- **Reescrita em 02/09/2026, pela 0064.** Esta verificação exigia que TODO
+  -- plano tivesse faixa. Deixou de ser verdade, e a verdade nova é melhor.
+  --
+  -- A 0064 tirou a faixa do Gratuito. O motivo está no `claude/25`: se o grátis
+  -- é manual, um limite de sessões é uma segunda trava sem razão — e com 8
+  -- sessões, a 10% de cancelamento, a psicóloga veria a fila funcionar 0,8 vez
+  -- por mês, ou seja, não veria. O limite do Gratuito passou a ser o **canal**:
+  -- a mensagem nasce escrita e espera o dedo dela (OP9). Por isso a verificação
+  -- exige os dois juntos: um plano sem faixa é aceitável **se e só se** for o
+  -- Gratuito e o canal dele for manual. Sem os dois, o Gratuito é o plano pago
+  -- de graça.
   select count(*) into n from public.planos where limite_sessoes_mes is null;
-  if n > 0 then
-    raise exception '11 · % plano(s) sem faixa de sessões — a faixa é a unidade de preço, e sem ela não há o que cobrar', n;
+  if n <> 1 then
+    raise exception '11 · % plano(s) sem faixa de sessões — só o Gratuito pode ficar sem, porque só ele é travado pelo canal', n;
   end if;
-  raise notice '11 · nenhum limite de produção é de mensagem, e todo plano tem faixa: ok';
+  select count(*) into n from public.planos
+   where limite_sessoes_mes is null and codigo = 'gratis' and canal_saida = 'manual';
+  if n <> 1 then
+    raise exception '11 · o plano sem faixa não é o Gratuito manual — sem faixa e sem trava de canal, é o plano pago de graça';
+  end if;
+  raise notice '11 · nenhum limite de produção é de mensagem, e a única faixa ausente é a do Gratuito manual: ok';
 
   -- E a faixa **não barra nada**. É a diferença entre este limite e os dois que
   -- ele substituiu: aqueles recusavam paciente e recusavam mensagem; este é

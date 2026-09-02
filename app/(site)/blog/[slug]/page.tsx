@@ -158,7 +158,7 @@ export default async function Texto({ params }: { params: Promise<{ slug: string
             Tudo o que não é atender, num lugar só.
           </p>
           <p className="mt-2 max-w-[52ch] text-[13.5px] leading-relaxed text-tinta2">
-            Agenda, prontuário e o registro do mês no plano Grátis, que não
+            Agenda, prontuário e o registro do mês no plano Gratuito, que não
             expira e não pede cartão.
           </p>
           <Link

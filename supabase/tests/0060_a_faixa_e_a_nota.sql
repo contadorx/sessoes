@@ -7,10 +7,19 @@
 --
 -- Cinco decidem o arquivo:
 --
---   · a **2**, que cria a nona sessão de uma conta Grátis de faixa 8 e exige
---     que ela **entre**. A faixa é unidade de preço, não cerca. Barrar a agenda
---     para proteger margem cobra o preço de quem não escolheu plano nenhum: a
---     paciente que já tem hora marcada;
+--   · a **2**, que cria a sexagésima primeira sessão de uma conta de faixa 60 e
+--     exige que ela **entre**. A faixa é unidade de preço, não cerca. Barrar a
+--     agenda para proteger margem cobra o preço de quem não escolheu plano
+--     nenhum: a paciente que já tem hora marcada.
+--
+--     **A conta desta suíte era Grátis, e virou `solo` na 0064.** A 0064 tirou a
+--     faixa do Gratuito — `limite_sessoes_mes` nulo — porque o grátis sai por
+--     canal manual, e num plano manual um número de sessões é uma segunda trava
+--     sem razão: com faixa 8 a psicóloga veria a fila funcionar 0,8 vez por mês,
+--     ou seja, não veria. O limite do Gratuito passou a ser **o canal**, não um
+--     número. Sobrou um único plano com faixa vendida de verdade — limite
+--     fechado, sem fair use —, que é o `solo`, e é nele que esta suíte prova que
+--     faixa não é cerca. Daí 8 → 60 e 9 → 61 no arquivo inteiro;
 --   · a **11**, que estoura a faixa e depois enfileira uma oferta de vaga, e
 --     exige que ela **saia**. É a linha 3 da política do `claude/25` virada em
 --     código: nunca parar de avisar a paciente por causa de limite;
@@ -37,8 +46,8 @@
 --     juntas** no mesmo corpo, e não uma palavra solta.
 --
 --   parte 1 · a faixa é medida, e não cerca
---     1. a faixa responde numa conta nova: 8, zero usadas
---     2. a nona sessão numa faixa de oito ENTRA                     ← decide
+--     1. a faixa responde numa conta nova: 60, zero usadas
+--     2. a sexagésima primeira numa faixa de sessenta ENTRA         ← decide
 --     3. e aí `acima` é verdade, `restantes` é zero, e nada mais mudou
 --     4. `cancelada_cedo` não conta — não foi vendida               ← decide
 --     5. falta e cancelamento tardio contam — a hora foi vendida
@@ -117,8 +126,18 @@ select id into v_b_prof from public.profissionais where conta_id = v_b_conta;
 v_hoje   := public.hoje_sp();
 v_amanha := v_hoje + 1;
 
+-- As duas contas nascem no `solo`, e não no Grátis.
+--
+-- A 0064 pôs `limite_sessoes_mes` em nulo no Gratuito: o grátis sai por canal
+-- manual, e num plano manual um número de sessões seria uma segunda trava sem
+-- razão — o limite do Gratuito é o canal. Uma conta Grátis hoje devolve
+-- `tem_faixa = false`, e não há faixa nenhuma para provar que não é cerca.
+-- O `solo` é o único plano com faixa vendida fechada (60, sem fair use); o `pro`
+-- e a `clinica` têm 200 mas são fair use, que é outra conversa. Então é o `solo`
+-- que carrega esta suíte, e as duas contas ficam nele para que a verificação 21
+-- compare faixa com faixa, e não nulo com nulo.
 set local role postgres;
-update public.contas set plano = 'gratis' where id in (v_a_conta, v_b_conta);
+update public.contas set plano = 'solo' where id in (v_a_conta, v_b_conta);
 reset role;
 
 perform set_config('request.jwt.claims',
@@ -145,36 +164,54 @@ perform set_config('request.jwt.claims',
 
 raise notice '--- parte 1 · a faixa é medida, e não cerca ---';
 
--- 1 · A faixa de uma conta nova no Grátis.
+-- 1 · A faixa de uma conta nova no Consultório (`solo`).
+--
+-- Era 8 e é 60: a 0064 tirou a faixa do Gratuito porque o limite dele virou o
+-- canal manual, e o `solo` é o único plano com faixa vendida hoje.
 set local role authenticated;
 select * into v_faixa from public.faixa_da_conta(v_a_conta);
 reset role;
 
 if not v_faixa.tem_faixa then
-  raise exception 'FALHOU 1: conta no Grátis veio sem faixa';
+  raise exception 'FALHOU 1: conta no solo veio sem faixa';
 end if;
-if v_faixa.limite <> 8 then
-  raise exception 'FALHOU 1: limite % (esperado 8, do claude/25)', v_faixa.limite;
+if v_faixa.limite <> 60 then
+  raise exception 'FALHOU 1: limite % (esperado 60, do claude/25 depois da 0064)', v_faixa.limite;
+end if;
+if v_faixa.e_fair_use then
+  raise exception 'FALHOU 1: a faixa do solo veio como fair use — a faixa vendida fechada é o que esta suíte prova';
 end if;
 if v_faixa.usadas <> 0 or v_faixa.acima then
   raise exception 'FALHOU 1: conta sem sessão veio com % usadas, acima=%', v_faixa.usadas, v_faixa.acima;
 end if;
-raise notice 'ok 1 · faixa de 8 e nada gasto';
+raise notice 'ok 1 · faixa de 60 e nada gasto';
 
--- 2 · A nona sessão entra.  ← decide
+-- 2 · A sexagésima primeira sessão entra.  ← decide
 --
--- Nove sessões numa faixa de oito. Se qualquer gatilho recusar a nona, o
--- produto virou o que a 0046 recusou ser: uma agenda que para no meio para
--- proteger a minha margem. Quem encontraria a porta fechada é a paciente.
+-- Sessenta e uma sessões numa faixa de sessenta. Se qualquer gatilho recusar a
+-- 61ª, o produto virou o que a 0046 recusou ser: uma agenda que para no meio
+-- para proteger a minha margem. Quem encontraria a porta fechada é a paciente.
+--
+-- Era 9 numa faixa de 8. Virou 61 numa faixa de 60 porque a 0064 tirou a faixa
+-- do Gratuito — o limite do grátis passou a ser o canal manual, não um número —
+-- e o `solo` é o único plano com faixa vendida hoje.
+--
+-- **Os horários são em minutos, e é obrigação e não estilo.** Sessenta e uma
+-- sessões de uma hora não cabem num dia, e `sessoes_sem_sobreposicao` é uma
+-- exclusion constraint que vale para `prevista`. Dez minutos a cada doze põem as
+-- 61 entre 08:12 e 20:22 do MESMO dia — e o mesmo dia importa porque
+-- `faixa_da_conta` conta pelo mês de `inicio`: sessão empurrada para depois da
+-- meia-noite sairia da contagem na noite em que a suíte rodasse no último dia do
+-- mês, e o teste passaria a depender do calendário.
 set local role postgres;
-for v_k in 1..9 loop
+for v_k in 1..61 loop
   insert into public.sessoes
     (conta_id, profissional_id, paciente_id, inicio, fim, origem, estado, valor,
      politica_horas, politica_percentual)
     values (v_a_conta, v_a_prof, v_ana,
-            (v_hoje + make_interval(days => 0) + time '08:00' + make_interval(hours => v_k))
+            (v_hoje + time '08:00' + make_interval(mins => v_k * 12))
               at time zone 'America/Sao_Paulo',
-            (v_hoje + make_interval(days => 0) + time '08:50' + make_interval(hours => v_k))
+            (v_hoje + time '08:10' + make_interval(mins => v_k * 12))
               at time zone 'America/Sao_Paulo',
             'avulsa', 'prevista', 200.00, 24, 50);
 end loop;
@@ -182,21 +219,21 @@ reset role;
 
 select count(*)::integer into v_n from public.sessoes
  where conta_id = v_a_conta and estado = 'prevista';
-if v_n <> 9 then
-  raise exception 'FALHOU 2: só % sessões entraram numa faixa de 8 — a faixa virou cerca', v_n;
+if v_n <> 61 then
+  raise exception 'FALHOU 2: só % sessões entraram numa faixa de 60 — a faixa virou cerca', v_n;
 end if;
-raise notice 'ok 2 · a nona sessão entrou, e a faixa não é cerca';
+raise notice 'ok 2 · a sexagésima primeira entrou, e a faixa não é cerca';
 
 -- 3 · E a faixa diz a verdade sobre isso, sem impedir nada.
 set local role authenticated;
 select * into v_faixa from public.faixa_da_conta(v_a_conta);
 reset role;
 
-if v_faixa.usadas <> 9 then
-  raise exception 'FALHOU 3: usadas % (esperado 9)', v_faixa.usadas;
+if v_faixa.usadas <> 61 then
+  raise exception 'FALHOU 3: usadas % (esperado 61)', v_faixa.usadas;
 end if;
 if not v_faixa.acima then
-  raise exception 'FALHOU 3: 9 sessões numa faixa de 8 não marcou acima';
+  raise exception 'FALHOU 3: 61 sessões numa faixa de 60 não marcou acima';
 end if;
 if v_faixa.restantes <> 0 then
   raise exception 'FALHOU 3: restantes % (esperado 0, e nunca negativo)', v_faixa.restantes;
@@ -221,23 +258,26 @@ for v_k in 1..3 loop
     (conta_id, profissional_id, paciente_id, inicio, fim, origem, estado, valor,
      politica_horas, politica_percentual, cancelada_em, cancelada_por)
     values (v_a_conta, v_a_prof, v_ana,
-            (v_hoje + time '18:00' + make_interval(hours => v_k)) at time zone 'America/Sao_Paulo',
-            (v_hoje + time '18:50' + make_interval(hours => v_k)) at time zone 'America/Sao_Paulo',
+            (v_hoje + time '20:00' + make_interval(hours => v_k)) at time zone 'America/Sao_Paulo',
+            (v_hoje + time '20:50' + make_interval(hours => v_k)) at time zone 'America/Sao_Paulo',
             'avulsa', 'cancelada_cedo', 200.00, 24, 50, now(), 'paciente');
 end loop;
 reset role;
 
+-- 61 previstas + 3 desmarcadas no prazo. Os números eram 9 e 12 quando a conta
+-- era Grátis de faixa 8; a 0064 tirou a faixa do Gratuito — o limite do grátis
+-- é o canal manual — e a conta virou `solo`, o único plano com faixa vendida.
 select count(*)::integer into v_n from public.sessoes where conta_id = v_a_conta;
-if v_n <> 12 then
-  raise exception 'FALHOU 4: o cenário não montou (% sessões, esperado 12)', v_n;
+if v_n <> 64 then
+  raise exception 'FALHOU 4: o cenário não montou (% sessões, esperado 64)', v_n;
 end if;
 
 set local role authenticated;
 select * into v_faixa from public.faixa_da_conta(v_a_conta);
 reset role;
 
-if v_faixa.usadas <> 9 then
-  raise exception 'FALHOU 4: usadas % com 12 sessões, 3 delas desmarcadas no prazo (esperado 9)', v_faixa.usadas;
+if v_faixa.usadas <> 61 then
+  raise exception 'FALHOU 4: usadas % com 64 sessões, 3 delas desmarcadas no prazo (esperado 61)', v_faixa.usadas;
 end if;
 raise notice 'ok 4 · desmarcada no prazo não gasta faixa';
 
@@ -263,8 +303,9 @@ set local role authenticated;
 select * into v_faixa from public.faixa_da_conta(v_a_conta);
 reset role;
 
-if v_faixa.usadas <> 11 then
-  raise exception 'FALHOU 5: usadas % — falta e cancelamento tardio saíram da conta, e a hora foi vendida (esperado 11)', v_faixa.usadas;
+-- 61 + a falta + o cancelamento tardio = 63.
+if v_faixa.usadas <> 63 then
+  raise exception 'FALHOU 5: usadas % — falta e cancelamento tardio saíram da conta, e a hora foi vendida (esperado 63)', v_faixa.usadas;
 end if;
 raise notice 'ok 5 · falta e cancelamento tardio continuam gastando faixa';
 
@@ -296,11 +337,13 @@ reset role;
 if v_faixa.profissionais <> 2 then
   raise exception 'FALHOU 6: contou % profissionais ativos (esperado 2)', v_faixa.profissionais;
 end if;
-if v_faixa.limite_total <> 16 then
-  raise exception 'FALHOU 6: total % (esperado 8 × 2 = 16) — é assim que a linha da Clínica existe sem segunda coluna', v_faixa.limite_total;
+-- Era 8 × 2 = 16; virou 60 × 2 = 120, porque a 0064 tirou a faixa do Gratuito
+-- (o limite do grátis é o canal manual) e a conta desta suíte é `solo`.
+if v_faixa.limite_total <> 120 then
+  raise exception 'FALHOU 6: total % (esperado 60 × 2 = 120) — é assim que a linha da Clínica existe sem segunda coluna', v_faixa.limite_total;
 end if;
 if v_faixa.acima then
-  raise exception 'FALHOU 6: 11 usadas em 16 marcou acima';
+  raise exception 'FALHOU 6: 63 usadas em 120 marcou acima';
 end if;
 
 -- E agora a metade que é ausência: desligada, ela para de multiplicar.
@@ -316,7 +359,7 @@ if v_faixa.profissionais <> 1 then
   raise exception 'FALHOU 6: profissional desligada continuou multiplicando a faixa (% ativos)', v_faixa.profissionais;
 end if;
 if not v_faixa.acima then
-  raise exception 'FALHOU 6: com uma profissional só, 11 usadas em 8 deixou de estar acima — o denominador estava contando quem não atende';
+  raise exception 'FALHOU 6: com uma profissional só, 63 usadas em 60 deixou de estar acima — o denominador estava contando quem não atende';
 end if;
 raise notice 'ok 6 · a faixa multiplica só por quem atende';
 
@@ -327,8 +370,15 @@ raise notice 'ok 6 · a faixa multiplica só por quem atende';
 set local role authenticated;
 select * into v_faixa from public.faixa_da_conta(v_a_conta);
 reset role;
-if v_faixa.pct <> 137 then
-  raise exception 'FALHOU 7: pct % (esperado 137 = 11 de 8)', v_faixa.pct;
+-- Era 137 = 11 de 8. Agora 105 = 63 de 60, pela mesma divisão inteira: a 0064
+-- tirou a faixa do Gratuito (o limite do grátis virou o canal manual) e a conta
+-- é `solo`, o único plano com faixa vendida hoje. Continua sendo o que a
+-- verificação quer: um número acima de 100 que a função não estanca.
+if v_faixa.pct <> 105 then
+  raise exception 'FALHOU 7: pct % (esperado 105 = 63 de 60)', v_faixa.pct;
+end if;
+if v_faixa.pct <= 100 then
+  raise exception 'FALHOU 7: pct % não passou de 100 — o cenário deixou de provar o que a 7 existe para provar', v_faixa.pct;
 end if;
 raise notice 'ok 7 · pct é fato, passa de 100, e não vem com elogio';
 
@@ -382,7 +432,7 @@ raise notice 'ok 10 · o evento antigo continua legível';
 
 -- 11 · Com a faixa estourada, a mensagem sai.  ← decide
 --
--- A conta A está com 11 de 8, ou seja, acima. Enfileiramos uma oferta de vaga —
+-- A conta A está com 63 de 60, ou seja, acima. Enfileiramos uma oferta de vaga —
 -- que é justamente o template que a 0046 barrava — e exigimos que ela saia.
 set local role postgres;
 insert into public.mensagens
@@ -526,12 +576,15 @@ set local role authenticated;
 v_id := public.registrar_avaliacao(9::smallint, 'a fila salvou meu mês', 'perfil');
 reset role;
 
+-- Era `gratis` e 11. A 0064 tirou a faixa do Gratuito — o limite do grátis é o
+-- canal manual, não um número — e a conta desta suíte é `solo`, o único plano
+-- com faixa vendida hoje; as sessões do mês são as 63 da verificação 5.
 select plano, sessoes_no_mes into v_txt, v_n from public.avaliacoes where id = v_id;
-if v_txt <> 'gratis' then
-  raise exception 'FALHOU 20: plano gravado % (esperado gratis)', v_txt;
+if v_txt <> 'solo' then
+  raise exception 'FALHOU 20: plano gravado % (esperado solo)', v_txt;
 end if;
-if v_n <> 11 then
-  raise exception 'FALHOU 20: sessões do mês gravadas % (esperado 11, com as 3 desmarcadas no prazo fora)', v_n;
+if v_n <> 63 then
+  raise exception 'FALHOU 20: sessões do mês gravadas % (esperado 63, com as 3 desmarcadas no prazo fora)', v_n;
 end if;
 raise notice 'ok 20 · a função tira os retratos sozinha';
 
@@ -540,8 +593,14 @@ raise notice 'ok 20 · a função tira os retratos sozinha';
 -- Duas contas no mesmo plano. Uma dá 0, a outra dá 10. Faixa, freio e plano têm
 -- de responder exatamente igual — um produto que reage à nota está comprando a
 -- nota, e a partir daí ela mede a reação e não o produto.
+--
+-- O plano reafirmado aqui é `solo` e não `gratis`: depois da 0064 o Gratuito não
+-- tem faixa (`limite_sessoes_mes` nulo, porque o limite dele é o canal manual),
+-- e duas contas Grátis fariam esta verificação comparar nulo com nulo — passaria
+-- sem provar nada. No `solo`, único plano com faixa vendida hoje, ela compara 60
+-- com 60.
 set local role postgres;
-update public.contas set plano = 'gratis' where id in (v_a_conta, v_b_conta);
+update public.contas set plano = 'solo' where id in (v_a_conta, v_b_conta);
 reset role;
 
 perform set_config('request.jwt.claims',
@@ -561,6 +620,11 @@ reset role;
 if v_faixa.limite is distinct from v_faixa_b.limite then
   raise exception 'FALHOU 21: quem deu 10 tem limite % e quem deu 0 tem % — a nota comprou faixa', v_faixa.limite, v_faixa_b.limite;
 end if;
+-- E que a comparação tenha sido entre dois números, e não entre dois nulos: sem
+-- isto a verificação passaria numa conta sem faixa e não teria provado nada.
+if v_faixa.limite is null then
+  raise exception 'FALHOU 21: as duas contas vieram sem faixa — a comparação foi nulo com nulo e não provou nada';
+end if;
 if v_faixa.e_fair_use is distinct from v_faixa_b.e_fair_use then
   raise exception 'FALHOU 21: a nota mudou o regime da faixa';
 end if;
@@ -569,14 +633,14 @@ set local role postgres;
 select public.teto_tecnico(v_a_conta, null) into v_freio;
 select public.teto_tecnico(v_b_conta, null) into v_txt;
 select count(*)::integer into v_n from public.contas
- where id in (v_a_conta, v_b_conta) and plano = 'gratis';
+ where id in (v_a_conta, v_b_conta) and plano = 'solo';
 reset role;
 
 if v_freio is distinct from v_txt then
   raise exception 'FALHOU 21: o freio respondeu diferente para quem deu 0 e para quem deu 10';
 end if;
 if v_n <> 2 then
-  raise exception 'FALHOU 21: a nota mexeu no plano de alguém — % das 2 contas continuam no gratis', v_n;
+  raise exception 'FALHOU 21: a nota mexeu no plano de alguém — % das 2 contas continuam no solo', v_n;
 end if;
 raise notice 'ok 21 · nota 0 e nota 10 não mudam nada do que o sistema faz';
 
