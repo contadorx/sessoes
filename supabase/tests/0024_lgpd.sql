@@ -32,6 +32,7 @@ declare
   b_auth uuid := '22222222-2222-4222-8222-222222222222';
   a_conta uuid; a_prof uuid; b_conta uuid; b_prof uuid;
   maria uuid; menor uuid; s1 uuid; n int; r text; j jsonb; falhou boolean; t record;
+  txt text;
 begin
   -- ---------------------------------------------------------------- preparo
   delete from public.trilha_acesso where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
@@ -199,6 +200,53 @@ begin
   exception when insufficient_privilege then falhou := true; end;
   if not falhou then raise exception '14 FUROU: anon expurgou'; end if;
 
+  -- ---------------------------------------------------------------- 15
+  -- **A verificação que faltava, e que custou dezessete tabelas.**
+  --
+  -- `exportar_conta` foi escrita quando existiam doze tabelas. Cada build
+  -- depois dela acrescentou tabela e ninguém voltou lá — e nenhuma verificação
+  -- reprovava, porque todas conferem **por lista**: uma tabela nova nunca
+  -- reprova uma lista da qual não faz parte. Quando a 0059 foi acrescentar uma
+  -- tabela nova, apareceu que `documentos`, `janelas_atendimento`,
+  -- `propostas_de_cobranca`, `mensagens`, `pacotes`, `remarcacoes` e outras
+  -- onze estavam fora da portabilidade.
+  --
+  -- Esta varredura pergunta ao `information_schema` em vez de a mim. A próxima
+  -- tabela com `conta_id` que alguém esquecer reprova aqui, no dia em que for
+  -- criada.
+  reset role; perform set_config('request.jwt.claims','',true);
+  select string_agg(c.table_name, ', ' order by c.table_name) into txt
+    from information_schema.columns c
+    -- `tb`, e não `t`: este bloco declara `t record` lá em cima, e em plpgsql a
+    -- variável ganha do alias — `t.table_schema` resolveria contra o record e
+    -- estouraria. É a lição da 0052c pela terceira vez, e a regra que ficou
+    -- vale aqui: **nenhum alias de uma letra só.**
+    join information_schema.tables tb
+      on tb.table_schema = c.table_schema
+     and tb.table_name = c.table_name
+     and tb.table_type = 'BASE TABLE'
+   where c.table_schema = 'public'
+     and c.column_name = 'conta_id'
+     and pg_get_functiondef('public.exportar_conta()'::regprocedure)
+         not like '%public.' || c.table_name || ' %';
+  if txt is not null then
+    raise exception '15 FUROU: tabela(s) com conta_id fora da portabilidade: % — quem cria tabela com dado da conta acrescenta a exportação na mesma build', txt;
+  end if;
+
+  -- E o outro lado da mesma moeda: **completo não quer dizer tudo.** Token de
+  -- link mágico e token de provedor abrem porta, e o arquivo da portabilidade
+  -- viaja por e-mail. A 0059b levou `remarcacoes.token` junto — eu tinha
+  -- lembrado do `aceites.token` e do `calendarios.sync_token`, e esqueci do
+  -- terceiro. Esta varredura não depende de eu lembrar do quarto.
+  perform set_config('request.jwt.claims',
+    json_build_object('sub',a_auth,'role','authenticated')::text, true);
+  execute 'set local role authenticated';
+  select public.exportar_conta() into j;
+  reset role; perform set_config('request.jwt.claims','',true);
+  if j::text ~* '"[a-z_]*token[a-z_]*"[[:space:]]*:' then
+    raise exception '15 FUROU: a exportação carregou um token — ele abre porta, e este arquivo viaja por e-mail';
+  end if;
+
   -- ---------------------------------------------------------------- limpeza
   reset role; perform set_config('request.jwt.claims','',true);
   delete from public.trilha_acesso where conta_id in (a_conta,b_conta);
@@ -209,5 +257,5 @@ begin
   delete from auth.users where id in (a_auth,b_auth);
   delete from public.contas where id in (a_conta,b_conta);
 
-  raise notice 'B13 OK — 14 verificações, todas passaram';
+  raise notice 'B13 OK — 15 verificações, todas passaram';
 end $$;
