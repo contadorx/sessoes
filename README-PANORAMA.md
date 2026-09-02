@@ -406,10 +406,15 @@ Uma resposta só, do estrato mais enviesado que existe ("colega me mandou"). Nã
 ## 10 · Pendências que não são de código
 
 - **Publicar a revisão 3** e aplicar `0049` e `0050`. *(a número um)*
-- **Rastrear o relatório original da APS** antes de repetir o número da
-  Austrália em peça pública. Os 53% dos EUA estão verificados (APA *Practitioner
-  Pulse* 2024, N=853); o australiano veio de cobertura sem N — já foi retirado
-  das hipóteses, mas ainda aparece em material de divulgação.
+- **O comparador internacional está atualizado e alinhado ao pré-registro:**
+  APA *Practitioner Pulse Survey* **2025, 46% sem vaga, N = 1.742** (série: 65%
+  em 2021, 53% em 2024). O **parâmetro australiano foi retirado** de todas as
+  peças — nunca teve relatório técnico localizado, e o card chegou a dizer 33%
+  enquanto a legenda dizia "3 em cada 4". O pré-registro declara a retirada.
+- **O número americano saiu dos posts que levam ao formulário.** Ele preparava a
+  Q4.6, que é a variável da H6, e descaracterizava o canal `ig-comparacao` como
+  "o que não nomeia nenhuma dificuldade". Continua na página do estudo e nos
+  e-mails institucionais.
 - **Pré-registrar no OSF** antes da primeira resposta de campo.
 - **Escrever a avaliação de legítimo interesse** antes de qualquer envio para a
   base PJ da Receita.
