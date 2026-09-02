@@ -1,6 +1,6 @@
 # Panorama — o que entra no projeto Sessões
 
-**Atualizado em 02/09/2026 · instrumento na revisão 4 · piloto com N=1**
+**Atualizado em 02/09/2026 · instrumento na revisão 5 · migrations 0052a e 0052 aplicadas**
 
 Este pacote tem duas metades: **o banco**, em parte já aplicado remotamente, e
 **as páginas**, que você coloca no projeto.
@@ -12,7 +12,7 @@ Este pacote tem duas metades: **o banco**, em parte já aplicado remotamente, e
 > campos `q67`/`q68`, removidos na revisão 2, e não tem `q37`, `q38`, `q512`,
 > `q513`, `q69`, que a revisão 2 acrescentou.
 >
-> **Enquanto a revisão 4 não for publicada, cada resposta que chegar mede o
+> **Enquanto a revisão 5 não for publicada, cada resposta que chegar mede o
 > instrumento errado** — sem capacidade, sem hora reposta, sem antecipação, sem
 > conjunção, sem a saída de "não se aplica". Publicar a pasta
 > `public/panorama/` deste zip é a ação número um.
@@ -33,21 +33,24 @@ Copie os arquivos para `supabase/migrations/` no seu repo. Eles **não** rodam d
 novo — o banco remoto já registrou essas versões; servem para o repositório
 contar a mesma história que o banco.
 
-### Ainda NÃO aplicadas — dependem de o formulário revisado estar no ar
+### Aplicadas em 02/09, junto com a revisão 5
 
 | versão | nome | o que faz |
 |---|---|---|
-| `20260901120000` | `0049_as_leituras_da_revisao_2` | 6 views: ocupação, hora reposta, conjunção, antecipação, regularização, duração real |
-| `20260902090000` | `0050_o_que_o_piloto_ensinou` | refaz a `v_leitura1_fila`, e cria `v_destino_demanda`, `v_nao_se_aplica`, `v_nao_se_aplica_textos` |
-| `20260902140000` | `0051_o_ritmo_do_recibo` | `v_ritmo_recibo`, `v_lote_recibo`, `v_ritmo_x_tempo_fiscal` — decidem o default de `contas.ritmo_recibo` |
+*(as 0049, 0050 e 0051 foram descartadas antes de aplicar: liam campos que a
+revisão 5 aposentou. Estão substituídas pela 0052.)*
+
+| versão | nome | o que faz |
+|---|---|---|
+| `20260902175900` | `0052a_drop_das_views_que_mudam_de_forma` | `create or replace view` não renomeia coluna; duas views mudaram de forma |
+| `20260902180000` | `0052_as_leituras_da_revisao_5` | 19 views, todas fechadas para `anon` |
 
 ```bash
-supabase db push          # depois de publicar as páginas
-supabase migration list --linked
+supabase migration list --linked   # as cinco devem aparecer nas duas colunas
 ```
 
-Antes da publicação, essas views existem e devolvem vazio — inofensivo, só não
-faz sentido.
+**Verificado no banco depois de aplicar: 19 views criadas, e ZERO views legíveis
+por `anon` ou `authenticated`.**
 
 ### O que essas tabelas são
 
@@ -92,10 +95,10 @@ de lixo barrado pelo CHECK.
 ```
 public/panorama/
   index.html      a página do estudo
-  pesquisa.html   o questionário · REVISÃO 4
+  pesquisa.html   o questionário · REVISÃO 5
   contato.html    as duas portas do fim (relatório · conversa)
   protocolo.pdf   o protocolo, 6 páginas
-instrumento-53-itens.pdf   o questionário na íntegra, para o OSF (não vai para o site)
+instrumento-panorama.pdf   o questionário na íntegra, para o OSF (não vai para o site)
 ```
 
 **Copie a pasta `public/panorama/` inteira para o `public/` do projeto.**
@@ -131,11 +134,12 @@ topo de `pesquisa.html`.
 
 ## 3 · O instrumento hoje
 
-> **53 itens numerados · 9 condicionais · 36 obrigatórios · zero escalas de
+> **52 itens numerados · 15 condicionais · 36 obrigatórios · zero escalas de
 > intensidade.**
-> Quem não teve falta nenhuma e não usa IA responde 43.
+> O caminho mais curto real — recebe só no CPF, não teve falta, não usa IA,
+> nada administrado por terceiro — tem **37 itens**.
 
-O `instrumento-53-itens.pdf` é **gerado do próprio HTML** por
+O `instrumento-panorama.pdf` é **gerado do próprio HTML** por
 `build_instrumento.py`, e não redigido à parte. Se você mexer no formulário,
 rode o script de novo — um anexo escrito à mão diverge do formulário na
 primeira correção, e aí o pré-registro passa a mentir.
@@ -233,20 +237,34 @@ silêncio**, por semanas.
 
 ---
 
-## 5 · O que ainda está com colchete
+## 5 · O pré-registro está feito
 
-Na `index.html` (a página do estudo) e no `protocolo.pdf`:
+> **DOI: `10.17605/OSF.IO/4A8FR`** — registrado em 2 de setembro de 2026,
+> público, sem embargo, licença CC-By 4.0.
+> `https://doi.org/10.17605/OSF.IO/4A8FR`
 
-| placeholder | onde | o que é |
-|---|---|---|
-| `[DOI]` | 2× | sai do pré-registro no OSF |
-| `[data]` | 2× | fim da coleta e previsão do relatório |
+Template **OSF Preregistration**, com o protocolo, o instrumento na íntegra e
+este README anexados e arquivados junto ao registro. O OSF criou
+automaticamente um projeto-companheiro (`osf.io/gepdv`) para hospedar os
+arquivos; ele é subproduto e vira somente-leitura em fevereiro de 2027 — o
+registro, não.
 
-Nome, e-mail, telefone e CNPJ já estão preenchidos: **Leandro Oliveira**,
-leandro@sessoes.com.br, +55 11 91911-1050, Produtize Produtos e Serviços
-Inteligentes LTDA, CNPJ 48.417.292/0001-99.
+**Os colchetes acabaram.** DOI e datas já estão preenchidos na página do
+estudo, no `protocolo.pdf` e nos e-mails:
 
-O PDF é gerado por `build_protocolo.py` — preencha lá e rode de novo.
+| | |
+|---|---|
+| encerramento da coleta | **31 de janeiro de 2027** |
+| relatório previsto | **março de 2027** |
+| prorrogação | única, até 60 dias, só se houver menos de 120 completos |
+
+**Como citar:**
+
+```
+Oliveira, L. (2026). Panorama da Prática Psicológica: condições administrativas
+e financeiras do exercício da clínica privada no Brasil. OSF.
+https://doi.org/10.17605/OSF.IO/4A8FR
+```
 
 ---
 
@@ -354,7 +372,7 @@ Os campos do template OSF Preregistration já estão escritos, prontos para cola
 no doc **33**. Faltam três valores, e os três dependem do piloto ou de você:
 tempo mediano real, data de encerramento e período de coleta.
 
-Anexar ao registro: `protocolo.pdf`, `instrumento-53-itens.pdf` e este README.
+Anexar ao registro: `protocolo.pdf`, `instrumento-panorama.pdf` e este README.
 **Não** anexar documentos de produto, roadmap, copy ou concorrência — dentro de
 um registro de pesquisa eles contaminam a leitura do conflito de interesse que a
 folha declara com cuidado.
