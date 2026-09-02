@@ -167,3 +167,40 @@ describe("o matcher", () => {
     }
   });
 });
+
+describe("a página do paciente (P7) é pública", () => {
+  /**
+   * Este teste existe porque o mesmo defeito aconteceu **três vezes** neste
+   * projeto: as rotas de máquina, as URLs limpas do Panorama e os três
+   * documentos legais mais o blog. Toda vez o sintoma foi o mesmo — um 307 para
+   * `/entrar`, que nem a Vercel nem uma pessoa leem como erro —, e toda vez a
+   * causa foi uma rota nova que ninguém pôs na lista.
+   *
+   * Aqui o custo seria: o paciente recebe o link no WhatsApp, toca, e cai numa
+   * tela de login de um sistema em que ele não tem conta e nunca vai ter. Ele
+   * não reclama; ele só não confirma o horário.
+   */
+  it("o token abre sem sessão", () => {
+    expect(ehPublica("/p/agora/e5826e7f06cc4992a338fe44eec58d04")).toBe(true);
+  });
+
+  it("...e o documento dentro dela também", () => {
+    expect(
+      ehPublica("/p/agora/e5826e7f06cc4992a338fe44eec58d04/documento/ba47ac94-0000-4000-8000-000000000000"),
+    ).toBe(true);
+  });
+
+  it("as três páginas de link mágico entram pelo mesmo prefixo", () => {
+    // Se um dia alguém trocar o prefixo por uma lista de rotas, este teste é o
+    // que reprova a quarta página esquecida.
+    for (const rota of ["/p/contrato/abc", "/p/remarcar/abc", "/p/agora/abc"]) {
+      expect(ehPublica(rota), rota).toBe(true);
+    }
+  });
+
+  it("mas a área logada continua fechada", () => {
+    // A prova de que a varredura acima não passa a vazio.
+    expect(ehPublica("/pacientes/abc")).toBe(false);
+    expect(ehPublica("/agenda")).toBe(false);
+  });
+});

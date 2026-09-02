@@ -54,7 +54,15 @@ const PUBLICAS = new Set([
 ]);
 
 const PREFIXOS_PUBLICOS = [
-  "/p/", // portal do paciente por link mágico (D18)
+  // As páginas por link mágico. Eram duas (contrato e remarcação, B19/B21) e
+  // desde o P7 são três — `/p/agora/[token]` e o documento dentro dela. O
+  // prefixo cobre as três e cobre as próximas, que é o certo: a lista escrita à
+  // mão é o que já deixou os três documentos legais e o blog inteiro atrás do
+  // login por três dias, com um 307 que não parece erro para ninguém.
+  //
+  // (O nome antigo disto era "portal do paciente", o D18. Ele morreu no doc 30
+  // — "vira produto paralelo" — e o que existe é a página transacional.)
+  "/p/",
 
   // Cada texto publicado. `/blog` sozinho abre a vitrine e não os posts.
   "/blog/",

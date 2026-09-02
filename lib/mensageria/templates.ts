@@ -1,5 +1,31 @@
 /**
- * As sete famílias de mensagem, e o modo discreto (D3).
+ * As oito famílias de mensagem, e o modo discreto (D3).
+ *
+ * **⚠️ A oitava entrou em 02/09 consertando um defeito vivo, e ele vale ser
+ * lido antes do resto.** O P3 criou `confirmacao_de_sessao` na tabela
+ * `templates` do banco — com `check` fechado, `essencial = true` e motivo
+ * escrito — e `pedir_confirmacoes()` passou a enfileirar mensagens dessa
+ * família. **Este arquivo não sabia dela.** `renderizar()` lança
+ * `Template desconhecido` para o que não está em `FAMILIAS`, então **toda
+ * confirmação enfileirada estouraria no worker**, e a feature inteira — vinte
+ * verificações, uma migração, duas telas — não conseguiria mandar uma
+ * mensagem.
+ *
+ * Ninguém viu porque o defeito é **dormente**: `confirmacao_horas_antes` nasce
+ * `null` em todo enquadre (é opção, não comportamento), então `pedir_confirmacoes`
+ * nunca teve o que enfileirar. Ele acordaria na primeira psicóloga que ligasse
+ * a confirmação.
+ *
+ * A causa é a de sempre neste projeto: **a mesma lista em dois lugares.** O
+ * banco tem a sua, fechada por `check`, justamente para que template novo seja
+ * migração e não string solta; e nada conferia a direção contrária — que todo
+ * template do banco tem renderizador aqui. É a família do `exportar_conta` sem
+ * dezessete tabelas e da lista de rotas públicas do proxy.
+ *
+ * **O espelho agora é teste dos dois lados**, com a mesma lista escrita duas
+ * vezes de propósito: a verificação 2 da suíte 0066 confere `templates` contra
+ * a lista canônica, e `templates.test.ts` confere `FAMILIAS` contra a mesma.
+ * Uma metade que mude sozinha reprova.
  *
  * Quatro coisas que precisam ficar claras antes de ler o código:
  *
@@ -35,6 +61,8 @@ export const FAMILIAS = [
   "aviso_de_cobranca",
   "lembrete_de_pagamento",
   "oferta_de_vaga_fixa",
+  // A oitava, do P3. Ver o defeito no cabeçalho deste arquivo.
+  "confirmacao_de_sessao",
 ] as const;
 
 export type Familia = (typeof FAMILIAS)[number];
@@ -260,6 +288,9 @@ export const CORPOS: Record<Modo, Record<Familia, string>> = {
       "Oi, {{1}}. Abriu um horário fixo {{2}}, toda semana. Quer ficar com ele? " +
       "Responda SIM até {{3}} e eu falo com você para combinar o começo. " +
       "Sem resposta, o horário segue para a próxima pessoa da lista.",
+    confirmacao_de_sessao:
+      "Oi, {{1}}. Você confirma o seu horário {{2}}? " +
+      "Responda SIM ou NÃO por aqui, quando puder.",
   },
   completo: {
     oferta_de_vaga:
@@ -283,6 +314,9 @@ export const CORPOS: Record<Modo, Record<Familia, string>> = {
       "Oi, {{1}}. Abriu um horário fixo {{2}}, toda semana, na agenda de {{4}}. " +
       "Quer ficar com ele? Responda SIM até {{3}} e eu falo com você para combinar " +
       "o começo. Sem resposta, o horário segue para a próxima pessoa da lista.",
+    confirmacao_de_sessao:
+      "Oi, {{1}}. Você confirma a sua sessão {{2}} com {{3}}? " +
+      "Responda SIM ou NÃO por aqui, quando puder.",
   },
 };
 
@@ -303,6 +337,7 @@ const VARIAVEIS: Record<Modo, Record<Familia, (c: Campos) => string[]>> = {
     aviso_de_cobranca: (c) => [c.nome, c.hora, c.valor],
     lembrete_de_pagamento: (c) => [c.nome, c.valor, c.quantos],
     oferta_de_vaga_fixa: (c) => [c.nome, c.fixo, c.limite],
+    confirmacao_de_sessao: (c) => [c.nome, c.hora],
   },
   completo: {
     oferta_de_vaga: (c) => [c.nome, c.hora, c.limite, c.prof],
@@ -312,6 +347,7 @@ const VARIAVEIS: Record<Modo, Record<Familia, (c: Campos) => string[]>> = {
     aviso_de_cobranca: (c) => [c.nome, c.hora, c.prof, c.valor],
     lembrete_de_pagamento: (c) => [c.nome, c.valor, c.prof, c.quantos],
     oferta_de_vaga_fixa: (c) => [c.nome, c.fixo, c.limite, c.prof],
+    confirmacao_de_sessao: (c) => [c.nome, c.hora, c.prof],
   },
 };
 
@@ -382,6 +418,7 @@ function assunto(familia: Familia, modo: Modo): string {
       aviso_de_cobranca: "Sobre um horário",
       lembrete_de_pagamento: "Sobre o combinado",
       oferta_de_vaga_fixa: "Abriu um horário fixo",
+      confirmacao_de_sessao: "Confirma o seu horário?",
     }[familia];
   }
 
@@ -393,5 +430,6 @@ function assunto(familia: Familia, modo: Modo): string {
     aviso_de_cobranca: "Sobre uma sessão",
     lembrete_de_pagamento: "Sobre o combinado",
     oferta_de_vaga_fixa: "Abriu um horário fixo na agenda",
+    confirmacao_de_sessao: "Confirma a sua sessão?",
   }[familia];
 }

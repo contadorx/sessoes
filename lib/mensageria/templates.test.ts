@@ -389,3 +389,84 @@ describe("a sétima família: o horário que se repete", () => {
     }
   });
 });
+
+/**
+ * O espelho da lista de templates — e ele existe por causa de um defeito.
+ *
+ * O P3 criou `confirmacao_de_sessao` na tabela `templates` do banco e este
+ * arquivo não soube. `renderizar()` lança para o que não está em `FAMILIAS`,
+ * então toda confirmação enfileirada estouraria no worker — e o defeito era
+ * dormente, porque `confirmacao_horas_antes` nasce nulo e ninguém tinha ligado
+ * a confirmação ainda.
+ *
+ * A lista canônica está escrita **duas vezes de propósito**: aqui e na
+ * verificação 2 da suíte SQL 0066. Não dá para ler o banco de um teste
+ * unitário — o sandbox nem alcança o Supabase —, então a defesa é o espelho:
+ * quem acrescentar template de um lado só reprova do outro.
+ */
+describe("as oito famílias são as mesmas do banco", () => {
+  const NO_BANCO = [
+    "aviso_de_cobranca",
+    "aviso_de_desmarque",
+    "confirmacao_de_sessao",
+    "encaixe_confirmado",
+    "lembrete_de_pagamento",
+    "lembrete_de_sessao",
+    "oferta_de_vaga",
+    "oferta_de_vaga_fixa",
+  ];
+
+  it("nem sobra nem falta família", () => {
+    expect([...FAMILIAS].sort()).toEqual(NO_BANCO);
+  });
+
+  it("toda família renderiza nos dois modos, em vez de lançar", () => {
+    // O defeito não era de conteúdo: era `renderizar` lançando. Este teste é o
+    // que teria pegado, e ele varre em vez de listar.
+    for (const familia of FAMILIAS) {
+      for (const modo of ["discreto", "completo"] as const) {
+        const r = renderizar(familia, {
+          nome: "Ana Souza",
+          modo,
+          inicio: "2026-09-10T14:00:00.000Z",
+          expira_em: "2026-09-10T12:00:00.000Z",
+          profissional: "Karen Lima",
+          valor_centavos: 20000,
+          quantidade: 2,
+          horario_fixo: "terça, 15h",
+        });
+        expect(r.texto.length, `${familia}/${modo}`).toBeGreaterThan(20);
+        expect(r.texto, `${familia}/${modo}`).not.toMatch(/\{\{\d+\}\}/);
+      }
+    }
+  });
+
+  it("a confirmação pede resposta e NÃO carrega link", () => {
+    // O link do P7 segue a regra do contrato (B19) e da remarcação (B21):
+    // quem manda é ela, de um toque, do próprio WhatsApp. Pôr URL no corpo de
+    // um template é risco de reprovação na Meta — e reprovação reinicia dias
+    // de espera (risco R4) — para resolver uma coisa que já tem caminho.
+    for (const modo of ["discreto", "completo"] as const) {
+      const r = renderizar("confirmacao_de_sessao", {
+        nome: "Ana",
+        modo,
+        inicio: "2026-09-10T14:00:00.000Z",
+        profissional: "Karen",
+      });
+      expect(r.texto).toMatch(/SIM/);
+      expect(r.texto).not.toMatch(/https?:|sessoes\.com\.br|\/p\//);
+    }
+  });
+
+  it("o discreto da confirmação não cita a profissional nem a palavra sessão", () => {
+    const r = renderizar("confirmacao_de_sessao", {
+      nome: "Ana",
+      modo: "discreto",
+      inicio: "2026-09-10T14:00:00.000Z",
+      profissional: "Karen",
+    });
+    expect(r.texto).not.toMatch(/Karen/);
+    expect(r.texto).not.toMatch(/sessão/i);
+    expect(r.texto).toMatch(/horário/);
+  });
+});

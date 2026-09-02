@@ -8,6 +8,8 @@ import { supabaseSessao } from "@/lib/supabase/server";
 import { sessaoAtual } from "@/lib/conta";
 import { validarPaciente } from "@/lib/paciente";
 import { hoje } from "@/lib/tempo-servidor";
+import { adaptadorPara } from "@/lib/pagamentos/adaptadores";
+import { paraCentavos } from "@/lib/dinheiro";
 
 export type Resultado =
   | { estado: "inicial" }
@@ -597,4 +599,171 @@ export async function acrescentarAdendo(_anterior: Resultado, form: FormData): P
   }
   revalidatePath("/pacientes");
   return { estado: "ok", mensagem: "Adendo guardado com a data de hoje." };
+}
+
+/**
+ * O link da página do paciente (P7).
+ *
+ * **Abrir revoga o anterior**, e isso acontece dentro da função do banco, numa
+ * transação só. Se fossem dois passos, o dia em que o segundo falhasse
+ * deixaria dois links vivos — e o índice único, que é a rede, transformaria
+ * isso num erro sem explicação na tela dela.
+ *
+ * **E o Pix é cunhado aqui, não lá.** O BR Code depende de `contas.pix_chave`,
+ * e chave Pix é o endereço da conta bancária dela: montá-lo numa função que
+ * qualquer pessoa com um token alcança seria pôr a chave num caminho anônimo.
+ * Então quem cunha é este caminho, que exige sessão; a página pública só lê o
+ * que já está gravado. Cobrança sem Pix aparece lá com o valor e sem o código,
+ * dizendo a verdade.
+ */
+export async function abrirLinkDoPaciente(
+  _anterior: Resultado,
+  form: FormData,
+): Promise<Resultado> {
+  const id = String(form.get("paciente_id") ?? "");
+  if (!id) return { estado: "erro", erros: ["Paciente não identificado."] };
+
+  const supabase = await supabaseSessao();
+
+  try {
+    const r = (await db(
+      "paciente.abrir_link",
+      supabase.rpc("abrir_link_do_paciente", { p_paciente: id }),
+    )) as unknown as { ok?: boolean; token?: string };
+
+    if (!r?.ok || !r.token) {
+      return { estado: "erro", erros: ["Não consegui gerar o link agora."] };
+    }
+
+    // Cunhar o Pix é parte de abrir o link, e é aqui que ele pode ser cunhado:
+    // este caminho tem sessão, e o BR Code precisa da chave dela. Se não der —
+    // conta sem chave Pix cadastrada, provedor não ligado — o link nasce
+    // assim mesmo e a página diz a verdade ao paciente. **Falhar aqui não pode
+    // derrubar o link**: o valor e o horário continuam valendo sem o código.
+    await cunharPixDasAbertas(id);
+
+    revalidatePath(`/pacientes/${id}`);
+    return { estado: "ok", mensagem: r.token };
+  } catch (e) {
+    console.error("[paciente] falhou abrir link", e);
+    return {
+      estado: "erro",
+      erros: ["Não consegui gerar o link. Se a ficha estiver encerrada, ele não é gerado."],
+    };
+  }
+}
+
+export async function revogarLinkDoPaciente(
+  _anterior: Resultado,
+  form: FormData,
+): Promise<Resultado> {
+  const id = String(form.get("paciente_id") ?? "");
+  if (!id) return { estado: "erro", erros: ["Paciente não identificado."] };
+
+  const supabase = await supabaseSessao();
+
+  try {
+    await db(
+      "paciente.revogar_link",
+      supabase.rpc("revogar_link_do_paciente", { p_paciente: id }),
+    );
+    revalidatePath(`/pacientes/${id}`);
+    return { estado: "ok", mensagem: "O link antigo deixou de funcionar agora." };
+  } catch (e) {
+    console.error("[paciente] falhou revogar link", e);
+    return { estado: "erro", erros: ["Não consegui revogar agora. Tente de novo."] };
+  }
+}
+
+
+/**
+ * Cunha o copia-e-cola das cobranças abertas do paciente.
+ *
+ * Mesma aritmética do `gerarPix` da agenda, e o código continua sendo gravado
+ * na cobrança em vez de recalculado a cada leitura — o motivo é o retrato: o
+ * que foi mandado para o paciente tem de continuar existindo igual, mesmo que
+ * ela troque a chave Pix amanhã. Um copia-e-cola que muda debaixo de quem já
+ * recebeu é uma cobrança que não pode ser paga.
+ *
+ * **Best-effort de propósito, e a exceção é engolida com o registro no log.**
+ * A alternativa seria o link não nascer porque a conta ainda não cadastrou
+ * chave Pix — e o link serve para confirmar horário e entregar documento
+ * também. O que a página faz quando não há código é dizer isso, em vez de
+ * mostrar um campo vazio.
+ */
+async function cunharPixDasAbertas(pacienteId: string): Promise<void> {
+  try {
+    const supabase = await supabaseSessao();
+    const sessao = await sessaoAtual();
+
+    const contas = (await db(
+      "paciente.pix.conta",
+      supabase
+        .from("contas")
+        .select("pix_chave, pix_nome, pix_cidade, provedor_pagamento, provedor_estado")
+        .eq("id", sessao.contaId)
+        .limit(1),
+    )) as unknown as {
+      pix_chave: string | null;
+      pix_nome: string | null;
+      pix_cidade: string | null;
+      provedor_pagamento: string | null;
+      provedor_estado: string | null;
+    }[];
+
+    const conta = contas[0];
+    if (!conta?.pix_chave) return;
+
+    const abertas = (await db(
+      "paciente.pix.abertas",
+      supabase
+        .from("cobrancas")
+        .select("id, valor")
+        .eq("paciente_id", pacienteId)
+        .eq("estado", "aberta")
+        .is("pix_copia_cola", null),
+    )) as unknown as { id: string; valor: string }[];
+
+    const adaptador = adaptadorPara(
+      conta.provedor_pagamento ?? null,
+      conta.provedor_estado ?? null,
+    );
+
+    for (const cobranca of abertas ?? []) {
+      const txid = await db<string>(
+        "paciente.pix.txid",
+        supabase.rpc("txid_da_cobranca", { p_cobranca: cobranca.id }),
+      );
+
+      const criada = await adaptador.criar(
+        {
+          cobrancaId: cobranca.id,
+          valorCentavos: paraCentavos(cobranca.valor),
+          txid,
+        },
+        {
+          pixChave: conta.pix_chave,
+          pixNome: conta.pix_nome ?? null,
+          pixCidade: conta.pix_cidade ?? null,
+        },
+      );
+
+      await db(
+        "paciente.pix.salvar",
+        supabase
+          .from("cobrancas")
+          .update({
+            txid,
+            provedor: criada.provedor,
+            pix_copia_cola: criada.pixCopiaCola,
+            link_pagamento: criada.link,
+            provedor_cobranca_id: criada.provedorCobrancaId,
+          })
+          .eq("id", cobranca.id)
+          .select("id"),
+      );
+    }
+  } catch (e) {
+    console.error("[paciente] não consegui cunhar o pix das cobranças abertas", e);
+  }
 }

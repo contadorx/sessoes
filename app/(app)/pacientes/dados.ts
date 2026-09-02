@@ -295,3 +295,37 @@ export async function anamneseDoPaciente(
   ]);
   return { anamnese: (a ?? null) as Anamnese | null, aviso: av as Aviso };
 }
+
+export type LinkDoPaciente = {
+  id: string;
+  token: string;
+  criado_em: string;
+  expira_em: string;
+  aberto_em: string | null;
+  aberturas: number;
+};
+
+/**
+ * O link vivo do paciente, se houver.
+ *
+ * Traz `aberturas` e `aberto_em` de propósito: é a única coisa que responde
+ * "ele chegou a abrir?", e essa pergunta não mora na trilha de acesso. A
+ * trilha responde quem, **dentro da conta**, leu prontuário de quem, e é lida
+ * atrás de `le_clinico()`; misturar abertura de link ali diluiria a única tela
+ * de auditoria do produto com evento de outra natureza.
+ */
+export async function linkDoPaciente(pacienteId: string): Promise<LinkDoPaciente | null> {
+  const supabase = await supabaseSessao();
+
+  const linhas = (await db(
+    "paciente.link",
+    supabase
+      .from("links_do_paciente")
+      .select("id, token, criado_em, expira_em, aberto_em, aberturas")
+      .eq("paciente_id", pacienteId)
+      .is("revogado_em", null)
+      .limit(1),
+  )) as unknown as LinkDoPaciente[];
+
+  return (linhas ?? [])[0] ?? null;
+}

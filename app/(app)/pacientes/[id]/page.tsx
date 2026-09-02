@@ -5,10 +5,12 @@ import {
   lastroDoPaciente,
   pacotesDoPaciente,
   filaDeEntradaDoPaciente,
+  linkDoPaciente,
 } from "../dados";
 import { NovoEnquadre } from "@/components/app/NovoEnquadre";
 import { rotuloHorario, rotuloPolitica } from "@/lib/enquadre";
 import { Lastro } from "@/components/app/Lastro";
+import { LinkDoPaciente } from "@/components/app/LinkDoPaciente";
 import { Pacote } from "@/components/app/Pacote";
 import { FilaEntrada } from "@/components/app/FilaEntrada";
 import { rotuloModelo } from "@/lib/cobranca";
@@ -45,6 +47,7 @@ export default async function Combinado({ params }: { params: Promise<{ id: stri
   const lastro = await lastroDoPaciente(paciente.id, aberto?.id ?? null);
   const pacotes = aberto?.modelo_cobranca === "pacote" ? await pacotesDoPaciente(paciente.id) : [];
   const entrada = aberto ? { naFila: false, desde: null } : await filaDeEntradaDoPaciente(paciente.id);
+  const link = await linkDoPaciente(paciente.id);
 
   return (
     <>
@@ -141,6 +144,31 @@ export default async function Combinado({ params }: { params: Promise<{ id: stri
             enquadreId={aberto?.id ?? null}
             temContrato={lastro.temContrato}
             aceite={lastro.aceite}
+          />
+        </div>
+      </section>
+
+      {/* ------------------------------------------------- a página do paciente
+
+          Fica **depois do contrato e antes do histórico**, e a posição é
+          argumento: as duas seções acima são o que foi combinado; esta é o que
+          está aberto agora. Pôr o link no topo faria a ficha começar por uma
+          ferramenta de envio, e quem abre uma ficha no meio da semana quer
+          primeiro saber que horas é e quanto é. */}
+      <section className="mt-8">
+        <h2 className="rotulo">A página dele</h2>
+        <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-tinta2">
+          Um link só, que mostra o que estiver esperando por ele: horário para
+          confirmar, pagamento em aberto e documentos dos últimos três meses.
+          Não mostra prontuário, não mostra histórico e não deixa cancelar
+          sessão — cancelar continua sendo conversa com você.
+        </p>
+        <div className="mt-3">
+          <LinkDoPaciente
+            pacienteId={paciente.id}
+            pacienteNome={paciente.nome}
+            telefone={paciente.telefone}
+            link={link}
           />
         </div>
       </section>
