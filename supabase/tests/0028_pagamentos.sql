@@ -49,6 +49,12 @@ begin
   insert into public.sessoes (conta_id,profissional_id,paciente_id,inicio,fim,origem,valor,politica_horas,politica_percentual)
   values (a_conta,a_prof,maria,base,base+interval '50 min','avulsa',200.00,24,50) returning id into s1;
   perform public.cancelar_sessao(s1,'paciente');
+  -- **P4 (0058):** a falta virou pergunta, e a cobrança só nasce da decisão.
+  -- Esta suíte mede o que vem **depois** de a cobrança existir — então ela
+  -- decide cobrar, pelo caminho de produção, e segue medindo a mesma coisa.
+  perform public.decidir_cobranca(p.id, 'cobrar')
+     from public.propostas_de_cobranca p
+    where p.sessao_id = s1 and p.estado = 'pendente';
   select id into cob from public.cobrancas where sessao_id=s1;
   if cob is null then raise exception 'PREPARO: sem cobrança'; end if;
 

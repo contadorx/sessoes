@@ -27,6 +27,8 @@ export type EnquadreLinha = {
   motivo_fim: string | null;
   mensalidade_valor: string | null;
   falta_cobra_a_parte: boolean;
+  /** Da 0057: null = não pede confirmação, e é o padrão. */
+  confirmacao_horas_antes: number | null;
 };
 
 export type PacienteLinha = {
@@ -50,7 +52,7 @@ export type PacienteLinha = {
 const CAMPOS_ENQUADRE =
   "id, dia_semana, hora, duracao_min, valor, social, modelo_cobranca, politica_horas, " +
   "politica_percentual, vigencia_inicio, vigencia_fim, motivo_fim, mensalidade_valor, " +
-  "falta_cobra_a_parte";
+  "falta_cobra_a_parte, confirmacao_horas_antes";
 
 const CAMPOS_PACIENTE =
   "id, nome, telefone, email, cpf, estado, msg_canal, msg_modo, observacao, criado_em, " +

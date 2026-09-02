@@ -2,12 +2,14 @@ import Link from "next/link";
 import { sessaoAtual } from "@/lib/conta";
 import {
   sessoesDaSemana,
+  respostaDasConfirmacoes,
   resumoDaSemana,
   listarAusencias,
   horizonte,
   pacientesParaEncaixe,
   cobrancasDaSemana,
   retornoDoMes,
+  decisoesPendentes,
 } from "./dados";
 import { Semana } from "@/components/app/Semana";
 import { Retorno } from "@/components/app/Retorno";
@@ -15,6 +17,8 @@ import { Ausencias } from "@/components/app/Ausencias";
 import { Encaixe } from "@/components/app/Encaixe";
 import { semanaDe, rotuloSemana, somarDias } from "@/lib/semana";
 import { hoje } from "@/lib/tempo-servidor";
+import { FaixaDeConfirmacoes, NumerosDaConfirmacao } from "@/components/app/Confirmacoes";
+import { CaixaDeDecisoes } from "@/components/app/Decisoes";
 import { acessosDa } from "@/lib/conta";
 import { prazosDoMes } from "@/app/(app)/prazos";
 import { pendencias, fraseDasPendencias } from "@/lib/navegacao";
@@ -37,7 +41,7 @@ export default async function Agenda({
   const referencia = /^\d{4}-\d{2}-\d{2}$/.test(pedida ?? "") ? pedida! : hojeStr;
   const semana = semanaDe(referencia);
 
-  const [sessao, sessoes, ausencias, ate, pacientes, retorno, prazos, comeco] =
+  const [sessao, sessoes, ausencias, ate, pacientes, retorno, prazos, comeco, confirmacoes, decisoes] =
     await Promise.all([
       sessaoAtual(),
       sessoesDaSemana(semana.inicio),
@@ -48,6 +52,12 @@ export default async function Agenda({
       // Os prazos que viraram faixa em vez de item de menu — ver `prazos.ts`.
       prazosDoMes(),
       estadoInicial(),
+      // Os dois números do P3. Degradam para `null` sem derrubar a agenda —
+      // instrumento de medição não pode quebrar a tela que ele mede.
+      respostaDasConfirmacoes(hojeStr),
+      // As multas esperando decisão (P4). Some sozinha quando não há nenhuma —
+      // e, numa conta sem falta nenhuma, é o estado permanente.
+      decisoesPendentes(),
     ]);
 
   // Depois das sessões, porque depende delas — e só busca se houver alguma
@@ -138,6 +148,33 @@ export default async function Agenda({
           }
         />
       </dl>
+
+      {/* A caixa de decisões vem antes de tudo o que é rotina do dia, e é
+          deliberado: **enquanto ela não decidir, nada é cobrado.** Uma pergunta
+          que o sistema faz e esconde numa aba é uma cobrança que nunca sai — e
+          o P4 trocou o silêncio-que-cobra pelo silêncio-que-não-cobra, o que só
+          é honesto se a pergunta estiver à vista. */}
+      <div className="mt-6">
+        <CaixaDeDecisoes decisoes={decisoes} />
+      </div>
+
+      {/* A faixa da confirmação vem **antes** da semana porque ela é sobre
+          hoje, e some sozinha quando ninguém foi perguntado. */}
+      {ehSemanaAtual && (
+        <div className="mt-6">
+          <FaixaDeConfirmacoes
+            sessoes={sessoes.filter(
+              (x) => x.inicio.slice(0, 10) === hojeStr && x.estado !== "cancelada_cedo" && x.estado !== "cancelada_tarde",
+            )}
+          />
+        </div>
+      )}
+
+      {ehSemanaAtual && (
+        <div className="mt-4">
+          <NumerosDaConfirmacao bruta={confirmacoes} />
+        </div>
+      )}
 
       <div className="mt-6">
         <Semana semana={semana} sessoes={sessoes}

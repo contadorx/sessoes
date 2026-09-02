@@ -39,6 +39,18 @@ declare
   base timestamptz; quando timestamptz; livre boolean; falhou boolean;
 begin
   -- ---------------------------------------------------------------- preparo
+  --
+  -- **Preâmbulo envelhece sozinho**, e este envelheceu: `documentos` (B13),
+  -- `cobrancas` (B11) e `recibos_rfb` (B24) nasceram depois desta suíte, todas
+  -- apontando para `pacientes`, e nenhuma delas estava nesta lista. O `delete`
+  -- do preparo passou a esbarrar numa FK e a suíte morria antes da primeira
+  -- verificação — sem testar nada, e sem que a falha dissesse isso.
+  --
+  -- A lição é a mesma que a 0044 já tinha ensinado por outro caminho: tabela
+  -- nova some da limpeza por conta e some do radar.
+  delete from public.recibos_rfb  where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
+  delete from public.documentos   where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
+  delete from public.cobrancas    where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
   delete from public.eventos_fila where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
   delete from public.ofertas      where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
   delete from public.fila_encaixe where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
@@ -308,6 +320,9 @@ begin
   -- ---------------------------------------------------------------- limpeza
   reset role;
   perform set_config('request.jwt.claims','',true);
+  delete from public.recibos_rfb  where conta_id in (a_conta,b_conta);
+  delete from public.documentos   where conta_id in (a_conta,b_conta);
+  delete from public.cobrancas    where conta_id in (a_conta,b_conta);
   delete from public.eventos_fila where conta_id in (a_conta,b_conta);
   delete from public.ofertas      where conta_id in (a_conta,b_conta);
   delete from public.fila_encaixe where conta_id in (a_conta,b_conta);

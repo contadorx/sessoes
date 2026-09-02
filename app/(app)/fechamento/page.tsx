@@ -32,6 +32,15 @@ export default async function Fechamento() {
 
   const caminhos = [
     {
+      // Primeiro da lista porque é a pergunta que se faz ao fechar o mês, antes
+      // de qualquer obrigação: o que aconteceu com as horas.
+      href: "/fechamento/livro",
+      titulo: "O livro-razão",
+      linha:
+        "Quanto da sua capacidade virou receita, e por onde o resto foi. Cada hora em quatro eixos, e nenhum deles preenchido à mão.",
+      chave: null,
+    },
+    {
       href: "/fechamento/receita-saude",
       titulo: "Receita Saúde",
       linha:

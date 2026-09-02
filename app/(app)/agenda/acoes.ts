@@ -7,6 +7,7 @@ import { sessaoAtual } from "@/lib/conta";
 import { inicioDoDiaSP } from "@/lib/tempo";
 import { paraCentavos } from "@/lib/dinheiro";
 import { adaptadorPara } from "@/lib/pagamentos/adaptadores";
+import { problemaNoAjuste, fraseDoAviso, type DestinoDoAviso } from "@/lib/politica";
 
 /** O instante exato de um "dia + hora" no fuso de São Paulo. */
 function inicioDaSessao(dia: string, hora: string): Date {
@@ -111,7 +112,10 @@ export async function cancelarSessao(_anterior: Resultado, form: FormData): Prom
       estado: "ok",
       mensagem:
         resultado === "cancelada_tarde"
-          ? "Cancelamento tardio — a política se aplica."
+          // **P4 (0058):** a política não se aplica mais sozinha. Ela chega
+          // como pergunta, e a frase tem de dizer isso — senão a tela promete
+          // uma cobrança que ninguém vai encontrar.
+          ? "Cancelamento tardio. A cobrança está esperando sua decisão, em \u201cA decidir\u201d."
           : "Cancelado dentro do prazo, sem cobrança.",
     };
   } catch (e) {
@@ -364,4 +368,88 @@ export async function gerarPix(_anterior: Resultado, form: FormData): Promise<Re
 
   revalidatePath("/agenda");
   return { estado: "ok", mensagem: "PIX gerado." };
+}
+
+/**
+ * A decisão sobre a multa (P4).
+ *
+ * **É a única porta pela qual uma cobrança de falta nasce.** O gatilho parou de
+ * criar cobrança na 0058; ele cria a pergunta, e esta ação é a resposta.
+ *
+ * Três coisas de desenho, e as três são sobre postura:
+ *
+ *  · **"Não cobrar" tem o mesmo peso visual que "Cobrar"** na tela que chama
+ *    esta ação. Quem construiu a régua tem a obrigação de deixar o desvio tão
+ *    fácil quanto o caminho — e agora o desvio é o padrão, porque sem decisão
+ *    nada acontece;
+ *  · **o valor ajustado é validado aqui e no banco**, com o mesmo teto. O banco
+ *    é quem garante; isto é para a mensagem de erro ser em português;
+ *  · **a resposta diz o que vai acontecer com o aviso**, inclusive quando ele
+ *    não vai sair. Descobrir depois que o paciente nunca soube da cobrança é o
+ *    pior lugar para descobrir.
+ */
+export async function decidirCobranca(_anterior: Resultado, form: FormData): Promise<Resultado> {
+  const id = String(form.get("proposta_id") ?? "");
+  const decisao = String(form.get("decisao") ?? "");
+  const motivo = String(form.get("motivo") ?? "").trim() || null;
+  const bruto = String(form.get("valor") ?? "").trim();
+  const teto = String(form.get("valor_da_sessao") ?? "").trim();
+
+  if (!id) return { estado: "erro", erros: ["Decisão não identificada."] };
+  if (decisao !== "cobrar" && decisao !== "perdoar") {
+    return { estado: "erro", erros: ["Escolha cobrar ou não cobrar."] };
+  }
+
+  let valor: number | null = null;
+  if (decisao === "cobrar" && bruto) {
+    const centavos = paraCentavos(bruto);
+    const problema = problemaNoAjuste(centavos, teto ? paraCentavos(teto) : null);
+    if (problema) return { estado: "erro", erros: [problema] };
+    valor = centavos / 100;
+  }
+
+  const supabase = await supabaseSessao();
+
+  let resposta: { decisao: string; valor: string; aviso: DestinoDoAviso; aviso_em: string | null };
+  try {
+    resposta = (await db(
+      "cobranca.decidir",
+      supabase.rpc("decidir_cobranca", {
+        p_proposta: id,
+        p_decisao: decisao,
+        p_valor: valor,
+        p_motivo: motivo,
+      }),
+    )) as unknown as typeof resposta;
+  } catch (e) {
+    console.error("[cobranca] falhou decidir", e);
+    return { estado: "erro", erros: [traduzirDecisao(e)] };
+  }
+
+  revalidatePath("/agenda");
+
+  if (decisao === "perdoar") {
+    return {
+      estado: "ok",
+      mensagem: "Registrado que você não vai cobrar. Ninguém recebe mensagem nenhuma.",
+    };
+  }
+
+  return {
+    estado: "ok",
+    mensagem: `Cobrança criada. ${fraseDoAviso(resposta?.aviso ?? null, resposta?.aviso_em ?? null)}`.trim(),
+  };
+}
+
+function traduzirDecisao(e: unknown): string {
+  if (e instanceof ErroDeBanco) {
+    if (/j[aá] foi decidida/i.test(e.message)) return "Esta decisão já foi tomada.";
+    if (/n[aã]o encontrada/i.test(e.message)) return "Esta pergunta não existe mais — a falta pode ter sido desfeita.";
+    if (/n[aã]o passa do valor/i.test(e.message)) return "O ajuste não pode passar do valor da sessão.";
+    if (/perd[aã]o n[aã]o tem valor/i.test(e.message)) {
+      return "Para cobrar menos, escolha cobrar e ajuste o valor.";
+    }
+    if (/zero/i.test(e.message)) return "Cobrança de zero não é cobrança — escolha não cobrar.";
+  }
+  return "Não consegui completar agora. Tente de novo em instantes.";
 }

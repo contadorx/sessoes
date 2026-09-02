@@ -19,6 +19,8 @@ import { supabaseServico } from "@/lib/supabase/servico";
 export type RelatorioDiario = {
   materializadas: number;
   lembretes: number;
+  confirmacoes: number;
+  silenciosas: number;
   mensalidades: number;
   regua: number;
   vencidos: number;
@@ -41,6 +43,16 @@ export async function passadaDiaria(): Promise<RelatorioDiario> {
 
   const lembretes =
     (await db<number>("diario.lembretes", supabase.rpc("agendar_lembretes"))) ?? 0;
+
+  // A confirmação (P3) vem **depois** dos lembretes e **antes** de qualquer
+  // coisa que olhe o silêncio: pedir e marcar como silenciosa na mesma passada,
+  // nesta ordem, é o que impede uma sessão de nascer "silenciosa" no mesmo
+  // minuto em que a pergunta saiu.
+  const confirmacoes =
+    (await db<number>("diario.confirmacoes", supabase.rpc("pedir_confirmacoes"))) ?? 0;
+
+  const silenciosas =
+    (await db<number>("diario.silenciosas", supabase.rpc("marcar_silenciosas"))) ?? 0;
 
   // A régua depois dos lembretes de sessão, e as duas antes do expurgo. Ordem
   // sem consequência hoje — mas o expurgo apaga mensagens antigas, e a régua
@@ -104,7 +116,7 @@ export async function passadaDiaria(): Promise<RelatorioDiario> {
     }))) ?? 0;
 
   return {
-    materializadas, lembretes, mensalidades, regua, vencidos, pastas,
+    materializadas, lembretes, confirmacoes, silenciosas, mensalidades, regua, vencidos, pastas,
     faturas_vencidas, assinaturas_em_atraso, avisos_criados, contas_suspensas,
     expurgadas,
   };

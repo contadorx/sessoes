@@ -342,8 +342,20 @@ begin
   select * into s from public.sessoes where id=s_tarde;
   if s.estado <> 'cancelada_tarde' then
     raise exception '17 FUROU: a hora antiga ficou % — remarcar virou atalho para fugir da política', s.estado; end if;
+  -- **P4 (0058):** o que esta verificação sempre disse é que **remarcar não é
+  -- atalho para fugir da política** — e isso continua inteiro. O que mudou é
+  -- onde a política chega: ela chega como pergunta, e a cobrança nasce da
+  -- decisão. As duas metades ficam provadas.
+  select count(*) into n from public.propostas_de_cobranca
+   where sessao_id=s_tarde and estado='pendente';
+  if n <> 1 then raise exception '17 FUROU: a remarcação tardia escapou da política (%)', n; end if;
+
+  perform public.decidir_cobranca(p.id, 'cobrar')
+     from public.propostas_de_cobranca p
+    where p.sessao_id = s_tarde and p.estado = 'pendente';
+
   select count(*) into n from public.cobrancas where sessao_id=s_tarde and estado='aberta';
-  if n <> 1 then raise exception '17 FUROU: a remarcação tardia não gerou cobrança (%)', n; end if;
+  if n <> 1 then raise exception '17 FUROU: a decisão de cobrar não gerou cobrança (%)', n; end if;
   if (select valor from public.cobrancas where sessao_id=s_tarde and estado='aberta') <> 100.00 then
     raise exception '17 FUROU: valor da cobrança errado'; end if;
   if (select origem from public.remarcacoes where sessao_id=s_tarde) <> 'presencial' then
@@ -487,10 +499,25 @@ begin
   j := public.custo_da_remarcacao(s_zero);
   if (j->>'valor')::numeric <> 0 then raise exception '22 FUROU: política de 0%% cobrou %', j->>'valor'; end if;
 
-  select id into fulano from public.sessoes
-   where conta_id=a_conta and origem='remarcada' and estado='prevista' limit 1;
+  -- A hora que está **dentro** do prazo, criada aqui de propósito.
+  --
+  -- Antes esta linha pegava `origem='remarcada'` com `limit 1`, e isso era um
+  -- teste instável por dois motivos: sem `order by`, qualquer linha servia; e a
+  -- sessão remarcada da parte 2 nasce de uma opção que o gerador só garante
+  -- estar a **12 horas** de distância — ou seja, ela pode legitimamente cair
+  -- dentro de uma política de 24h e ser tardia de verdade.
+  --
+  -- O teste passava ou falhava conforme a hora do dia em que rodasse, que é a
+  -- pior espécie de teste: o que reprova código correto de vez em quando.
+  reset role; perform set_config('request.jwt.claims','',true);
+  insert into public.sessoes (conta_id,profissional_id,paciente_id,inicio,fim,origem,valor,politica_horas,politica_percentual)
+  values (a_conta,a_prof,zero, now()+interval '3 days', now()+interval '3 days 50 minutes','remarcada',200.00,24,50)
+  returning id into fulano;
+  perform set_config('request.jwt.claims', json_build_object('sub',a_auth,'role','authenticated')::text, true);
+  execute 'set local role authenticated';
+
   j := public.custo_da_remarcacao(fulano);
-  if (j->>'tardia')::boolean is not false then raise exception '22 FUROU: chamou de tardia o que está no prazo: %', j; end if;
+  if (j->>'tardia')::boolean is not false then raise exception '22 FUROU: chamou de tardia o que está a três dias, com política de 24h: %', j; end if;
 
   -- ---------------------------------------------------------------- 23
   -- Regressão da B7: a policy de sessões foi reescrita nesta migração. O motor

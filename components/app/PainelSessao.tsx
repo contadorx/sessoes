@@ -12,6 +12,7 @@ import {
   gerarPix,
   type Resultado,
 } from "@/app/(app)/agenda/acoes";
+import { SeloDaConfirmacao } from "@/components/app/Confirmacoes";
 import { rotuloPolitica, multaDeFalta } from "@/lib/enquadre";
 import { paraCentavos, formatar } from "@/lib/dinheiro";
 import { ROTULO_ESTADO } from "./Semana";
@@ -164,13 +165,19 @@ function Pix({ codigo }: { codigo: string }) {
 }
 
 /**
- * A cobrança que nasceu sozinha.
+ * A cobrança que **ela** decidiu.
  *
- * Duas coisas de desenho, e as duas são sobre postura:
+ * O título deste bloco era "a cobrança que nasceu sozinha", e era verdade até a
+ * 0058. O P4 tirou a decisão do software: a multa passa pela caixa de decisões
+ * na agenda, e o que chega aqui já foi decidido por ela — ou é a cobrança de
+ * uma sessão que aconteceu, que segue automática porque hora prestada é preço
+ * combinado, e não juízo sobre o motivo de ninguém.
  *
- *  · **o perdão vem antes do "recebi"** na ordem de leitura, porque a régua
- *    automática só é aceitável se o freio estiver à mão. Quem construiu a régua
- *    tem a obrigação de deixar o desvio fácil;
+ * Duas coisas de desenho sobreviveram inteiras, e as duas são sobre postura:
+ *
+ *  · **o perdão vem antes do "recebi"** na ordem de leitura. Vale mesmo depois
+ *    da decisão: a pessoa pode ligar amanhã, e desistir de cobrar tem de
+ *    continuar sendo um toque;
  *  · **a tela diz quando o aviso sai.** Automação em que a pessoa não sabe o
  *    que vai acontecer nem quando é a definição de perder o controle da própria
  *    relação com o paciente.
@@ -186,8 +193,8 @@ function Cobranca({ cobranca }: { cobranca: CobrancaLinha }) {
   if (cobranca.estado === "perdoada") {
     return (
       <p className="mt-3 rounded-cartao border border-linha bg-folha2 px-4 py-3 text-[12.5px] leading-relaxed text-tinta2">
-        Você perdoou os <b className="font-semibold text-tinta">{valor}</b> desta
-        sessão. O aviso não saiu.
+        Você decidiu não cobrar os <b className="font-semibold text-tinta">{valor}</b>{" "}
+        desta sessão. Ninguém recebeu mensagem nenhuma.
       </p>
     );
   }
@@ -221,9 +228,18 @@ function Cobranca({ cobranca }: { cobranca: CobrancaLinha }) {
   return (
     <div className="mt-3 rounded-cartao border border-vaga-linha bg-vaga-bg px-4 py-3">
       <p className="text-[12.5px] leading-relaxed text-tinta2">
-        Pelo combinado desta sessão, ficam{" "}
-        <b className="font-semibold text-vaga">{valor}</b> a cobrar. O aviso sai
-        sozinho daqui a pouco, no texto neutro — você não precisa escrever nada.
+        {cobranca.motivo === "sessao_realizada" || cobranca.motivo === "avulsa" ? (
+          <>
+            Ficam <b className="font-semibold text-vaga">{valor}</b> a receber por
+            esta sessão.
+          </>
+        ) : (
+          <>
+            Você decidiu cobrar <b className="font-semibold text-vaga">{valor}</b>{" "}
+            desta sessão. O aviso sai no texto neutro — você não precisa escrever
+            nada.
+          </>
+        )}
       </p>
 
       {cobranca.pix_copia_cola ? (
@@ -250,8 +266,9 @@ function Cobranca({ cobranca }: { cobranca: CobrancaLinha }) {
       </div>
 
       <p className="mt-2.5 text-[11.5px] leading-relaxed text-tinta3">
-        Perdoar segura o aviso, se ele ainda não tiver saído. Fica registrado —
-        quantas vezes você abriu mão é uma informação sua, não uma cobrança.
+        Mudar de ideia segura o aviso, se ele ainda não tiver saído. Fica
+        registrado — quantas vezes você abriu mão é uma informação sua, não uma
+        cobrança.
       </p>
     </div>
   );
@@ -366,6 +383,11 @@ export function PainelSessao({
         {formatar(paraCentavos(sessao.valor))} · {rotuloPolitica(politica)}
       </p>
 
+      {/* A confirmação, quando existe. Ela aparece **acima** da cobrança de
+          propósito: quem avisou que não vem precisa ver o custo antes de o
+          botão de cancelar estar ao alcance da mão. */}
+      <SeloDaConfirmacao eixo={sessao.eixo_confirmacao} />
+
       {cobranca ? (
         <Cobranca cobranca={cobranca} />
       ) : (
@@ -378,10 +400,17 @@ export function PainelSessao({
               </>
             ) : (
               <>
+                {/* **Mudou com o P4 (0058).** Este texto dizia que a cobrança
+                    "ainda não apareceu" e que, se não aparecesse, algo não
+                    tinha rodado. Agora este é o estado normal: a cobrança não
+                    nasce sozinha, e a pergunta está esperando você no alto da
+                    agenda. Deixar o texto antigo seria o produto chamando de
+                    defeito o comportamento que ele acabou de escolher. */}
                 Pelo combinado, seriam{" "}
-                <b className="font-semibold text-tinta">{formatar(multa)}</b>. A
-                cobrança ainda não apareceu aqui; se não aparecer, é sinal de que
-                algo não rodou — vale me avisar.
+                <b className="font-semibold text-tinta">{formatar(multa)}</b> — e
+                nada é cobrado até você decidir. A pergunta está em{" "}
+                <b className="font-medium text-tinta">A decidir</b>, no alto da
+                agenda.
               </>
             )}
           </p>

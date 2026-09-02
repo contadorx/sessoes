@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { supabaseSessao } from "@/lib/supabase/server";
 import { sessaoAtual } from "@/lib/conta";
 import { Importar } from "@/components/app/Importar";
+import { duracao } from "@/lib/capacidade";
 
 export const metadata = { title: "Começar" };
 
@@ -15,6 +16,8 @@ export type EstadoInicial = {
   politica_definida: boolean;
   vagas_abertas: number;
   preenchidas: number;
+  janelas: number;
+  semana_min: number;
 };
 
 export async function estadoInicial(): Promise<EstadoInicial> {
@@ -64,6 +67,7 @@ function Passo({
 export default async function Comecar() {
   const [sessao, estado] = await Promise.all([sessaoAtual(), estadoInicial()]);
 
+  const temHoras = estado.janelas > 0;
   const temGente = estado.pacientes > 0;
   const temHorario = estado.enquadres > 0;
   const temFila = estado.na_fila > 0;
@@ -72,7 +76,7 @@ export default async function Comecar() {
   return (
     <div className="mx-auto max-w-2xl">
       <h1 className="font-serif text-[28px] leading-tight tracking-[-0.015em]">
-        {sessao.nome ? `${sessao.nome.split(" ")[0]}, ` : ""}quatro passos
+        {sessao.nome ? `${sessao.nome.split(" ")[0]}, ` : ""}cinco passos
       </h1>
       <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-tinta2">
         No fim deles, a próxima vez que alguém desmarcar, o horário é oferecido
@@ -81,7 +85,40 @@ export default async function Comecar() {
       </p>
 
       <ol className="mt-8">
-        <Passo n={1} titulo="Traga sua agenda" feito={temGente}>
+        {/* ---------------------------------------------------------- o passo 1
+
+            Ele é o primeiro porque é o **denominador**: sem saber quantas horas
+            ela decide disponibilizar, nenhum número do produto tem com o que
+            ser comparado — e "quanto da sua capacidade virou receita" fica sem
+            resposta possível.
+
+            E porque é a única pergunta desta lista que o sistema **não tem como
+            adivinhar**. Paciente, horário e fila ele infere da planilha que ela
+            colar; a decisão de quanto trabalhar é dela, e só ela sabe. */}
+        <Passo n={1} titulo="Declare quantas horas você disponibiliza" feito={temHoras}>
+          {temHoras ? (
+            <p>
+              {duracao(estado.semana_min)} por semana em {estado.janelas} faixa
+              {estado.janelas > 1 ? "s" : ""}, contando o tempo de registro e de
+              descanso.{" "}
+              <Link href="/perfil/horarios" className="text-vaga hover:underline">
+                revisar
+              </Link>
+            </p>
+          ) : (
+            <p>
+              Quantas horas por semana você <b className="text-tinta">decide</b>{" "}
+              disponibilizar, e para quê — atender, escrever prontuário,
+              descansar. As três são horas de trabalho, e o sistema precisa saber
+              disso para não tratar as duas últimas como buraco na agenda.{" "}
+              <Link href="/perfil/horarios" className="text-vaga hover:underline">
+                declarar a semana
+              </Link>
+            </p>
+          )}
+        </Passo>
+
+        <Passo n={2} titulo="Traga sua agenda" feito={temGente}>
           {temGente ? (
             <p>
               {estado.pacientes} pessoa{estado.pacientes > 1 ? "s" : ""} no
@@ -103,7 +140,7 @@ export default async function Comecar() {
           )}
         </Passo>
 
-        <Passo n={2} titulo="Confira o combinado de cada uma" feito={temHorario}>
+        <Passo n={3} titulo="Confira o combinado de cada uma" feito={temHorario}>
           {temHorario ? (
             <p>
               {estado.enquadres} horário{estado.enquadres > 1 ? "s" : ""} fixo
@@ -124,7 +161,7 @@ export default async function Comecar() {
           )}
         </Passo>
 
-        <Passo n={3} titulo="Monte a lista de espera" feito={temFila}>
+        <Passo n={4} titulo="Monte a lista de espera" feito={temFila}>
           {temFila ? (
             <p>
               {estado.na_fila} pessoa{estado.na_fila > 1 ? "s" : ""} esperando
@@ -145,7 +182,7 @@ export default async function Comecar() {
           )}
         </Passo>
 
-        <Passo n={4} titulo="Deixe a cascata correr" feito={jaRodou}>
+        <Passo n={5} titulo="Deixe a cascata correr" feito={jaRodou}>
           {jaRodou ? (
             <p>
               {estado.vagas_abertas} vaga{estado.vagas_abertas > 1 ? "s" : ""}{" "}

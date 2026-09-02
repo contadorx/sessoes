@@ -1,4 +1,6 @@
 import "server-only";
+import type { RespostaBruta } from "@/lib/confirmacao";
+import type { HistoricoBruto } from "@/lib/politica";
 import { db } from "@/lib/db";
 import { supabaseSessao } from "@/lib/supabase/server";
 import { diaEmSP, inicioDoDiaSP } from "@/lib/tempo";
@@ -21,6 +23,8 @@ export type SessaoLinha = {
   valor: string;
   politica_horas: number;
   politica_percentual: number;
+  /** Da 0057. Quem respondeu, quem não respondeu, e quem nem foi perguntado. */
+  eixo_confirmacao: string;
   pacientes: { id: string; nome: string; telefone: string | null } | null;
 };
 
@@ -44,7 +48,7 @@ export async function sessoesDaSemana(segunda: string): Promise<SessaoLinha[]> {
     supabase
       .from("sessoes")
       .select(
-        "id, inicio, fim, origem, estado, valor, nota, politica_horas, politica_percentual, pacientes ( id, nome, telefone )",
+        "id, inicio, fim, origem, estado, valor, nota, politica_horas, politica_percentual, eixo_confirmacao, pacientes ( id, nome, telefone )",
       )
       .gte("inicio", de.toISOString())
       .lt("inicio", ate.toISOString())
@@ -136,7 +140,7 @@ export async function proximasSessoes(dias = 14): Promise<SessaoLinha[]> {
     supabase
       .from("sessoes")
       .select(
-        "id, inicio, fim, origem, estado, valor, nota, politica_horas, politica_percentual, pacientes ( id, nome, telefone )",
+        "id, inicio, fim, origem, estado, valor, nota, politica_horas, politica_percentual, eixo_confirmacao, pacientes ( id, nome, telefone )",
       )
       .gte("inicio", de.toISOString())
       .lt("inicio", ate.toISOString())
@@ -290,4 +294,72 @@ export async function retornoDoMes(hojeStr: string): Promise<LinhaRetorno> {
       horas_recuperadas: "0",
     }
   );
+}
+
+/**
+ * Os dois números que decidem se a confirmação se paga.
+ *
+ * Trinta dias para trás, e **degrada em silêncio**: se a consulta falhar, a
+ * agenda aparece sem o bloco em vez de não aparecer. Instrumento de medição não
+ * pode derrubar a tela que ele mede.
+ */
+export async function respostaDasConfirmacoes(hojeStr: string) {
+  const supabase = await supabaseSessao();
+  const de = new Date(`${hojeStr}T00:00:00Z`);
+  de.setUTCDate(de.getUTCDate() - 30);
+
+  try {
+    return (await db("agenda.confirmacoes", supabase.rpc("resposta_das_confirmacoes", {
+      p_de: de.toISOString().slice(0, 10),
+      p_ate: hojeStr,
+    }))) as unknown as RespostaBruta;
+  } catch (e) {
+    console.error("[agenda] sem os números da confirmação", e);
+    return null;
+  }
+}
+
+// ============================================================ P4 · a decisão
+
+export type DecisaoPendente = {
+  id: string;
+  paciente_id: string;
+  paciente: string;
+  sessao_id: string;
+  inicio: string;
+  motivo: "cancelada_tarde" | "falta";
+  valor_sugerido: string;
+  politica_horas: number | null;
+  politica_percentual: number | null;
+  valor_da_sessao: string | null;
+  competencia: string;
+  criado_em: string;
+  dias_esperando: number;
+  historico: HistoricoBruto;
+};
+
+/**
+ * A caixa de decisões (P4).
+ *
+ * Uma chamada só, e ela já traz o histórico de cada pessoa junto — o doc 30
+ * pede a proposta "com a política congelada **e o histórico**", e buscar o
+ * histórico numa segunda ida faria a tela mostrar a pergunta antes de ter o que
+ * responde a ela.
+ *
+ * Degrada para lista vazia em vez de derrubar a agenda: uma caixa que não
+ * carrega é ruim, uma agenda que não abre é pior.
+ */
+export async function decisoesPendentes(): Promise<DecisaoPendente[]> {
+  const supabase = await supabaseSessao();
+
+  try {
+    const linhas = (await db(
+      "cobrancas.decisoes_pendentes",
+      supabase.rpc("decisoes_pendentes"),
+    )) as unknown as DecisaoPendente[] | null;
+    return linhas ?? [];
+  } catch (e) {
+    console.error("[decisoes] falhou carregar", e);
+    return [];
+  }
 }

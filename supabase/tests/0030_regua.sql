@@ -61,6 +61,12 @@ begin
   insert into public.sessoes (conta_id,profissional_id,paciente_id,inicio,fim,origem,estado,valor,politica_horas,politica_percentual)
   values (a_conta,a_prof,maria,base+interval '2 days',base+interval '2 days 50 min','avulsa','prevista',200.00,24,50) returning id into s3;
   update public.sessoes set estado='falta' where id in (s1,s2,s3);
+  -- **P4 (0058):** a falta virou pergunta, e a cobrança só nasce da decisão.
+  -- Esta suíte mede o que vem **depois** de a cobrança existir — então ela
+  -- decide cobrar, pelo caminho de produção, e segue medindo a mesma coisa.
+  perform public.decidir_cobranca(p.id, 'cobrar')
+     from public.propostas_de_cobranca p
+    where p.conta_id = a_conta and p.estado = 'pendente';
 
   reset role; perform set_config('request.jwt.claims','',true);
   update public.cobrancas set criado_em = now() - interval '9 days' where paciente_id=maria;
@@ -164,6 +170,12 @@ begin
   insert into public.sessoes (conta_id,profissional_id,paciente_id,inicio,fim,origem,estado,valor,politica_horas,politica_percentual)
   values (a_conta,a_prof,quieta,base+interval '3 hours',base+interval '3 hours 50 min','avulsa','prevista',200.00,24,50) returning id into s;
   update public.sessoes set estado='falta' where id=s;
+  -- **P4 (0058):** a falta virou pergunta, e a cobrança só nasce da decisão.
+  -- Esta suíte mede o que vem **depois** de a cobrança existir — então ela
+  -- decide cobrar, pelo caminho de produção, e segue medindo a mesma coisa.
+  perform public.decidir_cobranca(p.id, 'cobrar')
+     from public.propostas_de_cobranca p
+    where p.conta_id = a_conta and p.estado = 'pendente';
 
   -- ---------------------------------------------------------------- 6
   update public.pacientes set regua_ativa=false where id=caio;

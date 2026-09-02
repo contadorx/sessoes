@@ -97,6 +97,10 @@ export default async function Perfil() {
               <span className="mt-0.5 block text-[12px] text-tinta3">{d.descricao}</span>
             </Link>
           ))}
+        <Link href="/perfil/horarios" className="bg-folha px-4 py-3 text-[13.5px] text-tinta2">
+          Seus horários
+          <span className="mt-0.5 block text-[12px] text-tinta3">A semana que você disponibiliza</span>
+        </Link>
         <Link href="/perfil/integracoes" className="bg-folha px-4 py-3 text-[13.5px] text-tinta2">
           Integrações
           <span className="mt-0.5 block text-[12px] text-tinta3">Google Agenda</span>
@@ -154,6 +158,27 @@ export default async function Perfil() {
             podeEditar={Boolean(prof)}
           />
         </div>
+      </section>
+
+      {/* ---------------------------------------------------- horas declaradas
+
+          Fica logo depois do plano porque é a primeira coisa que o produto
+          precisa saber e a única que ele não consegue inferir de nada: quanto
+          trabalhar é decisão dela. */}
+      <section className="mt-8">
+        <h2 className="rotulo">Quantas horas você disponibiliza</h2>
+        <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-tinta2">
+          A sua semana declarada — atender, escrever prontuário, descansar. É o
+          denominador de todo número que o sistema vai te mostrar, e o tempo que
+          você reserva para não atender fica protegido: ele nunca aparece como
+          hora vaga.
+        </p>
+        <Link
+          href="/perfil/horarios"
+          className="mt-3 inline-block rounded-full border border-linha2 px-4 py-2 text-[12.5px] font-medium text-tinta2 transition-colors hover:bg-folha2"
+        >
+          Ver e mudar a semana
+        </Link>
       </section>
 
       {/* -------------------------------------------------------- regime fiscal

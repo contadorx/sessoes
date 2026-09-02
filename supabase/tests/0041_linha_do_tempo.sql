@@ -148,6 +148,12 @@ begin
   if r.nota_em is distinct from antes then
     raise exception '4 FUROU: o carimbo mudou sem a nota mudar'; end if;
   update public.sessoes set estado='falta' where id=s_falta;
+  -- **P4 (0058):** a falta virou pergunta, e a cobrança só nasce da decisão.
+  -- Esta suíte mede o que vem **depois** de a cobrança existir — então ela
+  -- decide cobrar, pelo caminho de produção, e segue medindo a mesma coisa.
+  perform public.decidir_cobranca(p.id, 'cobrar')
+     from public.propostas_de_cobranca p
+    where p.sessao_id = s_falta and p.estado = 'pendente';
 
   -- ---------------------------------------------------------------- 5
   update public.sessoes

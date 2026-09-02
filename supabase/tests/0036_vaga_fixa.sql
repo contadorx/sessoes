@@ -336,11 +336,20 @@ begin
 
   -- ---------------------------------------------------------------- 17
   j := public.responder_do_whatsapp('teste','w1','5511900000062','sim');
+  -- **Lição da 0058c**, e ela é sobre testes, não sobre filas: comparar
+  -- `j->>'fila'` com um texto **não acusa a chave que sumiu**. Em SQL,
+  -- `null <> 'entrada'` é nulo, e um `if` sobre nulo não dispara. Foi assim que
+  -- a 0057 apagou a fila de entrada desta função e esta suíte continuou verde.
+  -- Primeiro se cobra a existência da chave; depois o valor dela.
+  if not (j ? 'fila') then
+    raise exception '17 FUROU: a resposta voltou sem dizer de que fila era: %', j; end if;
   if j->>'fila' <> 'entrada' then raise exception '17 FUROU: o SIM foi para a fila %', j->>'fila'; end if;
   if j->>'estado' <> 'aceita' then raise exception '17 FUROU: %', j; end if;
 
   -- ---------------------------------------------------------------- 18
-  if (select fechada_por from public.vagas_fixas where id=v2) <> 'preenchida' then
+  -- `is distinct from` e não `<>`, pela mesma razão de cima: com a vaga ainda
+  -- aberta, `fechada_por` é nulo, e a comparação crua não reprovaria nada.
+  if (select fechada_por from public.vagas_fixas where id=v2) is distinct from 'preenchida' then
     raise exception '18 FUROU: a vaga fixa não foi preenchida pelo SIM'; end if;
   select count(*) into n from public.sessoes where paciente_id=joana;
   if n <> 0 then

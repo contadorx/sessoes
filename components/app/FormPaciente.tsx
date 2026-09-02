@@ -12,6 +12,7 @@ import {
   type Modelo,
 } from "@/lib/cobranca";
 import { paraCentavos } from "@/lib/dinheiro";
+import { OPCOES_DE_HORAS, fraseDoAjuste } from "@/lib/confirmacao";
 import type { Resultado } from "@/app/(app)/pacientes/acoes";
 import type { PacienteLinha, EnquadreLinha } from "@/app/(app)/pacientes/dados";
 import { Campo, Erros, Secao, ENTRADA } from "./campos";
@@ -147,6 +148,9 @@ export function CamposEnquadre({ base }: { base?: EnquadreLinha }) {
   const [dia, setDia] = useState<number>(base?.dia_semana ?? 2);
   const [valor, setValor] = useState(base?.valor ?? "");
   const [mensal, setMensal] = useState(base?.mensalidade_valor ?? "");
+  const [confirma, setConfirma] = useState(
+    base?.confirmacao_horas_antes == null ? "" : String(base.confirmacao_horas_antes),
+  );
 
   return (
     <Secao
@@ -238,6 +242,36 @@ export function CamposEnquadre({ base }: { base?: EnquadreLinha }) {
       <p className="mt-3 text-[12px] leading-relaxed text-tinta3">
         {MODELOS.find((m) => m.valor === modelo)?.explica}
       </p>
+
+      {/* ------------------------------------------------------ a confirmação
+
+          **Vazio é o padrão, e ele é "não pedir".** O campo existe porque
+          confirmar é prática de quem atende, não decisão de software: quem já
+          confirma no WhatsApp na véspera ganha isso automático, e quem não
+          confirma continua sem ninguém falando com o paciente dela.
+
+          A frase embaixo diz o que acontece com quem **não** responde, porque é
+          a parte que assusta — e a resposta é: nada acontece com o horário. */}
+      <div className="mt-5">
+        <Campo rotulo="Pedir confirmação ao paciente">
+          <select
+            name="confirmacao_horas_antes"
+            value={confirma}
+            onChange={(e) => setConfirma(e.target.value)}
+            className={ENTRADA}
+          >
+            <option value="">não pedir</option>
+            {OPCOES_DE_HORAS.map((o) => (
+              <option key={o.valor} value={String(o.valor)}>
+                {o.rotulo}
+              </option>
+            ))}
+          </select>
+        </Campo>
+        <p className="mt-2 max-w-[62ch] text-[12px] leading-relaxed text-tinta3">
+          {fraseDoAjuste(confirma === "" ? null : Number(confirma))}
+        </p>
+      </div>
 
       {modelo === "mensal" && (
         <Mensalidade

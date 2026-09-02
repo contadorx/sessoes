@@ -196,6 +196,12 @@ begin
   update public.sessoes set estado='prevista', cancelada_em=null, cancelada_por=null where id=s;
   update public.enquadres set falta_cobra_a_parte=true where id=e_fixa;
   update public.sessoes set estado='falta' where id=s;
+  -- **P4 (0058):** a falta virou pergunta, e a cobrança só nasce da decisão.
+  -- Esta suíte mede o que vem **depois** de a cobrança existir — então ela
+  -- decide cobrar, pelo caminho de produção, e segue medindo a mesma coisa.
+  perform public.decidir_cobranca(p.id, 'cobrar')
+     from public.propostas_de_cobranca p
+    where p.sessao_id = s and p.estado = 'pendente';
   select * into c from public.cobrancas where sessao_id=s and estado='aberta';
   if not found then raise exception '10 FUROU: ela pediu para cobrar à parte e não cobrou'; end if;
   if c.valor <> 100.00 then raise exception '10 FUROU: valor %', c.valor; end if;
@@ -318,6 +324,12 @@ begin
   execute 'set local role authenticated';
 
   update public.sessoes set estado='falta' where id=s3;
+  -- **P4 (0058):** a falta virou pergunta, e a cobrança só nasce da decisão.
+  -- Esta suíte mede o que vem **depois** de a cobrança existir — então ela
+  -- decide cobrar, pelo caminho de produção, e segue medindo a mesma coisa.
+  perform public.decidir_cobranca(p.id, 'cobrar')
+     from public.propostas_de_cobranca p
+    where p.sessao_id = s3 and p.estado = 'pendente';
   if public.saldo_do_pacote(p1) <> 0 then raise exception '18 FUROU: consumiu crédito inexistente'; end if;
   select * into c from public.cobrancas where sessao_id=s3 and estado='aberta';
   if not found then raise exception '18 FUROU: sem saldo, a falta deixou de ser cobrada'; end if;

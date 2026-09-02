@@ -137,6 +137,12 @@ begin
                                 (d_sessao + time '10:50') at time zone 'America/Sao_Paulo','avulsa','prevista',200.00,24,50)
     returning id into sf;
   update public.sessoes set estado='falta' where id=sf;
+  -- **P4 (0058):** a falta virou pergunta, e a cobrança só nasce da decisão.
+  -- Esta suíte mede o que vem **depois** de a cobrança existir — então ela
+  -- decide cobrar, pelo caminho de produção, e segue medindo a mesma coisa.
+  perform public.decidir_cobranca(p.id, 'cobrar')
+     from public.propostas_de_cobranca p
+    where p.sessao_id = sf and p.estado = 'pendente';
   select id into cfalta from public.cobrancas where sessao_id=sf and tipo='falta';
   if cfalta is null then raise exception '4 FUROU: a falta não gerou cobrança (regressão da B11)'; end if;
 

@@ -154,6 +154,27 @@ begin
   update public.contas set nome = 'Ana Teto', plano = 'gratis' where id = a_conta;
   update public.contas set nome = 'Bia Teto', plano = 'solo'   where id = b_conta;
 
+  -- Desliga a janela de silêncio nas contas de teste.
+  --
+  -- **Esta suíte passava de dia e falhava de madrugada**, e demorou a aparecer
+  -- porque ninguém roda suíte às quatro da manhã. A janela de silêncio da B7
+  -- empurra toda mensagem inserida de madrugada para as 8h — e aí
+  -- `agendada_para <= now()` deixa de valer, o `reservar_mensagens` não vê
+  -- nada, e a verificação 3 acusa o teto de não ter barrado uma mensagem que
+  -- ele nunca chegou a olhar.
+  --
+  -- Silêncio é ajuste de conta, então a suíte o desliga na conta dela: uma
+  -- janela de **um segundo**, posta uma hora à frente do relógio. Ela nunca
+  -- contém o agora, e não depende de que horas a suíte roda.
+  --
+  -- (Zerar os dois campos não serve: com `inicio = fim`, a conta da B7 cai no
+  -- ramo `hora >= inicio or hora < fim`, que é sempre verdadeiro — seria
+  -- silêncio o dia inteiro.)
+  update public.contas
+     set silencio_inicio = ((now() at time zone 'America/Sao_Paulo') + interval '1 hour')::time,
+         silencio_fim    = ((now() at time zone 'America/Sao_Paulo') + interval '1 hour 1 second')::time
+   where id in (a_conta, b_conta);
+
   -- Guarda o teto de produção e aperta para 8 durante a suíte.
   --
   -- Antes, esta suíte gastava 60 mensagens para estourar um teto de 60 escrito

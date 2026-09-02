@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { problemaNasHoras } from "@/lib/confirmacao";
 import { redirect } from "next/navigation";
 import { db, ErroDeBanco } from "@/lib/db";
 import { supabaseSessao } from "@/lib/supabase/server";
@@ -57,6 +58,13 @@ function lerEnquadre(form: FormData): { erros: string[]; dados: Record<string, u
   if (!Number.isInteger(horas) || horas < 0 || horas > 168) erros.push("Prazo da política inválido.");
   if (!Number.isInteger(pct) || pct < 0 || pct > 100) erros.push("Percentual da política inválido.");
 
+  // A confirmação da 0057. Vazio é **não pedir**, e é o padrão — quem não pede
+  // confirmação hoje não passa a pedir porque o formulário ganhou um campo.
+  const confBruto = String(form.get("confirmacao_horas_antes") ?? "").trim();
+  const confirmacao = confBruto === "" ? null : Number(confBruto);
+  const problemaConf = problemaNasHoras(confirmacao);
+  if (problemaConf) erros.push(problemaConf);
+
   if (erros.length > 0) return { erros, dados: null };
 
   return {
@@ -75,6 +83,7 @@ function lerEnquadre(form: FormData): { erros: string[]; dados: Record<string, u
       falta_cobra_a_parte: form.get("falta_cobra_a_parte") === "on",
       politica_horas: horas,
       politica_percentual: pct,
+      confirmacao_horas_antes: confirmacao,
     },
   };
 }

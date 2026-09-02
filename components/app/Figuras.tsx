@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { supabaseNavegador } from "@/lib/supabase/navegador";
 import { registrarFigura, apagarFigura } from "@/app/(app)/negocio/blog/acoes";
 import {
@@ -62,13 +62,40 @@ function sorteio(): string {
   return crypto.randomUUID().replace(/-/g, "").slice(0, 16);
 }
 
-export function SubirFigura({ aoSubir }: { aoSubir: (f: Figura) => void }) {
+export function SubirFigura({
+  aoSubir,
+  rotulo = "Subir uma figura",
+}: {
+  aoSubir: (f: Figura) => void;
+  /** O que vai acontecer com o arquivo. O botão diz, em vez de só "escolher". */
+  rotulo?: string;
+}) {
   const [alt, setAlt] = useState("");
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState("");
   const [chave, setChave] = useState(0);
 
+  // O `<input type="file">` fica escondido e é disparado por um `<button>` de
+  // verdade. Antes ele era um `<input disabled>` dentro de um `<label>` com
+  // cara de botão — e `label` de input desabilitado **não clica**: o botão
+  // parecia quebrado e não dizia por quê, que é a pior forma de recusar.
+  const seletor = useRef<HTMLInputElement>(null);
+  const campoAlt = useRef<HTMLInputElement>(null);
+
   const pronto = alt.trim().length >= 3;
+
+  const clicar = () => {
+    if (ocupado) return;
+    if (!pronto) {
+      // Recusa que ensina: leva o cursor para o campo que falta em vez de
+      // simplesmente não responder ao clique.
+      setErro("Descreva a figura antes de escolher o arquivo — é o que quem usa leitor de tela vai ouvir no lugar dela.");
+      campoAlt.current?.focus();
+      return;
+    }
+    setErro("");
+    seletor.current?.click();
+  };
 
   const escolher = async (arquivo: File | undefined) => {
     if (!arquivo) return;
@@ -122,6 +149,7 @@ export function SubirFigura({ aoSubir }: { aoSubir: (f: Figura) => void }) {
       });
 
       setAlt("");
+      setErro("");
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Não consegui subir a figura.");
     } finally {
@@ -135,8 +163,12 @@ export function SubirFigura({ aoSubir }: { aoSubir: (f: Figura) => void }) {
       <label className="block">
         <span className="rotulo">O que a figura mostra</span>
         <input
+          ref={campoAlt}
           value={alt}
-          onChange={(e) => setAlt(e.target.value)}
+          onChange={(e) => {
+            setAlt(e.target.value);
+            if (erro) setErro("");
+          }}
           maxLength={200}
           placeholder="uma grade de horários com três vazios"
           className="mt-1.5 w-full rounded-[5px] border border-linha2 bg-folha px-3 py-2 text-[13.5px] text-tinta"
@@ -149,32 +181,40 @@ export function SubirFigura({ aoSubir }: { aoSubir: (f: Figura) => void }) {
       </p>
 
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        <label
-          className={`inline-block cursor-pointer rounded-full border px-4 py-2 text-[12.5px] font-medium transition-colors ${
+        <button
+          type="button"
+          onClick={clicar}
+          disabled={ocupado}
+          aria-describedby="ajuda-figura"
+          className={`rounded-full px-4 py-2 text-[12.5px] font-semibold transition-opacity ${
             pronto && !ocupado
-              ? "border-linha2 text-tinta2 hover:bg-folha"
-              : "cursor-not-allowed border-linha text-tinta3"
+              ? "bg-cheia text-white hover:opacity-90"
+              : "border border-linha2 bg-folha text-tinta3"
           }`}
         >
-          {ocupado ? "subindo…" : "Escolher arquivo"}
-          <input
-            key={chave}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/avif"
-            disabled={!pronto || ocupado}
-            onChange={(e) => escolher(e.target.files?.[0])}
-            className="hidden"
-          />
-        </label>
-        <span className="text-[11.5px] text-tinta3">JPEG, PNG, WebP ou AVIF · até 5 MB</span>
+          {ocupado ? "subindo…" : rotulo}
+        </button>
+        <span id="ajuda-figura" className="text-[11.5px] text-tinta3">
+          JPEG, PNG, WebP ou AVIF · até 5 MB
+        </span>
+
+        {/* Fora do fluxo, e disparado pelo botão acima. */}
+        <input
+          key={chave}
+          ref={seletor}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/avif"
+          onChange={(e) => escolher(e.target.files?.[0])}
+          className="hidden"
+          tabIndex={-1}
+        />
       </div>
 
-      {!pronto && (
-        <p className="mt-2 text-[11.5px] text-tinta3">
-          O botão liga quando a descrição tiver ao menos três letras.
+      {erro && (
+        <p className="mt-2 max-w-[62ch] text-[12px] leading-relaxed text-vaga" role="alert">
+          {erro}
         </p>
       )}
-      {erro && <p className="mt-2 text-[12px] leading-relaxed text-vaga">{erro}</p>}
     </div>
   );
 }

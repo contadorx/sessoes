@@ -19,7 +19,7 @@ export function Acervo({ figuras }: { figuras: Figura[] }) {
 
   return (
     <div>
-      <SubirFigura aoSubir={(f) => setAcervo([f, ...acervo])} />
+      <SubirFigura rotulo="Subir para a biblioteca" aoSubir={(f) => setAcervo([f, ...acervo])} />
 
       {acervo.length > 0 && (
         <p className="mt-4 text-[12px] text-tinta3">

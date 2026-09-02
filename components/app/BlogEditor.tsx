@@ -399,8 +399,20 @@ export function BlogEditor({
               </button>
             </div>
 
+            {/* Subir e usar são **um gesto só**.
+                Antes, subir uma figura enquanto se escolhia a capa apenas a
+                acrescentava à grade — a pessoa clicava esperando definir a capa,
+                nada visível acontecia, e ainda era preciso achar a miniatura e
+                clicar em "usar". Agora o que sobe já entra no lugar de onde o
+                botão foi apertado, e a janela fecha. */}
             <div className="mt-3">
-              <SubirFigura aoSubir={(f) => setAcervo([f, ...acervo])} />
+              <SubirFigura
+                rotulo={escolhendo === "capa" ? "Subir e usar como capa" : "Subir e inserir no texto"}
+                aoSubir={(f) => {
+                  setAcervo([f, ...acervo]);
+                  usar(f);
+                }}
+              />
             </div>
 
             <Biblioteca
