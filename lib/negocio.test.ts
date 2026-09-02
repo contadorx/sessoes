@@ -21,6 +21,17 @@ import {
   motivoValido,
   somaDosCustos,
   precoVigente,
+  CAUSAS,
+  causasParaEscolher,
+  eChurn,
+  rotuloCausa,
+  proximoPassoDaRegua,
+  oQueASuspensaoNaoTira,
+  fraseDaRetencao,
+  causaQueMaisPesa,
+  DEGRAUS_DA_REGUA,
+  DIAS_PARA_SUSPENDER,
+  type Retencao,
 } from "./negocio";
 
 const conta = (p: Partial<ContaNoPainel> = {}): ContaNoPainel => ({
@@ -371,5 +382,160 @@ describe("somaDosCustos e precoVigente", () => {
     // família do LTV infinito: ausência de dado vestida de resultado.
     expect(precoVigente([{ vigencia_inicio: "2026-06-01", centavos_milesimos: 7000 }], "2026-01-01")).toBeNull();
     expect(precoVigente([], "2026-01-01")).toBeNull();
+  });
+});
+
+// =====================================================================
+// OP6 · a régua da assinatura e o churn com causa
+// =====================================================================
+
+describe("a causa do cancelamento", () => {
+  it("troca de plano não é churn — é o defeito que a 0052 encontrou", () => {
+    // `mudar_plano` cancela a assinatura antiga para preservar a faixa
+    // anterior no histórico, e o churn contava essa linha. Uma promoção de
+    // Solo para Pro registrava uma perda.
+    expect(eChurn("mudanca_de_plano")).toBe(false);
+  });
+
+  it("mas inadimplência é", () => {
+    // Perder por falta de pagamento é perder. Separar as duas é o que responde
+    // a pergunta que muda o roadmap: perco gente ou perco pagamento?
+    expect(eChurn("inadimplencia")).toBe(true);
+  });
+
+  it("a lista de escolher não oferece troca de plano", () => {
+    // Quem grava essa causa é a função `mudar_plano`, sozinha. Oferecê-la num
+    // formulário de cancelamento seria convidar a marcar saída como troca — e o
+    // churn viraria o número que eu quisesse que ele fosse.
+    const valores = causasParaEscolher().map((c) => c.valor);
+    expect(valores).not.toContain("mudanca_de_plano");
+    expect(valores).toContain("preco");
+    expect(valores).toHaveLength(CAUSAS.length - 1);
+  });
+
+  it("toda causa explica o que ela significa em consequência", () => {
+    for (const c of CAUSAS) {
+      expect(c.explica.length, c.valor).toBeGreaterThan(30);
+      expect(c.rotulo.length, c.valor).toBeGreaterThan(3);
+    }
+  });
+
+  it("nenhum rótulo culpa a cliente", () => {
+    // "desistiu", "abandonou", "sumiu" são leitura, não fato — e a lista é o
+    // que eu vou ler daqui a um ano tentando entender o que aconteceu.
+    for (const c of CAUSAS) {
+      expect(c.rotulo).not.toMatch(/desist|abandon|sumiu|preguiç/i);
+    }
+  });
+
+  it("o rótulo é encontrável pela chave", () => {
+    expect(rotuloCausa("preco")).toBe("achou caro");
+    expect(rotuloCausa("parou_de_atender")).toBe("parou de atender");
+  });
+});
+
+describe("o próximo passo da régua", () => {
+  it("diz o que vem, não o que passou", () => {
+    // Quem olha o painel quer saber o que vai acontecer com aquela conta.
+    expect(proximoPassoDaRegua(1)).toMatch(/próximo aviso em 2 dias/);
+    expect(proximoPassoDaRegua(4)).toMatch(/próximo aviso em 6 dias/);
+    expect(proximoPassoDaRegua(11)).toMatch(/próximo aviso em 9 dias/);
+  });
+
+  it("depois do último degrau, só resta a pausa", () => {
+    expect(proximoPassoDaRegua(21)).toBe("pausa em 4 dias");
+    expect(proximoPassoDaRegua(24)).toBe("pausa em 1 dia");
+  });
+
+  it("e depois dela, diz que já pausou e que a conta está no Grátis", () => {
+    expect(proximoPassoDaRegua(25)).toMatch(/já pausou/);
+    expect(proximoPassoDaRegua(90)).toMatch(/Grátis/);
+  });
+
+  it("os degraus e a suspensão batem com o banco", () => {
+    expect([...DEGRAUS_DA_REGUA]).toEqual([3, 10, 20]);
+    expect(DIAS_PARA_SUSPENDER).toBe(25);
+    // O último aviso vem antes da pausa. Conta que pausa sem ter sido avisada
+    // é a versão comercial do 307 mudo do proxy.
+    expect(DEGRAUS_DA_REGUA[DEGRAUS_DA_REGUA.length - 1]).toBeLessThan(DIAS_PARA_SUSPENDER);
+  });
+
+  it("a frase da suspensão diz o que ela NÃO tira", () => {
+    const f = oQueASuspensaoNaoTira();
+    expect(f).toMatch(/prontuário/);
+    expect(f).toMatch(/exportação/);
+    expect(f).toMatch(/Grátis/);
+  });
+});
+
+describe("a retenção", () => {
+  const VAZIA: Retencao = {
+    desde: "2026-01-01",
+    quantas: 0,
+    mrr_perdido_centavos: 0,
+    dias_de_vida_mediana: null,
+    por_causa: [],
+    lista: [],
+  };
+
+  it("com ninguém saindo, a frase não vira comemoração", () => {
+    // Zero churn com doze contas é base pequena, não resultado. É a mesma
+    // disciplina do LTV que devolve nulo em vez de infinito.
+    expect(fraseDaRetencao(VAZIA)).toMatch(/base pequena/);
+  });
+
+  it("com saídas, diz quantas e a mediana", () => {
+    const r: Retencao = { ...VAZIA, quantas: 3, dias_de_vida_mediana: 92 };
+    expect(fraseDaRetencao(r)).toMatch(/3 contas saíram/);
+    expect(fraseDaRetencao(r)).toMatch(/92 dias/);
+  });
+
+  it("uma só sai no singular", () => {
+    expect(fraseDaRetencao({ ...VAZIA, quantas: 1 })).toMatch(/1 conta saiu/);
+  });
+
+  it("a causa que mais pesa, e null no empate", () => {
+    const base = { mrr_perdido_centavos: 0 };
+    expect(
+      causaQueMaisPesa({
+        ...VAZIA,
+        quantas: 3,
+        por_causa: [
+          { causa: "preco", quantas: 2, ...base },
+          { causa: "nao_usou", quantas: 1, ...base },
+        ],
+      }),
+    ).toBe("preco");
+
+    // Empate não indica direção nenhuma, e apontar um dos dois seria inventar
+    // um sinal onde há ruído.
+    expect(
+      causaQueMaisPesa({
+        ...VAZIA,
+        quantas: 2,
+        por_causa: [
+          { causa: "preco", quantas: 1, ...base },
+          { causa: "nao_usou", quantas: 1, ...base },
+        ],
+      }),
+    ).toBeNull();
+
+    expect(causaQueMaisPesa(VAZIA)).toBeNull();
+  });
+});
+
+describe("a assinatura suspensa continua viva", () => {
+  it("e por isso oferece as mesmas ações de uma em atraso", () => {
+    // `assinatura_viva_da_conta` (0052d) trata suspensa como viva: ela tem
+    // dívida pendurada e volta ao ar quando alguém paga.
+    expect(acoesDaAssinatura("suspensa")).toEqual(acoesDaAssinatura("em_atraso"));
+  });
+
+  it("e não oferece 'abrir', que é o que criaria a segunda", () => {
+    expect(acoesDaAssinatura("suspensa")).not.toContain("abrir");
+  });
+
+  it("o rótulo dela existe e é curto", () => {
+    expect(rotuloEstado("suspensa")).toBe("suspensa");
   });
 });

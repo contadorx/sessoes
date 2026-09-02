@@ -61,6 +61,7 @@ begin
     union
     select id from public.contas where nome like 'Conta OP5%'
   loop
+    delete from public.avisos_assinatura where conta_id = a_conta;
     delete from public.faturas       where conta_id = a_conta;
     delete from public.assinaturas   where conta_id = a_conta;
     delete from public.mensagens     where conta_id = a_conta;
@@ -316,8 +317,11 @@ begin
     reset role;
   exception when others then falhou := true; reset role;
   end;
+  -- A lista ganhou `suspensa` na 0052, e a 0052d mostrou por que ela precisa
+  -- estar aqui também: uma conta suspensa continua tendo assinatura viva, e
+  -- contá-la de fora faria esta verificação aprovar duas.
   select count(*) into n from public.assinaturas
-   where conta_id = psi_conta and estado in ('trial','ativa','em_atraso');
+   where conta_id = psi_conta and estado in ('trial','ativa','em_atraso','suspensa');
   if n <> 1 then raise exception '11 · % assinaturas vivas na mesma conta', n; end if;
   if not falhou then raise exception '11 · a segunda passou em silêncio'; end if;
   raise notice '11 · uma assinatura viva por conta: ok';
@@ -623,6 +627,7 @@ begin
   for a_conta in
     select distinct u.conta_id from public.usuarios u where u.email like '%@teste.op5.com.br'
   loop
+    delete from public.avisos_assinatura where conta_id = a_conta;
     delete from public.faturas       where conta_id = a_conta;
     delete from public.assinaturas   where conta_id = a_conta;
     delete from public.mensagens     where conta_id = a_conta;

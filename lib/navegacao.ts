@@ -348,6 +348,98 @@ export function abasDoPaciente(a: Acessos): AbaDoPaciente[] {
   return fora;
 }
 
+/**
+ * As páginas da ficha, e por que ela deixou de ser uma página só.
+ *
+ * O Leandro disse a frase inteira: *"ficha, anamnese, evolução, tudo isso
+ * deveria ser opções em pacientes e não ficha na mesma página — tem fichas que
+ * são distintas e se perdem na mesma página"*.
+ *
+ * E o defeito era medível. A tela do paciente tinha dez seções empilhadas — o
+ * combinado, a fila de entrada, o pacote, o contrato, o registro do CFP, a
+ * anamnese, a linha do tempo, o histórico do combinado, o cadastro e a
+ * privacidade — e três delas são **documentos distintos com regimes de sigilo
+ * distintos**. O prontuário tem guarda de cinco anos e não se apaga; a anamnese
+ * congela ao fechar e o que vem depois é adendo; o cadastro se edita à vontade.
+ * Empilhar os três num rolar contínuo ensina que são a mesma coisa — e a
+ * primeira consequência disso não é confusão de interface, é alguém escrever
+ * matéria clínica no campo de anotação administrativa.
+ *
+ * DUAS DECISÕES SOBRE A LISTA
+ *
+ * **O que abre primeiro é o combinado, não o cadastro.** Quem abre a ficha no
+ * meio da semana quer saber que horas é, quanto é e o que foi acertado. O
+ * cadastro se preenche uma vez e se relê quase nunca.
+ *
+ * **A linha do tempo não é clínica, e por isso não é gateada.** Ela é
+ * aritmética de presença e ausência — quantas horas, quantas aconteceram, há
+ * quantos dias foi a última. Quem marca a agenda precisa saber que a pessoa não
+ * vem há três semanas; o que aconteceu na sala continua atrás do acesso
+ * clínico. É a mesma separação que a 0049 escreveu na RLS.
+ */
+export type PaginaDoPaciente = {
+  /** Sufixo da rota. Vazio é a própria ficha. */
+  sufixo: string;
+  rotulo: string;
+  /** O que a pessoa encontra ali, em consequência — para a dica da aba. */
+  resumo: string;
+  clinico: boolean;
+};
+
+const PAGINAS: PaginaDoPaciente[] = [
+  {
+    sufixo: "",
+    rotulo: "Combinado",
+    resumo: "Horário, valor, política de falta e o contrato aceito.",
+    clinico: false,
+  },
+  {
+    sufixo: "/prontuario",
+    rotulo: "Prontuário",
+    resumo: "Os quatro blocos que o CFP pede, e as evoluções.",
+    clinico: true,
+  },
+  {
+    sufixo: "/anamnese",
+    rotulo: "Anamnese",
+    resumo: "A avaliação da demanda, e os adendos depois de fechada.",
+    clinico: true,
+  },
+  {
+    sufixo: "/historico",
+    rotulo: "Linha do tempo",
+    resumo: "As horas que aconteceram e as que não aconteceram.",
+    clinico: false,
+  },
+  {
+    sufixo: "/ficha",
+    rotulo: "Cadastro",
+    resumo: "Contato, como avisar, e os direitos de LGPD.",
+    clinico: false,
+  },
+];
+
+export function paginasDoPaciente(a: Acessos): PaginaDoPaciente[] {
+  const clinico = podeClinico(a);
+  return PAGINAS.filter((p) => !p.clinico || clinico);
+}
+
+/**
+ * Qual aba está ativa, a partir do caminho.
+ *
+ * Prefixo mais longo ganha, pelo mesmo motivo de `destinoAtivo`: `""` é prefixo
+ * de tudo, e sem esta ordenação o Combinado ficaria aceso em todas as páginas.
+ */
+export function paginaAtiva(caminho: string, id: string): string {
+  const base = `/pacientes/${id}`;
+  if (!caminho.startsWith(base)) return "";
+  const resto = caminho.slice(base.length);
+  const achado = PAGINAS.filter((p) => p.sufixo !== "" && resto.startsWith(p.sufixo)).sort(
+    (a, b) => b.sufixo.length - a.sufixo.length,
+  )[0];
+  return achado?.sufixo ?? "";
+}
+
 // ============================================ o que os destinos contêm
 
 /**

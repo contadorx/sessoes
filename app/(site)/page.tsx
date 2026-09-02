@@ -4,6 +4,9 @@ import { Cascata } from "@/components/site/Cascata";
 import { Discricao } from "@/components/site/Discricao";
 import { Espera } from "@/components/site/Espera";
 import { Telas } from "@/components/site/Telas";
+import { UltimosTextos } from "@/components/site/UltimosTextos";
+import { RodapeDoSite } from "@/components/site/Moldura";
+import { Confirmar } from "@/components/app/Confirmar";
 import {
   AgendaEExtrato,
   CincoLugares,
@@ -231,10 +234,28 @@ const PLANOS = [
 ];
 
 
+/**
+ * A página inicial passou a ler o banco, e por isso ganhou prazo.
+ *
+ * A seção dos textos consulta `posts`. Sem `revalidate`, a landing continuaria
+ * congelada no build e um texto publicado só apareceria no próximo deploy — o
+ * sintoma seria "publiquei e não aconteceu nada", indistinguível de um botão
+ * quebrado. As ações do painel já chamam `revalidatePath("/")`, então na
+ * prática o texto aparece na hora; estes cinco minutos são a rede de segurança
+ * para o dia em que essa chamada falhar sozinha.
+ */
+export const revalidate = 300;
+
 export default function Home() {
   return (
     <>
       {/* ---------------- topo ---------------- */}
+      {/* O "Site URL" do Supabase pode ser a raiz, e nesse caso o link de
+          confirmação devolve a pessoa aqui — com a sessão pendurada no
+          fragmento da URL, que nenhum componente de servidor enxerga. Sem
+          fragmento de autenticação, isto não renderiza nada. */}
+      <Confirmar />
+
       <header className="sticky top-0 z-20 border-b border-linha bg-folha/85 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center gap-4 px-5 py-3 sm:px-8">
           <Marca className="text-[21px]" />
@@ -253,6 +274,12 @@ export default function Home() {
           >
             Preço
           </a>
+          <Link
+            href="/blog"
+            className="hidden text-[12.5px] font-medium text-tinta2 transition-colors hover:text-vaga sm:inline"
+          >
+            Textos
+          </Link>
           {/* Duas ações, e não uma. "Entrar" sozinho no topo parece destinado
               a quem já é cliente — e era a única porta visível para quem
               rolava a página inteira e decidia experimentar no fim. */}
@@ -751,6 +778,18 @@ export default function Home() {
           </p>
         </Secao>
 
+        {/* ---------------- os textos ----------------
+
+            Condicional: sem texto publicado, a seção não existe. Uma faixa
+            "em breve, nossos artigos" é a promessa não cumprida que a segunda
+            auditoria achou no funil, com outra roupa.
+
+            E ela vem DEPOIS do preço de propósito. Três links de leitura no
+            meio da decisão de assinar são três saídas da página; depois do
+            preço, viram a outra coisa que a pessoa pode fazer se ainda não
+            estiver pronta. */}
+        <UltimosTextos />
+
         {/* ---------------- o fechamento ----------------
 
             A hierarquia estava invertida: o maior botão da página, depois de
@@ -817,29 +856,16 @@ export default function Home() {
         </section>
       </main>
 
-      {/* ---------------- rodapé ---------------- */}
-      <footer className="border-t border-linha bg-folha">
-        <div className="mx-auto flex max-w-5xl flex-col gap-3 px-5 py-8 text-[12px] text-tinta3 sm:flex-row sm:items-center sm:px-8">
-          <Marca className="text-[16px]" />
-          {/* "Feito por um contador que resolveu olhar a conta do consultório"
-              reforçava autoridade financeira e, junto com ela, o medo de
-              fiscalização. O que a psicóloga quer não é um contador olhando a
-              conta dela — é não precisar olhar. */}
-          <span className="max-w-[52ch] text-tinta2">
-            Feito por um contador para tirar a conferência do caminho de quem
-            atende.
-          </span>
-          <span className="sm:ml-auto">
-            São Paulo ·{" "}
-            <a
-              href="mailto:oi@sessoes.com.br"
-              className="underline decoration-linha2 underline-offset-2 transition-colors hover:text-vaga"
-            >
-              oi@sessoes.com.br
-            </a>
-          </span>
-        </div>
-      </footer>
+      {/* ---------------- rodapé ----------------
+
+          O rodapé virou componente compartilhado com as páginas de documento.
+          O motivo é o item que ele passou a carregar: termos, privacidade e
+          segurança **precisam estar a um clique de qualquer página**, e não só
+          da inicial. O Manual do CFP de nov/2025 manda a psicóloga conferir as
+          cláusulas de eliminação do software que ela usa — um link difícil de
+          achar é uma cláusula difícil de conferir. Duas cópias do mesmo rodapé
+          seriam duas listas para esquecer de atualizar. */}
+      <RodapeDoSite />
     </>
   );
 }

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   obterPaciente,
@@ -6,26 +5,14 @@ import {
   lastroDoPaciente,
   pacotesDoPaciente,
   filaDeEntradaDoPaciente,
-  linhaDoTempoDoPaciente,
-  registroDoPaciente,
-  retencaoDaConta,
-  anamneseDoPaciente,
 } from "../dados";
-import { atualizarPaciente } from "../acoes";
-import { FormPaciente } from "@/components/app/FormPaciente";
 import { NovoEnquadre } from "@/components/app/NovoEnquadre";
 import { rotuloHorario, rotuloPolitica } from "@/lib/enquadre";
-import { Privacidade } from "@/components/app/Privacidade";
 import { Lastro } from "@/components/app/Lastro";
 import { Pacote } from "@/components/app/Pacote";
 import { FilaEntrada } from "@/components/app/FilaEntrada";
 import { rotuloModelo } from "@/lib/cobranca";
 import { hoje } from "@/lib/tempo-servidor";
-import { LinhaDoTempo } from "@/components/app/LinhaDoTempo";
-import { PainelRegistro } from "@/components/app/Registro";
-import { PainelAnamnese } from "@/components/app/Anamnese";
-import { sessaoAtual, acessosDa } from "@/lib/conta";
-import { abasDoPaciente } from "@/lib/navegacao";
 
 const brl = (v: string) =>
   Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -36,16 +23,20 @@ const MOTIVO: Record<string, string> = {
   encerramento: "encerramento",
 };
 
-export default async function Paciente({ params }: { params: Promise<{ id: string }> }) {
+/**
+ * O combinado — a primeira aba, e a que abre por padrão.
+ *
+ * Abre esta, e não o cadastro, porque a pergunta de quem abre uma ficha no meio
+ * da semana é "que horas é, quanto é, o que foi acertado". O cadastro se
+ * preenche uma vez e se relê quase nunca.
+ *
+ * O que mora aqui é tudo o que gira em torno do acordo: o enquadre vigente, a
+ * fila de entrada de quem ainda não tem horário, o pacote quando existe, o
+ * contrato aceito, e o histórico dos combinados anteriores — que é o que faz
+ * um reajuste não apagar março.
+ */
+export default async function Combinado({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  // A auditoria pediu "cadastro, dados administrativos e área clínica conforme
-  // permissão", e é aqui que os dois eixos aparecem na mesma tela. A RLS já
-  // devolveria vazio para quem não pode (migração 0049) — o que muda aqui é
-  // não **oferecer** a seção: uma caixa de evolução em branco para quem não
-  // pode escrever nela é uma promessa que a próxima tela quebra.
-  const acessos = acessosDa(await sessaoAtual());
-  const abas = abasDoPaciente(acessos);
-  const veClinico = abas.includes("clinico");
   const paciente = await obterPaciente(id);
   if (!paciente) notFound();
 
@@ -54,25 +45,10 @@ export default async function Paciente({ params }: { params: Promise<{ id: strin
   const lastro = await lastroDoPaciente(paciente.id, aberto?.id ?? null);
   const pacotes = aberto?.modelo_cobranca === "pacote" ? await pacotesDoPaciente(paciente.id) : [];
   const entrada = aberto ? { naFila: false, desde: null } : await filaDeEntradaDoPaciente(paciente.id);
-  const tempo = await linhaDoTempoDoPaciente(paciente.id);
-  const [registro, retencao, anamnese] = await Promise.all([
-    registroDoPaciente(paciente.id),
-    retencaoDaConta(),
-    anamneseDoPaciente(paciente.id),
-  ]);
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <Link href="/pacientes" className="text-[12.5px] text-tinta3 hover:text-vaga">
-        ← pacientes
-      </Link>
-
-      <h1 className="mt-2 font-serif text-[28px] leading-tight tracking-[-0.015em]">
-        {paciente.nome}
-      </h1>
-
-      {/* o combinado vigente */}
-      <section className="mt-6">
+    <>
+      <section>
         <h2 className="rotulo">O combinado</h2>
         {aberto ? (
           <div className="mt-2 rounded-cartao border border-cheia-linha bg-cheia-bg px-5 py-4">
@@ -169,80 +145,6 @@ export default async function Paciente({ params }: { params: Promise<{ id: strin
         </div>
       </section>
 
-      {/* ------------------------------------------------------ o registro (PR2/PR6) */}
-      {veClinico && registro && (
-        <section className="mt-10 border-t border-linha pt-6">
-          <h2 className="font-serif text-[21px] leading-tight">O registro</h2>
-          <p className="mt-2 max-w-xl text-[13.5px] leading-relaxed text-tinta2">
-            O Prontuário Psicológico desta pessoa, nos quatro blocos que a Res. CFP 001/2009 e o
-            Manual de nov/2025 pedem. O que estiver vazio aparece vazio — o Manual pede que se
-            evitem espaços em branco, e um buraco anunciado é melhor que um silencioso.
-          </p>
-
-          <PainelRegistro
-            pacienteId={paciente.id}
-            registro={registro}
-            ultimoRegistro={hoje()}
-            retencaoAnos={retencao}
-          />
-
-          <p className="mt-5 max-w-xl text-[11.5px] leading-relaxed text-tinta3">
-            O que estiver na <b className="font-medium">gaveta</b> não sai na cópia que o
-            paciente pode pedir: é o Registro Documental, de acesso restrito a você. Tudo o
-            mais sai — o direito de acesso ao próprio prontuário é dele. Nada aqui se apaga
-            dentro do prazo de guarda, nem por engano.
-          </p>
-        </section>
-      )}
-
-      {/* ------------------------------------------------------- a anamnese (PR3/PR5) */}
-      {veClinico && (
-      <section className="mt-10 border-t border-linha pt-6">
-        <h2 className="font-serif text-[21px] leading-tight">A anamnese</h2>
-        <p className="mt-2 max-w-xl text-[13.5px] leading-relaxed text-tinta2">
-          A avaliação da demanda em profundidade — o bloco 2 do registro, escrito com tempo.
-          Enquanto está aberta, edita-se à vontade; depois de fechada, o que chegar entra como
-          adendo, com a data em que chegou.
-        </p>
-
-        <PainelAnamnese
-          pacienteId={paciente.id}
-          anamnese={anamnese.anamnese}
-          aviso={anamnese.aviso}
-        />
-      </section>
-      )}
-
-      {!veClinico && (
-        <section className="mt-10 border-t border-linha pt-6">
-          <p className="max-w-xl text-[13px] leading-relaxed text-tinta3">
-            O registro clínico desta pessoa não aparece no seu acesso. Não é
-            omissão da tela: acesso clínico é uma decisão separada do cargo, e
-            quem concede é a responsável pela conta.
-          </p>
-        </section>
-      )}
-
-      {/* ------------------------------------------------- a linha do tempo (PR8) */}
-      <section className="mt-10 border-t border-linha pt-6">
-        <h2 className="font-serif text-[21px] leading-tight">A linha do tempo</h2>
-        <p className="mt-2 max-w-xl text-[13.5px] leading-relaxed text-tinta2">
-          As horas desta pessoa, na ordem em que aconteceram — ou não
-          aconteceram. Faltar não é só um lançamento financeiro: é o que se leva
-          para a próxima sessão.
-        </p>
-
-        <LinhaDoTempo linhas={tempo.linhas} ausencias={tempo.ausencias} hoje={hoje()} />
-
-        <p className="mt-5 max-w-xl text-[11.5px] leading-relaxed text-tinta3">
-          O sistema conta; quem lê é você. Aqui não há escore, alerta nem
-          rótulo — só o que aconteceu e quando. E a nota existe na hora que{" "}
-          <b className="font-medium">não</b> houve: a evolução da sessão
-          atendida é prontuário, que entra depois, com as resoluções do CFP
-          conferidas.
-        </p>
-      </section>
-
       {historico.length > 0 && (
         <section className="mt-8">
           <h2 className="rotulo">Histórico do combinado</h2>
@@ -272,36 +174,6 @@ export default async function Paciente({ params }: { params: Promise<{ id: strin
           </p>
         </section>
       )}
-
-      <section className="mt-8">
-        <h2 className="rotulo">Cadastro</h2>
-        {paciente.arquivado_em ? (
-          <div className="mt-2 rounded-cartao border border-linha bg-folha2 px-5 py-4">
-            <p className="text-[12.5px] leading-relaxed text-tinta2">
-              Ficha arquivada — só leitura. Encerramento registrado:
-            </p>
-            <p className="mt-2 whitespace-pre-wrap text-[13px] leading-relaxed text-tinta">
-              {paciente.encerramento}
-            </p>
-          </div>
-        ) : (
-          <div className="mt-2">
-            <FormPaciente
-              acao={atualizarPaciente}
-              paciente={paciente}
-              rotuloBotao="Salvar cadastro"
-            />
-          </div>
-        )}
-      </section>
-
-      <Privacidade
-        pacienteId={paciente.id}
-        nome={paciente.nome}
-        arquivado={Boolean(paciente.arquivado_em)}
-        contatoEsquecidoEm={paciente.contato_esquecido_em}
-        restricaoJudicial={paciente.restricao_judicial}
-      />
-    </div>
+    </>
   );
 }

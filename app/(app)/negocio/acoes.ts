@@ -80,12 +80,25 @@ export async function cancelarAssinatura(_a: Resultado, form: FormData): Promise
   const motivo = texto(form, "motivo");
   if (!motivoValido(motivo)) return ERRO(fraseDoMotivoCurto());
 
+  // A causa é obrigatória do lado de cá também. O banco tem um padrão
+  // (`'outra'`) para não quebrar chamada antiga, e aceitar esse padrão aqui
+  // seria transformar a lista inteira em decoração: o churn voltaria a ser um
+  // número sem direção nenhuma.
+  const causa = texto(form, "causa");
+  if (!causa) {
+    return ERRO("Escolha a causa. A frase diz o que aconteceu; a categoria é o que dá para contar.");
+  }
+  if (causa === "mudanca_de_plano") {
+    return ERRO("Troca de plano não se marca aqui — use 'Mudar de plano', que cancela e reabre com a causa certa.");
+  }
+
   try {
     await exigirOperador();
     const supabase = await supabaseSessao();
     await db("negocio.cancelar_assinatura", supabase.rpc("cancelar_assinatura", {
       p_assinatura: texto(form, "assinatura"),
       p_motivo: motivo,
+      p_causa: causa,
     }));
     revalidatePath("/negocio");
     return OK("Assinatura cancelada. A conta voltou ao Grátis e continua com tudo o que é registro.");
@@ -244,5 +257,31 @@ export async function definirPrecoCanal(_a: Resultado, form: FormData): Promise<
     return OK("Preço declarado a partir dessa vigência. O que já passou fica como estava.");
   } catch (e) {
     return comoErro(e, "Não consegui declarar o preço agora.");
+  }
+}
+
+// ============================================ a régua da assinatura (OP6)
+
+/**
+ * Marcar um aviso como enviado — o passo que hoje é meu.
+ *
+ * Não existe provedor de e-mail neste projeto, então quem manda o texto sou eu.
+ * O botão registra que saiu; ele não finge que o sistema enviou. Marcar como
+ * enviado o que não saiu seria a versão administrativa do `registro` da
+ * mensageria — e lá isso é modo de operação legítimo porque o que se exercita é
+ * a fila; aqui teria consequência: eu perderia o rastro de quem foi avisada.
+ */
+export async function marcarAvisoEnviado(_a: Resultado, form: FormData): Promise<Resultado> {
+  try {
+    await exigirOperador();
+    const supabase = await supabaseSessao();
+    await db("negocio.aviso", supabase.rpc("marcar_aviso_enviado", {
+      p_aviso: texto(form, "aviso"),
+    }));
+    revalidatePath("/negocio");
+    revalidatePath("/negocio/retencao");
+    return OK("Marcado como enviado.");
+  } catch (e) {
+    return comoErro(e, "Não consegui marcar agora.");
   }
 }

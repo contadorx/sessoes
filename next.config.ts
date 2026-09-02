@@ -48,6 +48,25 @@ const ENDERECOS_ANTIGOS: [string, string][] = [
 ];
 
 const nextConfig: NextConfig = {
+  /**
+   * As figuras do blog.
+   *
+   * O caminho normal é arquivo em `public/blog/`, que não precisa de nada
+   * disto. O `remotePatterns` existe para o caso de a figura vir de fora — e
+   * ele aceita **só https**, deliberadamente: `http://` numa página servida por
+   * https vira conteúdo misto, o navegador bloqueia, e a imagem some sem erro
+   * visível. É a mesma assimetria que `urlDeFiguraSegura` aplica no formulário e
+   * que o `check` da coluna `posts.figura_url` aplica no banco — três camadas
+   * dizendo a mesma coisa, porque a de fora é a única que o visitante sente.
+   *
+   * O host é aberto porque quem escreve a URL é o operador, e a alternativa
+   * seria uma lista de domínios que envelheceria em silêncio: a figura pararia
+   * de aparecer meses depois, num post antigo que ninguém revisita.
+   */
+  images: {
+    remotePatterns: [{ protocol: "https", hostname: "**" }],
+  },
+
   async redirects() {
     return ENDERECOS_ANTIGOS.map(([source, destination]) => ({
       source,

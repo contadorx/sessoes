@@ -12,6 +12,8 @@ import {
   diaBr,
   rotuloEncerramento,
   MODALIDADES,
+  FREQUENCIAS,
+  frequenciaNaLista,
   type RegistroDoPaciente,
 } from "./registro";
 
@@ -224,5 +226,36 @@ describe("rótulos e datas", () => {
     expect(rotuloEncerramento("alta")).toBe("alta");
     expect(rotuloEncerramento("abandono")).toBe("abandono");
     expect(rotuloEncerramento("encaminhamento")).toBe("encaminhamento");
+  });
+});
+
+describe("a frequência virou seleção, com uma saída", () => {
+  it("a lista tem as cinco comuns, e 'semanal' é a primeira", () => {
+    // A ordem é a do que aparece mais, não a do intervalo: quem está
+    // preenchendo quer achar "semanal" no primeiro olhar.
+    expect(FREQUENCIAS[0]).toBe("semanal");
+    expect(FREQUENCIAS).toHaveLength(5);
+  });
+
+  it("reconhece o que está na lista", () => {
+    expect(frequenciaNaLista("semanal")).toBe(true);
+    expect(frequenciaNaLista("quinzenal")).toBe(true);
+  });
+
+  it("e o que veio de antes, escrito à mão, não vira nada da lista", () => {
+    // A ficha antiga podia ter "1x por semana" no campo livre. Trocar isso por
+    // "semanal" seria o software reescrevendo registro clínico para caber num
+    // select — o campo abre em "outra", com o texto intacto.
+    expect(frequenciaNaLista("1x por semana")).toBe(false);
+    expect(frequenciaNaLista("quinzenal, às vezes semanal")).toBe(false);
+    expect(frequenciaNaLista(null)).toBe(false);
+  });
+
+  it("a lista não descreve frequência com adjetivo nem com juízo", () => {
+    // Doc 07: o sistema não opina sobre frequência de atendimento. "ideal",
+    // "recomendada", "mínima" seriam o software entrando na decisão clínica.
+    for (const f of FREQUENCIAS) {
+      expect(f).not.toMatch(/ideal|recomend|m[íi]nim|adequad|correto/i);
+    }
   });
 });

@@ -12,6 +12,8 @@ import {
   fraseDoVazio,
   acoesDaSessao,
   destinoAtivo,
+  paginasDoPaciente,
+  paginaAtiva,
   SECOES,
   type PrazosDoMes,
 } from "./navegacao";
@@ -388,5 +390,89 @@ describe("SECOES — a lista que dá para contar", () => {
     expect(todas).toContain("/fechamento/documentos"); // era "Documentos"
     expect(todas).toContain("/perfil/integracoes"); // era "Calendário"
     expect(todas).toContain("/perfil/contrato"); // era "Contratos"
+  });
+});
+
+// =====================================================================
+// As páginas da ficha do paciente
+// =====================================================================
+
+describe("a ficha deixou de ser uma página só", () => {
+  const DONA: Acessos = { papel: "dona", acessoClinico: null, acessoFinanceiro: null };
+  const SECRETARIA: Acessos = { papel: "secretaria", acessoClinico: null, acessoFinanceiro: null };
+  const ADM: Acessos = { papel: "administradora", acessoClinico: null, acessoFinanceiro: null };
+
+  it("a dona vê as cinco", () => {
+    expect(paginasDoPaciente(DONA).map((p) => p.rotulo)).toEqual([
+      "Combinado",
+      "Prontuário",
+      "Anamnese",
+      "Linha do tempo",
+      "Cadastro",
+    ]);
+  });
+
+  it("abre no combinado, e não no cadastro", () => {
+    // Quem abre uma ficha no meio da semana quer horário e valor. O cadastro
+    // se preenche uma vez e se relê quase nunca.
+    expect(paginasDoPaciente(DONA)[0].sufixo).toBe("");
+    expect(paginasDoPaciente(DONA)[0].rotulo).toBe("Combinado");
+  });
+
+  it("a secretária não recebe prontuário nem anamnese", () => {
+    const r = paginasDoPaciente(SECRETARIA).map((p) => p.rotulo);
+    expect(r).not.toContain("Prontuário");
+    expect(r).not.toContain("Anamnese");
+  });
+
+  it("mas continua com combinado, cadastro e linha do tempo", () => {
+    // A linha do tempo é aritmética de presença, não conteúdo clínico: quem
+    // marca a agenda precisa saber que a pessoa não vem há três semanas.
+    const r = paginasDoPaciente(SECRETARIA).map((p) => p.rotulo);
+    expect(r).toEqual(["Combinado", "Linha do tempo", "Cadastro"]);
+  });
+
+  it("quem cuida do financeiro também não lê o clínico", () => {
+    const r = paginasDoPaciente(ADM).map((p) => p.rotulo);
+    expect(r).not.toContain("Prontuário");
+    expect(r).not.toContain("Anamnese");
+  });
+
+  it("toda página tem resumo — a dica da aba diz o que se encontra ali", () => {
+    for (const p of paginasDoPaciente(DONA)) {
+      expect(p.resumo.length, p.rotulo).toBeGreaterThan(20);
+    }
+  });
+
+  it("as clínicas são exatamente duas, e são as que a 0049 fecha na RLS", () => {
+    const clinicas = paginasDoPaciente(DONA).filter((p) => p.clinico).map((p) => p.rotulo);
+    expect(clinicas).toEqual(["Prontuário", "Anamnese"]);
+  });
+});
+
+describe("qual aba acende", () => {
+  const ID = "abc-123";
+
+  it("a raiz da ficha acende o combinado", () => {
+    expect(paginaAtiva(`/pacientes/${ID}`, ID)).toBe("");
+  });
+
+  it("cada sufixo acende o seu", () => {
+    expect(paginaAtiva(`/pacientes/${ID}/prontuario`, ID)).toBe("/prontuario");
+    expect(paginaAtiva(`/pacientes/${ID}/anamnese`, ID)).toBe("/anamnese");
+    expect(paginaAtiva(`/pacientes/${ID}/historico`, ID)).toBe("/historico");
+    expect(paginaAtiva(`/pacientes/${ID}/ficha`, ID)).toBe("/ficha");
+  });
+
+  it("uma rota mais funda continua acendendo a aba dela", () => {
+    // `/pacientes/x/ficha/exportar` é da ficha, e não do combinado.
+    expect(paginaAtiva(`/pacientes/${ID}/ficha/exportar`, ID)).toBe("/ficha");
+  });
+
+  it("fora da ficha, nada acende por engano", () => {
+    // "" é prefixo de tudo: sem a ordenação por comprimento, o Combinado
+    // ficaria aceso em todas as páginas — é a mesma armadilha de destinoAtivo.
+    expect(paginaAtiva("/pacientes", ID)).toBe("");
+    expect(paginaAtiva("/agenda", ID)).toBe("");
   });
 });

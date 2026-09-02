@@ -15,6 +15,8 @@ import {
   fraseDoPrazo,
   diaBr,
   MODALIDADES,
+  FREQUENCIAS,
+  frequenciaNaLista,
   type RegistroDoPaciente,
   type Camada,
 } from "@/lib/registro";
@@ -167,6 +169,60 @@ export function Evolucao({
   );
 }
 
+/**
+ * A frequência, agora em seleção — com uma saída.
+ *
+ * O campo era texto livre, e o Leandro pediu lista. A lista resolve o problema
+ * real (a mesma frequência escrita de quatro jeitos na mesma base) e o campo
+ * livre ao lado resolve o que a lista não pode resolver: **o software não opina
+ * sobre frequência de atendimento** — doc 07, e é a linha que a B27 guarda com
+ * teste. Uma lista fechada transformaria estas cinco opções no conjunto das
+ * frequências que existem, e quem decide o ritmo de um caso é quem atende.
+ *
+ * Por isso "outra" não é enfeite: ela é o que faz a lista ser atalho em vez de
+ * vocabulário. E o que já estava escrito na ficha antes desta mudança abre
+ * direto em "outra", com o texto intacto — trocar um valor antigo por um da
+ * lista seria o software reescrevendo registro clínico para caber num select.
+ */
+function Frequencia({ atual }: { atual: string | null }) {
+  const naLista = frequenciaNaLista(atual);
+  const [escolha, setEscolha] = useState(naLista ? atual! : atual ? "outra" : "");
+
+  return (
+    <div>
+      <label htmlFor="frequencia_escolha" className="text-[12px] font-medium text-tinta2">
+        Frequência
+      </label>
+      <select
+        id="frequencia_escolha"
+        name={escolha === "outra" ? "frequencia_escolha" : "frequencia"}
+        value={escolha}
+        onChange={(e) => setEscolha(e.target.value)}
+        className={`mt-1 ${CAMPO}`}
+      >
+        <option value="">não registrada</option>
+        {FREQUENCIAS.map((f) => (
+          <option key={f} value={f}>
+            {f}
+          </option>
+        ))}
+        <option value="outra">outra —&nbsp;escrevo abaixo</option>
+      </select>
+
+      {escolha === "outra" && (
+        <input
+          name="frequencia"
+          maxLength={200}
+          autoFocus={!atual}
+          defaultValue={naLista ? "" : (atual ?? "")}
+          placeholder="como está combinado"
+          className={`mt-2 ${CAMPO}`}
+        />
+      )}
+    </div>
+  );
+}
+
 export function PainelRegistro({
   pacienteId,
   registro,
@@ -246,19 +302,7 @@ export function PainelRegistro({
           />
 
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <div>
-              <label htmlFor="frequencia" className="text-[12px] font-medium text-tinta2">
-                Frequência
-              </label>
-              <input
-                id="frequencia"
-                name="frequencia"
-                maxLength={200}
-                placeholder="semanal"
-                defaultValue={registro.demanda?.frequencia ?? ""}
-                className={`mt-1 ${CAMPO}`}
-              />
-            </div>
+            <Frequencia atual={registro.demanda?.frequencia ?? null} />
             <div>
               <label htmlFor="modalidade" className="text-[12px] font-medium text-tinta2">
                 Modalidade

@@ -53,6 +53,40 @@ export const MODALIDADES: { valor: Modalidade; rotulo: string }[] = [
   { valor: "misto", rotulo: "os dois" },
 ];
 
+/**
+ * As frequências, e por que elas viraram lista.
+ *
+ * O campo era texto livre de 200 caracteres, e o Leandro pediu seleção. A
+ * mudança é boa por um motivo prático — "semanal", "Semanal", "1x semana" e
+ * "1 vez por semana" são a mesma coisa escrita de quatro jeitos, e um campo
+ * livre garante os quatro na mesma base — e tem um limite que importa mais.
+ *
+ * **A lista não vai para o banco como `check`.** A coluna `registros.frequencia`
+ * continua sendo texto livre, e isto aqui é decisão de tela.
+ *
+ * O motivo é a fronteira do doc 11 e a linha do doc 07 que a B27 guarda com
+ * teste: *o sistema não opina sobre frequência de atendimento*. Uma restrição
+ * no banco transformaria esta lista no conjunto das frequências que existem —
+ * e quem decide o ritmo de um caso é quem atende, não o software que o
+ * registra. Por isso existe "outra", com campo aberto ao lado: a lista é
+ * atalho para os casos comuns, e nunca o vocabulário permitido.
+ *
+ * A ordem é a do que aparece mais, não a do intervalo — quem está preenchendo
+ * quer achar "semanal" no primeiro olhar.
+ */
+export const FREQUENCIAS = [
+  "semanal",
+  "duas vezes por semana",
+  "quinzenal",
+  "mensal",
+  "sob demanda",
+] as const;
+
+/** A frequência já registrada está na lista, ou é texto que veio de antes? */
+export function frequenciaNaLista(v: string | null): boolean {
+  return v !== null && (FREQUENCIAS as readonly string[]).includes(v);
+}
+
 export function rotuloCamada(c: Camada): string {
   return c === "documental" ? "gaveta" : "prontuário";
 }

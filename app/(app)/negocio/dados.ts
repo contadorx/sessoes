@@ -108,3 +108,31 @@ export async function lerPlanos(): Promise<Plano[]> {
     )) ?? []
   );
 }
+
+// ============================================ a régua e a retenção (OP6)
+
+import type { AvisoPendente, Retencao } from "@/lib/negocio";
+
+/**
+ * Os avisos que ainda não saíram.
+ *
+ * Enquanto não houver provedor de e-mail, esta lista **é** a régua: eu leio,
+ * mando o texto, e marco. É a mesma forma do outbox da B9 — a fila existe, os
+ * estados existem, e o adaptador é um arquivo que ainda não foi escrito.
+ */
+export async function lerAvisos(): Promise<AvisoPendente[]> {
+  const supabase = await supabaseSessao();
+  return (
+    (await db<AvisoPendente[]>("negocio.avisos", supabase.rpc("avisos_pendentes"))) ?? []
+  );
+}
+
+export async function lerRetencao(desde?: string): Promise<Retencao | null> {
+  const supabase = await supabaseSessao();
+  return (
+    (await db<Retencao>(
+      "negocio.retencao",
+      supabase.rpc("retencao_do_painel", { p_desde: desde ?? null }),
+    )) ?? null
+  );
+}

@@ -24,6 +24,9 @@ export type RelatorioDiario = {
   vencidos: number;
   pastas: number;
   faturas_vencidas: number;
+  assinaturas_em_atraso: number;
+  avisos_criados: number;
+  contas_suspensas: number;
   expurgadas: number;
 };
 
@@ -71,13 +74,29 @@ export async function passadaDiaria(): Promise<RelatorioDiario> {
   const pastas =
     (await db<number>("diario.pastas", supabase.rpc("gerar_pastas_do_dia"))) ?? 0;
 
-  // As minhas faturas, não as dela (OP5). Não cobra ninguém e não avisa
-  // ninguém: só troca `pendente` por `vencida` no que passou da data, para o
-  // painel parar de contar como esperado o que já não é. Enquanto a cobrança
-  // da assinatura for manual, este é o único passo automático do meu lado — e
-  // ele é de leitura da realidade, não de ação sobre a cliente.
-  const faturas_vencidas =
-    (await db<number>("diario.vencer_faturas", supabase.rpc("vencer_faturas"))) ?? 0;
+  // As minhas faturas, não as dela (OP6). `vencer_faturas` sozinho só trocava
+  // `pendente` por `vencida`; a régua faz os quatro passos na ordem — vence,
+  // atrasa a assinatura, cria os avisos e, no vigésimo quinto dia, suspende.
+  //
+  // A ordem dentro dela tem consequência: **o degrau 3 sai sempre antes da
+  // suspensão**. Uma conta que pausa sem ter sido avisada é a versão comercial
+  // do 307 mudo do proxy — funciona, ninguém vê, e o sintoma aparece como
+  // "o sistema parou sozinho".
+  //
+  // E suspender é devolver a conta ao plano Grátis, e só. Agenda, prontuário,
+  // anamnese e exportação continuam inteiros: a guarda de cinco anos é
+  // obrigação dela perante o Conselho, não alavanca de cobrança minha.
+  const regua_assinatura = await db<{
+    faturas_vencidas: number;
+    assinaturas_em_atraso: number;
+    avisos_criados: number;
+    contas_suspensas: number;
+  }>("diario.regua_assinatura", supabase.rpc("passar_a_regua_das_assinaturas"));
+
+  const faturas_vencidas = regua_assinatura?.faturas_vencidas ?? 0;
+  const assinaturas_em_atraso = regua_assinatura?.assinaturas_em_atraso ?? 0;
+  const avisos_criados = regua_assinatura?.avisos_criados ?? 0;
+  const contas_suspensas = regua_assinatura?.contas_suspensas ?? 0;
 
   const expurgadas =
     (await db<number>("diario.expurgar", supabase.rpc("expurgar_mensagens", {
@@ -86,6 +105,7 @@ export async function passadaDiaria(): Promise<RelatorioDiario> {
 
   return {
     materializadas, lembretes, mensalidades, regua, vencidos, pastas,
-    faturas_vencidas, expurgadas,
+    faturas_vencidas, assinaturas_em_atraso, avisos_criados, contas_suspensas,
+    expurgadas,
   };
 }

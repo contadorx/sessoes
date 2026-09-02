@@ -30,6 +30,41 @@ export function Entrar() {
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
 
+  /**
+   * A confirmação por e-mail deixou de ser um recado e virou **a tela**.
+   *
+   * O Leandro criou uma conta e não ficou claro que era preciso confirmar. E
+   * não era falta de aviso: a frase existia, em 12,5px, embaixo de um botão que
+   * continuava dizendo "Criar minha conta", num formulário que continuava
+   * cheio. Tudo na tela dizia "nada aconteceu ainda" e uma linha de texto
+   * dizia o contrário.
+   *
+   * Agora o formulário some. O que fica é o endereço para onde o e-mail foi,
+   * o que fazer, e o que fazer quando ele não chega — que é a pergunta
+   * seguinte, e que nenhuma tela costuma responder.
+   */
+  const [confirmar, setConfirmar] = useState<string | null>(null);
+  const [reenviando, setReenviando] = useState(false);
+  const [reenviado, setReenviado] = useState(false);
+
+  async function reenviar() {
+    if (!confirmar) return;
+    setReenviando(true);
+    try {
+      const supabase = supabaseNavegador();
+      // Erro aqui não vira alarme: o Supabase recusa reenvio repetido dentro de
+      // um intervalo curto, e "aguarde 60 segundos" seria a resposta mais
+      // provável de um segundo clique ansioso. O que importa é a pessoa saber
+      // que o pedido saiu.
+      await supabase.auth.resend({ type: "signup", email: confirmar });
+    } catch (e) {
+      console.error("[auth] reenvio", e);
+    } finally {
+      setReenviando(false);
+      setReenviado(true);
+    }
+  }
+
   async function enviar(form: FormData) {
     setEnviando(true);
     setErro(null);
@@ -51,8 +86,10 @@ export function Entrar() {
         });
         if (error) throw error;
 
+        // Sem sessão = o projeto exige confirmação por e-mail. É o caminho
+        // normal, e não um caso de borda: é o que acontece com toda conta nova.
         if (!data.session) {
-          setAviso("Confirme o e-mail que acabamos de enviar para entrar.");
+          setConfirmar(email);
           return;
         }
       } else {
@@ -67,6 +104,79 @@ export function Entrar() {
     } finally {
       setEnviando(false);
     }
+  }
+
+  if (confirmar) {
+    return (
+      <div className="rounded-cartao border border-cheia-linha bg-cheia-bg p-6 text-center">
+        <p className="font-serif text-[22px] leading-snug text-cheia">
+          Falta um passo: confirme o seu e-mail.
+        </p>
+
+        <p className="mt-3 text-[13.5px] leading-relaxed text-tinta2">
+          Mandamos uma mensagem para{" "}
+          <b className="font-medium text-tinta">{confirmar}</b>. Abra e clique no
+          link que está lá — é o que abre a sua conta.
+        </p>
+
+        <p className="mt-4 text-[12.5px] leading-relaxed text-tinta2">
+          Sem esse clique não dá para entrar, e não é burocracia: é o que impede
+          alguém de criar uma conta com o seu endereço.
+        </p>
+
+        <div className="mt-5 border-t border-cheia-linha pt-4 text-left">
+          <p className="text-[12px] font-medium text-tinta2">Não chegou?</p>
+          <ul className="mt-1.5 flex flex-col gap-1 text-[12px] leading-relaxed text-tinta2">
+            <li>· Pode levar um ou dois minutos.</li>
+            <li>· Veja em spam, promoções e lixeira.</li>
+            <li>· Confira se o endereço acima está certo.</li>
+          </ul>
+
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={reenviar}
+              disabled={reenviando || reenviado}
+              className="rounded-full border border-linha2 bg-folha px-3.5 py-1.5 text-[12.5px] font-medium text-tinta2 transition-opacity hover:bg-folha2 disabled:opacity-45"
+            >
+              {reenviando ? "Enviando…" : reenviado ? "Enviado de novo" : "Enviar de novo"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setConfirmar(null);
+                setReenviado(false);
+                setModo("cadastrar");
+              }}
+              className="text-[12px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
+            >
+              usar outro e-mail
+            </button>
+          </div>
+
+          {reenviado && (
+            <p className="mt-2 text-[11.5px] leading-relaxed text-tinta3">
+              Se ainda não chegar em alguns minutos, escreva para
+              oi@sessoes.com.br e a gente resolve por lá.
+            </p>
+          )}
+        </div>
+
+        <p className="mt-5 text-[12px] text-tinta3">
+          Já confirmou?{" "}
+          <button
+            type="button"
+            onClick={() => {
+              setConfirmar(null);
+              setModo("entrar");
+            }}
+            className="underline decoration-linha2 underline-offset-4 hover:text-vaga"
+          >
+            entrar agora
+          </button>
+        </p>
+      </div>
+    );
   }
 
   return (
@@ -133,6 +243,38 @@ export function Entrar() {
       >
         {enviando ? "Um instante…" : modo === "entrar" ? "Entrar" : "Criar minha conta"}
       </button>
+
+      {/* O aviso vem ANTES do clique, e não só depois.
+          Saber que existe um e-mail de confirmação enquanto se digita a senha é
+          diferente de descobrir isso na tela seguinte: a pessoa já sai daqui
+          sabendo que precisa abrir a caixa de entrada. */}
+      {modo === "cadastrar" && (
+        <>
+          <p className="mt-3 text-center text-[12px] leading-relaxed text-tinta3">
+            Vamos enviar um e-mail de confirmação. O clique nele é o que abre a
+            conta.
+          </p>
+          {/* O aceite fica no botão, e os documentos a um clique dali. Não é
+              caixinha de marcar: uma caixinha que todo mundo marca sem ler é
+              consentimento de fachada — e o que faz diferença aqui é o link
+              estar onde a decisão acontece. */}
+          <p className="mt-1.5 text-center text-[11px] leading-relaxed text-tinta3">
+            Ao criar a conta você aceita os{" "}
+            <a href="/termos" className="underline underline-offset-2 hover:text-vaga">
+              termos
+            </a>
+            ,{" "}
+            <a href="/privacidade" className="underline underline-offset-2 hover:text-vaga">
+              a privacidade
+            </a>{" "}
+            e{" "}
+            <a href="/seguranca" className="underline underline-offset-2 hover:text-vaga">
+              a segurança
+            </a>
+            .
+          </p>
+        </>
+      )}
 
       {erro && <p className="mt-3 text-[12.5px] font-medium text-vaga">{erro}</p>}
       {aviso && <p className="mt-3 text-[12.5px] font-medium text-cheia">{aviso}</p>}

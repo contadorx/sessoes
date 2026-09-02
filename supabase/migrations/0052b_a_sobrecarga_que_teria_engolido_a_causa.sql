@@ -1,0 +1,43 @@
+-- =====================================================================
+-- 0052b · A sobrecarga que teria engolido a causa
+-- =====================================================================
+--
+-- A 0052 acrescentou um parâmetro a `cancelar_assinatura`, com valor padrão,
+-- justamente para não quebrar chamada nenhuma. E foi por isso que ela quase
+-- desfez a própria migração.
+--
+-- `create or replace function` só substitui a função de **mesma assinatura**.
+-- Acrescentar um parâmetro não substitui nada: cria uma segunda função. O banco
+-- ficou assim:
+--
+--     cancelar_assinatura(uuid, text)          ← a antiga, sem causa
+--     cancelar_assinatura(uuid, text, text)    ← a nova
+--
+-- E o PostgREST escolhe a sobrecarga **pelo conjunto de nomes de parâmetro que
+-- chegou na chamada**. A ação da tela manda `p_assinatura` e `p_motivo`, dois
+-- nomes, e casa exatamente com a antiga. Ou seja: toda a metade do churn desta
+-- migração — a coluna, a lista fechada, a exceção que recusa causa
+-- desconhecida — ficaria intacta no banco e **nunca seria chamada**. O
+-- cancelamento continuaria gravando causa nula, o painel continuaria contando
+-- errado, e nenhum erro apareceria em lugar nenhum.
+--
+-- É o mesmo formato do defeito da OP2, e da 0040f da B26, com a peça trocada:
+-- lá `create or replace` reescreveu o todo e apagou o que outra migração tinha
+-- acrescentado; aqui ele **não** reescreveu, e deixou a versão velha viva ao
+-- lado da nova. Nos três casos o sintoma é o mesmo — o código novo existe, e o
+-- caminho continua passando pelo antigo.
+--
+-- **Regra que ficou:** mudar a assinatura de uma função é criar outra função. A
+-- migração que acrescenta parâmetro **derruba a versão antiga na mesma
+-- migração**, ou não terminou. E o jeito de conferir não é ler o arquivo: é
+-- perguntar ao banco quantas existem.
+--
+--     select p.oid::regprocedure from pg_proc p
+--      join pg_namespace n on n.oid = p.pronamespace
+--      where n.nspname = 'public' and p.proname = '<a função>';
+--
+-- Foi assim que este apareceu, e é por isso que a suíte 0052 tem uma
+-- verificação que conta as sobrecargas.
+-- =====================================================================
+
+drop function if exists public.cancelar_assinatura(uuid, text);

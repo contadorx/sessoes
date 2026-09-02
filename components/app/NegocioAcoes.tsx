@@ -13,9 +13,10 @@ import {
   marcarContaDeTeste,
   lancarCustoFixo,
   definirPrecoCanal,
+  marcarAvisoEnviado,
   type Resultado,
 } from "@/app/(app)/negocio/acoes";
-import type { Plano } from "@/lib/negocio";
+import { causasParaEscolher, type Plano } from "@/lib/negocio";
 
 /**
  * Os controles do painel — a parte que a OP1 não construiu.
@@ -142,24 +143,93 @@ export function CancelarAssinatura({ assinatura }: { assinatura: string }) {
   }
 
   return (
-    <form action={acao} className="flex flex-wrap items-center gap-2">
+    <form action={acao} className="flex flex-col gap-2">
       <input type="hidden" name="assinatura" value={assinatura} />
+
+      {/* **A frase primeiro, a categoria depois.** A ordem não é estética: o
+          que aconteceu de verdade está na frase, e escolher a categoria antes
+          de escrever faz a frase virar justificativa da caixinha escolhida. */}
       <input
         name="motivo"
         autoFocus
-        placeholder="por que cancelou — isto vira o churn com causa"
-        className={`${campo} min-w-[20rem] flex-1`}
+        placeholder="o que ela disse, com as palavras dela"
+        className={`${campo} w-full`}
       />
-      <Botao perigo>Confirmar cancelamento</Botao>
-      <button
-        type="button"
-        onClick={() => setAberto(false)}
-        className="text-[12px] text-tinta3 hover:text-tinta2"
-      >
-        deixa
-      </button>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <select name="causa" defaultValue="" className={campo}>
+          <option value="" disabled>
+            e o que isso foi…
+          </option>
+          {causasParaEscolher().map((c) => (
+            <option key={c.valor} value={c.valor}>
+              {c.rotulo}
+            </option>
+          ))}
+        </select>
+        <Botao perigo>Confirmar cancelamento</Botao>
+        <button
+          type="button"
+          onClick={() => setAberto(false)}
+          className="text-[12px] text-tinta3 hover:text-tinta2"
+        >
+          deixa
+        </button>
+      </div>
+
+      <p className="max-w-[62ch] text-[11.5px] leading-relaxed text-tinta3">
+        A frase é dela; a categoria é minha. As duas existem porque juntar as
+        duas perde uma das duas — a lista sozinha não diz o que construir, e a
+        frase sozinha não se conta.
+      </p>
+
       <Aviso r={r} />
     </form>
+  );
+}
+
+// ============================================ a régua da assinatura
+
+/**
+ * Um aviso da régua, com o texto à mostra e um botão que só registra.
+ *
+ * O texto aparece inteiro de propósito: enquanto não houver provedor de
+ * e-mail, quem manda sou eu, e um botão "enviar" que não envia seria uma
+ * mentira de uma palavra. O que existe é "copiei e mandei".
+ */
+export function AvisoDaRegua({ aviso, assunto, corpo }: {
+  aviso: string;
+  assunto: string;
+  corpo: string;
+}) {
+  const [r, acao] = useActionState(marcarAvisoEnviado, INICIAL);
+  const [aberto, setAberto] = useState(false);
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setAberto((v) => !v)}
+        className="text-[12px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
+      >
+        {aberto ? "esconder o texto" : "ver o texto do aviso"}
+      </button>
+
+      {aberto && (
+        <div className="mt-2 rounded-cartao border border-linha bg-folha px-4 py-3">
+          <p className="text-[12.5px] font-medium text-tinta">{assunto}</p>
+          <p className="mt-1.5 whitespace-pre-line text-[12.5px] leading-relaxed text-tinta2">
+            {corpo}
+          </p>
+        </div>
+      )}
+
+      <form action={acao} className="mt-2 flex flex-wrap items-center gap-2">
+        <input type="hidden" name="aviso" value={aviso} />
+        <Botao>Já mandei este</Botao>
+        <Aviso r={r} />
+      </form>
+    </div>
   );
 }
 

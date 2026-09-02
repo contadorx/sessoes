@@ -84,6 +84,18 @@ export function PainelNegocio({
         >
           custos e preço por mensagem
         </Link>
+        <Link
+          href="/negocio/retencao"
+          className="text-[12.5px] text-tinta2 underline decoration-linha2 underline-offset-4 hover:text-vaga"
+        >
+          quem saiu e a régua
+        </Link>
+        <Link
+          href="/negocio/blog"
+          className="text-[12.5px] text-tinta2 underline decoration-linha2 underline-offset-4 hover:text-vaga"
+        >
+          o blog
+        </Link>
         <p className="w-full text-[13px] text-tinta2">
           {mesPorExtenso(painel.mes)} · esta é a única tela do sistema que não é dela, e ela{" "}
           <b className="font-medium text-tinta">não alcança prontuário</b> — conta sessões, não

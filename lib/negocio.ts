@@ -22,6 +22,7 @@ export type EstadoAssinatura =
   | "trial"
   | "ativa"
   | "em_atraso"
+  | "suspensa"
   | "cancelada"
   | "sem_assinatura";
 
@@ -118,6 +119,8 @@ export function rotuloEstado(e: EstadoAssinatura): string {
       return "em teste";
     case "em_atraso":
       return "em atraso";
+    case "suspensa":
+      return "suspensa";
     case "cancelada":
       return "cancelada";
     case "sem_assinatura":
@@ -263,8 +266,10 @@ export type AcaoDeAssinatura = "abrir" | "mudar_plano" | "cancelar" | "emitir_fa
 export function acoesDaAssinatura(estado: EstadoAssinatura): AcaoDeAssinatura[] {
   if (estado === "sem_assinatura") return ["abrir"];
   if (estado === "cancelada") return ["abrir"];
-  // trial, ativa e em_atraso são todas "vivas": mudam de plano, cancelam e
-  // faturam. O índice `assinatura_viva_por_conta` é quem impede a segunda.
+  // trial, ativa, em_atraso e **suspensa** são todas vivas: mudam de plano,
+  // cancelam e faturam. `assinatura_viva_da_conta` (0052d) é quem impede a
+  // segunda — e `suspensa` entrou nessa lista porque uma conta suspensa tem
+  // dívida pendurada e volta ao ar quando alguém paga.
   return ["mudar_plano", "cancelar", "emitir_fatura"];
 }
 
@@ -343,4 +348,181 @@ export function precoVigente(
     .filter((p) => p.vigencia_inicio <= dia)
     .sort((a, b) => (a.vigencia_inicio < b.vigencia_inicio ? 1 : -1));
   return validos.length > 0 ? validos[0].centavos_milesimos : null;
+}
+
+// =====================================================================
+// A régua da assinatura, e o churn com causa (OP6)
+// =====================================================================
+
+/**
+ * A causa do cancelamento — a minha classificação, ao lado da frase dela.
+ *
+ * A lista espelha o `check` da coluna `assinaturas.causa_cancelamento`. Duas
+ * colunas existem porque juntar as duas perde uma das duas: a lista sozinha
+ * perde a frase que diz **o que construir**, e a frase sozinha não se conta.
+ *
+ * `mudanca_de_plano` está aqui e **não é churn**. É a correção do defeito que a
+ * 0052 encontrou: `mudar_plano` cancela a assinatura antiga para preservar a
+ * história, e o churn contava essa linha — toda promoção virava perda.
+ */
+export type CausaDeCancelamento =
+  | "preco"
+  | "parou_de_atender"
+  | "foi_para_outro"
+  | "faltou_recurso"
+  | "nao_usou"
+  | "problema_no_produto"
+  | "inadimplencia"
+  | "mudanca_de_plano"
+  | "outra";
+
+/**
+ * A ordem é a da conversa, não a alfabética: as duas primeiras são as que mais
+ * aparecem, e `outra` fecha a lista porque escolhê-la é desistir de classificar.
+ */
+export const CAUSAS: { valor: CausaDeCancelamento; rotulo: string; explica: string }[] = [
+  { valor: "preco", rotulo: "achou caro",
+    explica: "O valor não fechou para ela — pode ser preço, pode ser o que ela usa do produto." },
+  { valor: "parou_de_atender", rotulo: "parou de atender",
+    explica: "Saiu da profissão, mudou de vida, licença. Não é sobre o produto." },
+  { valor: "foi_para_outro", rotulo: "foi para outro sistema",
+    explica: "Trocou por um concorrente. Escreva qual, na frase." },
+  { valor: "faltou_recurso", rotulo: "faltou algo que ela precisava",
+    explica: "Existe uma coisa que o produto não faz e ela precisava. Isto vira roadmap." },
+  { valor: "nao_usou", rotulo: "não entrou no hábito",
+    explica: "Assinou e não usou. É problema de onboarding, não de funcionalidade." },
+  { valor: "problema_no_produto", rotulo: "algo quebrado ou lento",
+    explica: "Defeito, lentidão, uma frustração concreta. É o mais urgente da lista." },
+  { valor: "inadimplencia", rotulo: "não pagou, e a régua chegou ao fim",
+    explica: "Perda de verdade, e separada das outras: perder gente é diferente de perder pagamento." },
+  { valor: "mudanca_de_plano", rotulo: "trocou de plano",
+    explica: "Não é churn. A assinatura antiga é cancelada para preservar a faixa anterior no histórico." },
+  { valor: "outra", rotulo: "outra",
+    explica: "Quando nenhuma das anteriores serve. Se você escolher esta com frequência, falta uma opção na lista." },
+];
+
+/** As que contam como perda. Espelha `causas_de_churn()` no banco. */
+export function eChurn(c: CausaDeCancelamento): boolean {
+  return c !== "mudanca_de_plano";
+}
+
+export function rotuloCausa(c: CausaDeCancelamento): string {
+  return CAUSAS.find((x) => x.valor === c)?.rotulo ?? c;
+}
+
+/**
+ * As causas que a tela oferece ao cancelar à mão.
+ *
+ * `mudanca_de_plano` fica **fora**: quem grava essa causa é a função
+ * `mudar_plano`, sozinha. Oferecê-la num formulário de cancelamento seria
+ * convidar a marcar uma saída como troca — e o churn passaria a ser o número
+ * que eu quisesse que ele fosse.
+ */
+export function causasParaEscolher(): typeof CAUSAS {
+  return CAUSAS.filter((c) => c.valor !== "mudanca_de_plano");
+}
+
+// ============================================ a régua
+
+export type EstadoDoAviso = "pendente" | "enviado" | "cancelado";
+
+export type AvisoPendente = {
+  id: string;
+  conta_id: string;
+  conta: string;
+  competencia: string;
+  vencimento: string;
+  dias: number;
+  degrau: number;
+  assunto: string;
+  corpo: string;
+};
+
+/**
+ * O que ainda vai acontecer com uma fatura em atraso, em dias.
+ *
+ * Espelha `regua_da_assinatura()` e `dias_para_suspender()`. Existe para a tela
+ * dizer *"em cinco dias esta conta pausa"* em vez de mostrar só o número de
+ * dias de atraso — o que a pessoa que olha o painel quer saber é o que vem, não
+ * o que passou.
+ */
+export const DEGRAUS_DA_REGUA = [3, 10, 20] as const;
+export const DIAS_PARA_SUSPENDER = 25;
+
+export function proximoPassoDaRegua(diasDeAtraso: number): string {
+  if (diasDeAtraso >= DIAS_PARA_SUSPENDER) {
+    return "já pausou — a conta está no Grátis até alguém pagar";
+  }
+  const faltam = DIAS_PARA_SUSPENDER - diasDeAtraso;
+  const proximo = DEGRAUS_DA_REGUA.find((d) => d > diasDeAtraso);
+  if (proximo) {
+    const ate = proximo - diasDeAtraso;
+    return `próximo aviso em ${ate} ${ate === 1 ? "dia" : "dias"} · pausa em ${faltam}`;
+  }
+  return `pausa em ${faltam} ${faltam === 1 ? "dia" : "dias"}`;
+}
+
+/**
+ * A frase que a tela mostra sobre o que a suspensão faz — e o que ela não faz.
+ *
+ * Ela existe na tela, e não só na migração, porque é a decisão que eu vou
+ * querer atropelar num dia ruim, e a tela é onde o dia ruim acontece.
+ */
+export function oQueASuspensaoNaoTira(): string {
+  return "Suspender devolve a conta ao plano Grátis: a fila para de oferecer vaga sozinha e a régua de cobrança pausa. Agenda, prontuário, anamnese e exportação continuam inteiros — a guarda de cinco anos é obrigação dela, não alavanca minha.";
+}
+
+// ============================================ a retenção
+
+export type PorCausa = {
+  causa: CausaDeCancelamento;
+  quantas: number;
+  mrr_perdido_centavos: number;
+};
+
+export type SaidaDaLista = {
+  conta_id: string;
+  conta: string;
+  plano: string;
+  valor_centavos: number;
+  causa: CausaDeCancelamento;
+  motivo: string | null;
+  inicio: string;
+  cancelada_em: string;
+  dias_de_vida: number;
+};
+
+export type Retencao = {
+  desde: string;
+  quantas: number;
+  mrr_perdido_centavos: number;
+  dias_de_vida_mediana: number | null;
+  por_causa: PorCausa[];
+  lista: SaidaDaLista[];
+};
+
+/**
+ * A frase do topo da retenção — e ela recusa a porcentagem.
+ *
+ * Com uma dúzia de contas, "33% saíram por preço" são duas pessoas. Um número
+ * que parece saber mais do que sabe é pior que nenhum, e é o mesmo motivo pelo
+ * qual `ltv` devolve nulo com churn zero em vez de devolver infinito.
+ */
+export function fraseDaRetencao(r: Retencao): string {
+  if (r.quantas === 0) {
+    return "Ninguém saiu no período. Não é resultado ainda — é uma base pequena, e a leitura só começa a valer com mais gente.";
+  }
+  const dias =
+    r.dias_de_vida_mediana === null
+      ? ""
+      : ` A mediana de permanência foi de ${r.dias_de_vida_mediana} dias.`;
+  return `${r.quantas} ${r.quantas === 1 ? "conta saiu" : "contas saíram"} no período.${dias}`;
+}
+
+/** A causa mais frequente, e null no empate — empate não indica direção. */
+export function causaQueMaisPesa(r: Retencao): CausaDeCancelamento | null {
+  if (r.por_causa.length === 0) return null;
+  const ordenado = [...r.por_causa].sort((a, b) => b.quantas - a.quantas);
+  if (ordenado.length > 1 && ordenado[0].quantas === ordenado[1].quantas) return null;
+  return ordenado[0].causa;
 }
