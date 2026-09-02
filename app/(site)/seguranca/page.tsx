@@ -155,9 +155,41 @@ export default function Seguranca() {
             Ainda não está disponível. Enquanto isso, a recomendação vale mais
             que o normal: use uma senha longa e que não exista em outro lugar.
           </p>
+          <p>
+            <b className="font-medium">O ensaio de restauração.</b> O roteiro
+            existe e o script que confere a base restaurada existe — o que ainda
+            não foi feito é o ensaio completo, com cronômetro. Enquanto ele não
+            for feito, “temos backup” é uma frase e não um número, e esta página
+            prefere dizer isso a arredondar.
+          </p>
         </Bloco>
 
-        <Bloco titulo="7. Encontrou uma falha?">
+        <Bloco titulo="7. Se acontecer um incidente">
+          <p>
+            Existe um plano escrito, e ele tem prazo: se um incidente atingir
+            dados dos seus pacientes,{" "}
+            <b className="font-medium">você é avisada em até 24 horas</b>,
+            individualmente, com o que foi atingido na sua conta e com a hora
+            exata em que eu soube — que é de onde começa a contar o prazo de{" "}
+            <b className="font-medium">três dias úteis</b> que a lei dá a você
+            para comunicar a ANPD e os pacientes.
+          </p>
+          <p>
+            <Link
+              href="/incidente"
+              className="underline underline-offset-2 hover:text-vaga"
+            >
+              A página do incidente
+            </Link>{" "}
+            diz de quem é o dever de comunicar (é seu, nos dados dos pacientes, e
+            a razão está lá), o que eu faço nas primeiras horas, e traz o modelo
+            do texto que você vai precisar mandar. Ela é estática de propósito: o
+            dia em que você mais precisa dela pode ser o dia em que o resto do
+            produto está com problema.
+          </p>
+        </Bloco>
+
+        <Bloco titulo="8. Encontrou uma falha?">
           <p>
             Escreva para{" "}
             <a
@@ -168,7 +200,7 @@ export default function Seguranca() {
             </a>{" "}
             com o que você viu e como reproduzir. Respondemos, corrigimos, e
             dizemos o que foi feito — e se a falha tiver exposto dado de alguém,
-            avisamos quem foi afetado.
+            avisamos quem foi afetado, pelo caminho da seção 7.
           </p>
           <p>
             Não temos programa de recompensa. Temos o compromisso de não tratar

@@ -162,7 +162,13 @@ export function fraseDaEspera(dias: number): string {
  * O que vai acontecer com a mensagem, dito **no momento da decisão**.
  *
  * Descobrir depois que o paciente nunca soube da cobrança é o pior lugar para
- * descobrir — e o teto do plano barra na hora do envio (0046), não na fila.
+ * descobrir — e o freio técnico barra na hora do envio (0060), não na fila.
+ *
+ * **Mudou na OP8:** o que barrava era o teto de mensagens do plano, e ele saiu
+ * do produto. O que barra hoje é uma trava contra envio repetido por defeito —
+ * não é limite de plano, é igual para todo mundo, e a frase diz isso, porque
+ * dizer "o seu plano atingiu o limite" sobre uma trava de segurança faria a
+ * pessoa procurar uma solução comercial para um problema que não é dela.
  */
 export function fraseDoAviso(destino: DestinoDoAviso, quandoISO: string | null): string {
   switch (destino) {
@@ -178,7 +184,7 @@ export function fraseDoAviso(destino: DestinoDoAviso, quandoISO: string | null):
     case "silencio_do_paciente":
       return "Esta pessoa pediu para não receber mensagens. A cobrança fica registrada, e o aviso é com você.";
     case "barrado_no_teto":
-      return "O teto de mensagens do seu plano foi atingido neste mês: a cobrança fica registrada, mas o aviso não vai sair.";
+      return "Uma trava de segurança segurou este aviso — saíram mensagens demais para esta pessoa hoje. A cobrança fica registrada, e o aviso é com você.";
     default:
       return "";
   }

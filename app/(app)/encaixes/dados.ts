@@ -3,7 +3,9 @@ import { db } from "@/lib/db";
 import { supabaseSessao } from "@/lib/supabase/server";
 import { sessaoAtual } from "@/lib/conta";
 import type { Janela } from "@/lib/janela";
-import type { Teto, Pacientes } from "@/lib/teto";
+import type { Pacientes } from "@/lib/teto";
+import { SEM_FAIXA, type Faixa } from "@/lib/faixa";
+import { NAO_PERGUNTAR, type Pendencia } from "@/lib/avaliacao";
 
 export type NaFila = {
   id: string;
@@ -263,39 +265,46 @@ export async function taxaDePreenchimento(
 }
 
 /**
- * O teto do plano da conta.
+ * A faixa de sessões do plano.
  *
- * Mora aqui e não em `lib/` porque é leitura de banco, e a tela da fila é a
- * primeira que precisa dele: com o teto estourado, abrir uma vaga não oferece
- * para ninguém, e uma fila parada sem motivo escrito é indistinguível de uma
- * fila com defeito.
+ * Mora aqui e não em `lib/` porque é leitura de banco. Substituiu `tetoDaConta`
+ * na OP8: o teto mensal de mensagens deixou de ser produto, e a unidade cobrada
+ * passou a ser a sessão.
+ *
+ * **Ela não decide nada.** Nenhuma tela consulta esta função antes de deixar
+ * alguém marcar uma sessão — se um dia consultar, a suíte 0060 verificação 2
+ * continua exigindo que a sessão entre, e é lá que a conversa acontece.
  */
-export async function tetoDaConta(): Promise<Teto> {
+export async function faixaDaConta(): Promise<Faixa> {
   const supabase = await supabaseSessao();
   const sessao = await sessaoAtual();
-  const linhas = await db<Teto[]>(
-    "fila.teto",
-    supabase.rpc("teto_da_conta", { p_conta: sessao.contaId }),
+  const linhas = await db<Faixa[]>(
+    "conta.faixa",
+    supabase.rpc("faixa_da_conta", { p_conta: sessao.contaId }),
   );
-  return (
-    linhas?.[0] ?? {
-      tem_teto: false,
-      limite: null,
-      usadas: 0,
-      restantes: null,
-      estourou: false,
-      pct: 0,
-    }
-  );
+  return linhas?.[0] ?? SEM_FAIXA;
 }
 
 /**
- * Quantos pacientes ativos cabem no plano.
+ * Vale perguntar a nota agora?
  *
- * Desde a OP3 é este o limite que a cliente vê — o de mensagens virou rede de
- * segurança muda. Mora aqui pelo mesmo motivo do outro: é leitura de banco, e
- * a tela de pacientes é a primeira que precisa dele.
+ * Nunca pergunta sozinha: responde a quem pergunta, e quem pergunta é uma tela
+ * que ela abriu. E cala para quem está com a assinatura em atraso — pedir nota
+ * a quem está devendo é pedir a nota errada pela razão errada.
  */
+export async function avaliacaoPendente(): Promise<Pendencia> {
+  const supabase = await supabaseSessao();
+  try {
+    const j = await db("conta.avaliacao", supabase.rpc("avaliacao_pendente"));
+    return (j ?? NAO_PERGUNTAR) as unknown as Pendencia;
+  } catch (e) {
+    // A pergunta é o item menos importante de qualquer tela em que ela apareça.
+    // Se a leitura falhar, a tela abre sem ela — nunca o contrário.
+    console.error("[avaliacao] falhou a pendência", e);
+    return NAO_PERGUNTAR;
+  }
+}
+
 export async function pacientesDaConta(): Promise<Pacientes> {
   const supabase = await supabaseSessao();
   const sessao = await sessaoAtual();

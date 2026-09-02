@@ -36,7 +36,7 @@
 --   8. `pacientes_da_conta` não é sonda de conta alheia
 --   9. ...e não é rota para o anônimo
 --  10. **arquivar continua possível com a conta lotada** — a saída não se fecha
---  11. **nenhum plano limita pacientes** — o único limite é o de mensagens
+--  11. **nenhum plano limita paciente nem mensagem** — a unidade é a sessão (0060)
 --  12. ...mas a máquina da OP2 continua de pé: o essencial nunca é barrado
 --
 -- Levanta exceção no primeiro furo. Silêncio = passou.
@@ -244,26 +244,41 @@ begin
     raise exception '11 · % plano(s) voltaram a limitar pacientes — o registro é a parte que não se cobra', n;
   end if;
 
-  select limite_mensagens_mes into n from public.planos where codigo = 'gratis';
-  if n is null then
-    raise exception '11 · o teto de mensagens sumiu, e ele é o único limite que sobrou';
+  -- **Reescrita em 02/09/2026, pela 0060.** Esta verificação exigia o
+  -- contrário: que o Grátis TIVESSE teto de mensagens, porque em 30/08 ele era
+  -- o único limite que restava depois de a 0048 apagar o de pacientes.
+  --
+  -- A 0060 tirou também esse. A unidade cobrada passou a ser a **sessão**, e a
+  -- razão está no `claude/25`: mensagem é a nossa língua, sessão é a dela; e um
+  -- teto mensal de mensagem, quando estoura, para a fila e o aviso de cobrança
+  -- — ou seja, cobra o limite de quem não escolheu plano nenhum.
+  --
+  -- Então hoje **nenhum dos dois limites existe em produção**, e as duas
+  -- máquinas continuam de pé e provadas. A verificação passa a exigir isso: se
+  -- um deles voltar a ter número, alguém tem de dizer por quê.
+  select count(*) into n from public.planos where limite_mensagens_mes is not null;
+  if n > 0 then
+    raise exception '11 · % plano(s) voltaram a limitar mensagem — a unidade cobrada é a sessão desde a 0060', n;
   end if;
-  if n > 200 then
-    raise exception '11 · o teto de mensagens subiu para %, alto o bastante para não limitar nada', n;
-  end if;
-  raise notice '11 · o único limite é o de mensagens (%): ok', n;
 
-  -- E em uso normal a fila não pausa mais. Cinco pacientes não geram 500
-  -- mensagens não-essenciais em mês nenhum.
+  select count(*) into n from public.planos where limite_sessoes_mes is null;
+  if n > 0 then
+    raise exception '11 · % plano(s) sem faixa de sessões — a faixa é a unidade de preço, e sem ela não há o que cobrar', n;
+  end if;
+  raise notice '11 · nenhum limite de produção é de mensagem, e todo plano tem faixa: ok';
+
+  -- E a faixa **não barra nada**. É a diferença entre este limite e os dois que
+  -- ele substituiu: aqueles recusavam paciente e recusavam mensagem; este é
+  -- medido e dito. A conta desta suíte tem 4 pacientes e nenhuma sessão.
   set local role authenticated;
   perform set_config('request.jwt.claims',
                      json_build_object('sub', a_auth, 'role', 'authenticated')::text, true);
   select * into t from public.teto_da_conta(a_conta);
   reset role;
-  if t.estourou then
-    raise exception '11 · uma conta com 4 pacientes já estourou o teto de mensagens';
+  if t.tem_teto then
+    raise exception '11 · a conta voltou a ter teto mensal de mensagens';
   end if;
-  raise notice '11b · a fila não pausa em uso normal: ok';
+  raise notice '11b · o teto mensal está desligado, e a máquina continua provada: ok';
 
   -- 12 · mas a máquina da OP2 continua inteira. Se alguém, ao afrouxar o teto,
   -- tivesse rebaixado um template essencial, o lembrete de véspera passaria a

@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { supabaseSessao } from "@/lib/supabase/server";
 import { sessaoAtual } from "@/lib/conta";
 import { tipoDaChave, apenasAscii } from "@/lib/pix";
+import { notaValida, momentoValido, agradecimento } from "@/lib/avaliacao";
 
 export type Resultado =
   | { estado: "inicial" }
@@ -267,4 +268,52 @@ export async function mudarRegime(_anterior: Resultado, form: FormData): Promise
         ? "Anotado. O Receita Saúde saiu da sua lista, e o que estava pendente ficou dispensado com o motivo registrado."
         : "Anotado. Cada pagamento recebido daqui para a frente volta a gerar recibo de Receita Saúde.",
   };
+}
+
+/**
+ * Guarda a nota que ela deu ao produto (OP8).
+ *
+ * Três coisas que esta ação **não** faz, e cada uma é decisão:
+ *
+ *   · **não muda nada na conta.** Nem plano, nem faixa, nem desconto, nem
+ *     ordem de tela. Uma ação que lesse a nota e escrevesse na relação
+ *     comercial seria o desconto por nota boa entrando pela porta dos fundos, e
+ *     a suíte 0060 verificação 24 varre o banco atrás de uma;
+ *   · **não trata nota baixa diferente de nota alta.** Mesma resposta, mesmo
+ *     agradecimento, mesmo caminho. Pedir explicação só de quem deu nota baixa
+ *     ensina que a nota baixa dá trabalho;
+ *   · **não exige o texto.** A nota sozinha vale, e obrigar a justificar é o
+ *     jeito mais rápido de não receber nota nenhuma.
+ *
+ * O `momento` é validado dos dois lados: aqui e no check do banco. A lista
+ * fechada é o que impede alguém, um dia, de pedir a nota dentro de um
+ * cancelamento ou de uma cobrança.
+ */
+export async function registrarAvaliacao(
+  _anterior: Resultado,
+  form: FormData,
+): Promise<Resultado> {
+  const nota = Number(form.get("nota"));
+  const texto = String(form.get("texto") ?? "").trim();
+  const momento = String(form.get("momento") ?? "perfil");
+
+  if (!notaValida(nota)) {
+    return { estado: "erro", erros: ["Escolha um número de 0 a 10."] };
+  }
+  if (!momentoValido(momento)) {
+    return { estado: "erro", erros: ["Momento inválido."] };
+  }
+
+  const supabase = await supabaseSessao();
+  await db(
+    "conta.avaliacao.registrar",
+    supabase.rpc("registrar_avaliacao", {
+      p_nota: nota,
+      p_texto: texto === "" ? null : texto,
+      p_momento: momento,
+    }),
+  );
+
+  revalidatePath("/perfil");
+  return { estado: "ok", mensagem: agradecimento() };
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { config, ehPublica } from "./proxy";
 
@@ -78,6 +78,47 @@ describe("as URLs limpas do Panorama existem de verdade", () => {
   it("o prefixo não abre um caminho parecido", () => {
     expect(ehPublica("/panoramas")).toBe(false);
     expect(ehPublica("/panorama-interno")).toBe(false);
+  });
+});
+
+/**
+ * **A varredura que faltava, e ela custou os três documentos e o blog inteiro.**
+ *
+ * O Panorama ganhou teste depois de repetir o defeito das rotas de máquina, e o
+ * teste dele confere uma lista escrita à mão — quatro rewrites que eu digitei.
+ * Uma lista à mão nunca reprova a rota que alguém esqueceu de acrescentar nela:
+ * é a mesma forma do `exportar_conta`, que ficou dezessete tabelas atrás porque
+ * todas as verificações conferiam por lista.
+ *
+ * Esta pergunta ao **sistema de arquivos**. Toda página dentro de `app/(site)`
+ * existe para ser lida por quem não tem conta — é o que o grupo significa — e
+ * portanto tem de passar por `ehPublica`. A próxima página pública que alguém
+ * criar reprova aqui, no dia em que for criada, e não meses depois quando
+ * alguém reclamar que "o link não funciona".
+ */
+describe("toda página do site é alcançável sem sessão", () => {
+  it("cada rota de app/(site) passa por ehPublica", () => {
+    const raiz = join(process.cwd(), "app", "(site)");
+
+    const rotas: string[] = [];
+    const varrer = (dir: string, prefixo: string) => {
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        if (e.isDirectory()) {
+          // `[slug]` vira um valor qualquer: o que se testa é o prefixo.
+          const parte = e.name.startsWith("[") ? "um-endereco-qualquer" : e.name;
+          varrer(join(dir, e.name), `${prefixo}/${parte}`);
+        } else if (e.name === "page.tsx") {
+          rotas.push(prefixo === "" ? "/" : prefixo);
+        }
+      }
+    };
+    varrer(raiz, "");
+
+    // Se este número cair, alguém apagou uma página pública sem querer.
+    expect(rotas.length).toBeGreaterThanOrEqual(6);
+
+    const fechadas = rotas.filter((r) => !ehPublica(r));
+    expect(fechadas, "estas páginas do site cairiam em /entrar").toEqual([]);
   });
 });
 

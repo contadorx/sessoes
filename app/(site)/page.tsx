@@ -179,9 +179,10 @@ const PLANOS = [
     href: "/entrar?criar",
     linhas: [
       "Agenda, prontuário e o registro do que aconteceu com cada horário",
-      "Lembrete de véspera e aviso de desmarque, sem limite",
+      "Lembrete de véspera e aviso de desmarque saem sozinhos, sem limite",
       "Pacientes sem limite",
-      "60 mensagens de fila e cobrança por mês",
+      "8 sessões por mês",
+      "A fila e a cobrança saem do seu WhatsApp, com um toque seu",
     ],
   },
   {
@@ -205,7 +206,8 @@ const PLANOS = [
     // por último, onde é consequência e não porta de entrada.
     linhas: [
       "Pix comparado com as sessões previstas",
-      "Fila e cobrança sem teto de mensagens",
+      "60 sessões por mês",
+      "A fila e a cobrança saem sozinhas, na hora em que a vaga abre",
       "Modo Receita Saúde e pasta do contador",
       "Cobrança proposta com a política congelada",
       "Receita por hora disponível e o que aconteceu com cada horário",
@@ -218,7 +220,7 @@ const PLANOS = [
     cta: "Criar conta e pedir o Pro",
     href: "/entrar?criar&plano=pro",
     linhas: [
-      "Tudo do Solo",
+      "Tudo do Solo, sem faixa de sessões",
       "NFS-e e a ramificação PJ, sem pendência falsa",
       "Página do paciente: confirmar, pagar e receber documento — sem nenhum campo clínico",
       "Permissões por pessoa: quem vê o quê, com aprovação em etapas",
@@ -231,6 +233,7 @@ const PLANOS = [
     cta: "Conversar sobre a clínica",
     href: "/#conversa",
     linhas: [
+      "60 sessões por mês, por profissional que atende",
       "Repasse e demonstrativo",
       "Agenda de salas",
       "Fiscal consolidado",
@@ -723,15 +726,19 @@ export default function Home() {
         <Secao
           id="planos"
           rotulo="Planos"
-          // A frase antiga — "o que se cobra é o trabalho que o sistema faz no
-          // seu lugar" — se contradizia com a própria tabela logo abaixo: o
-          // Grátis já traz sessenta mensagens de fila e cobrança, e lembrete de
-          // véspera sem limite nenhum. Ou seja, parte do trabalho também é de
-          // graça. A régua certa não é "registro contra trabalho", é **limite**:
-          // o registro essencial não tem teto, e o plano pago tira os tetos e
-          // acrescenta conciliação, fechamento fiscal e equipe.
-          titulo="O registro essencial é de graça. O que se cobra é tirar o teto e fechar o mês."
-          linha="O Grátis dá o registro inteiro — agenda, prontuário, o que aconteceu com cada horário, pacientes sem limite — e já traz a fila e a cobrança dentro de um teto mensal. Os planos pagos removem esse teto e acrescentam o que fecha o mês. Lembrete de véspera e aviso de desmarque nunca entram em teto nenhum, em plano nenhum: quem ficaria sem eles é o paciente."
+          // **A unidade mudou na OP8, e a frase mudou junto.** Até 02/09 o
+          // Grátis vinha com "60 mensagens de fila e cobrança por mês", e a
+          // régua era o limite de disparo. Duas coisas estavam erradas nisso:
+          // mensagem é a nossa língua e sessão é a dela — ninguém sabe quantas
+          // mensagens um mês gasta antes de o mês acabar —, e quando o limite
+          // estourava quem ficava sem aviso era a paciente, que não escolheu
+          // plano nenhum.
+          //
+          // Agora a régua é a **faixa de sessões**, e ela não é uma cerca:
+          // passar dela não trava nada e não gera cobrança extra. Por isso a
+          // frase abaixo diz "prevê" e não "permite".
+          titulo="O registro é de graça. O que se cobra é o tamanho do mês e o que fecha ele."
+          linha="O Grátis dá o registro inteiro — agenda, prontuário, o que aconteceu com cada horário, pacientes sem limite — e traz a fila e a cobrança funcionando, com o seu dedo: a mensagem nasce pronta e você toca para mandar, do seu próprio WhatsApp. Nos planos pagos ela sai sozinha, na hora. O que cada plano prevê é uma faixa de sessões por mês, e atender acima dela não bloqueia nada e não gera cobrança extra. E não existe limite de mensagem em plano nenhum — quem ficaria sem receber é o seu paciente, que não escolheu plano."
         >
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {PLANOS.map((p) => (
@@ -795,6 +802,27 @@ export default function Home() {
               <b className="font-medium text-tinta">R$ 405 por mês</b>. Secretaria
               e administração <b className="font-medium text-tinta">não contam</b>{" "}
               como profissional e não são cobradas.
+            </p>
+          </div>
+
+          {/* **De qual número sai a mensagem** — e isto está aqui porque quase
+              ninguém neste mercado responde. Dos treze produtos que a pesquisa
+              de 02/09 leu, só quatro declaram o número e só dois declaram usar a
+              API oficial da Meta; três vendem "WhatsApp automático" sem uma
+              linha sobre provedor, template ou Meta, inclusive nas políticas de
+              privacidade onde listam todos os outros subprocessadores.
+
+              Declarar isso é barato e é verdadeiro. Não afirmamos ter o degrau
+              que não temos — automático E do seu número, que depende de uma
+              conexão que ainda não existe aqui. */}
+          <div className="mt-5 rounded-cartao border border-linha bg-folha px-5 py-4">
+            <p className="text-[13px] leading-relaxed text-tinta2">
+              <b className="font-medium text-tinta">De qual número sai:</b> no
+              Grátis, do seu — a mensagem nasce escrita e você toca para enviar
+              pelo seu WhatsApp, como já faz hoje, só que sem digitar. Nos planos
+              pagos ela sai sozinha, pelo número do Sessões, pela API oficial da
+              Meta. Enviar do <i>seu</i> número automaticamente ainda não
+              existe aqui, e não prometemos que exista.
             </p>
           </div>
 

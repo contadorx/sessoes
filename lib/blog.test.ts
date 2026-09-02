@@ -338,6 +338,96 @@ describe("as fronteiras que um arquivo guarda", () => {
    * possível reescrever a copy sem reabrir o buraco, e impossível reabri-lo por
    * distração.
    */
+  /**
+   * **Nenhuma tela pública promete tempo no ar.**
+   *
+   * O doc 20 escreveu a recusa na própria B40: *"não entra: SLA de
+   * disponibilidade. Prometer uptime que não se mede é a mesma classe de erro
+   * que 'seus dados estão 100% seguros'"*. E a página de segurança já abre
+   * dizendo que evita adjetivo não conferível.
+   *
+   * A frase perigosa não chega escrita como SLA. Ela chega como "sempre
+   * disponível", "sem interrupção", "seguro" — num parágrafo de vendas, seis
+   * meses depois, escrito com pressa.
+   */
+  it("nenhuma tela pública promete tempo no ar ou segurança absoluta", () => {
+    const PROIBIDO = [
+      /\bSLA\b/,
+      /uptime/i,
+      /100\s*%\s*(seguro|segura|dispon)/i,
+      /sempre\s+dispon[íi]vel/i,
+      /disponibilidade\s+garantida/i,
+      /sem\s+interrup[çc][ãa]o/i,
+      /totalmente\s+seguro/i,
+    ];
+
+    // **A página do incidente sai da varredura, e o motivo é o de sempre.**
+    // Ela é a única tela que **cita** as frases proibidas — para recusá-las:
+    // "não existe SLA de disponibilidade aqui" e "a mesma classe de frase que
+    // 'seus dados estão 100% seguros'". Asserção larga acusa o código certo, e
+    // o preço não é o falso positivo: é aprender a ignorar o alarme (lição da
+    // 0044, da 0051 e do próprio teste de `dangerouslySetInnerHTML` acima).
+    //
+    // A dispensa vem com contrapartida: a verificação seguinte exige que a
+    // página **contenha a recusa**. Ela não fica fora do teste; fica dentro de
+    // outro.
+    const publicos = [
+      join(RAIZ, "app", "(site)"),
+      join(RAIZ, "app", "entrar"),
+      join(RAIZ, "components", "site"),
+    ]
+      .flatMap((d) => arquivos(d, [".tsx"]))
+      .filter((f) => !f.endsWith(join("incidente", "page.tsx")));
+
+    const culpados: string[] = [];
+    for (const f of publicos) {
+      const visivel = readFileSync(f, "utf8")
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/^\s*\/\/.*$/gm, "");
+      for (const pr of PROIBIDO) {
+        if (pr.test(visivel)) culpados.push(`${f} → ${pr}`);
+      }
+    }
+    expect(culpados).toEqual([]);
+  });
+
+  /** A contrapartida da dispensa acima: a página tem de recusar, e por escrito. */
+  it("a página do incidente recusa o SLA em vez de calar sobre ele", () => {
+    const pagina = readFileSync(
+      join(RAIZ, "app", "(site)", "incidente", "page.tsx"),
+      "utf8",
+    )
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
+
+    expect(pagina).toMatch(/N[ãa]o existe SLA/i);
+    expect(pagina).toMatch(/n[ãa]o h[áa] promessa de que n[ãa]o vai acontecer/i);
+  });
+
+  /**
+   * A página do incidente diz o número, ou não serve para nada.
+   *
+   * O critério de pronto da B40 é *"dá para executar às três da manhã sem
+   * pensar"*, e metade do plano é obrigação dela. Uma página que dissesse
+   * "avisamos rapidamente" devolveria para a psicóloga exatamente a pergunta
+   * que ela não tem como responder sozinha: **quanto tempo eu tenho?**
+   */
+  it("a página do incidente traz os prazos e a autoridade, com número", () => {
+    const pagina = readFileSync(
+      join(RAIZ, "app", "(site)", "incidente", "page.tsx"),
+      "utf8",
+    )
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
+
+    expect(pagina).toMatch(/24\s+horas/);
+    expect(pagina).toMatch(/tr[êe]s\s+dias\s+[úu]teis/);
+    expect(pagina).toMatch(/ANPD/);
+    // De quem é o dever: é a parte que mais custa e a que ninguém escreve.
+    expect(pagina).toMatch(/controladora/);
+    expect(pagina).toMatch(/operador/);
+  });
+
   it("o botão que nomeia um plano pago leva o plano no destino", () => {
     const pagina = readFileSync(join(RAIZ, "app", "(site)", "page.tsx"), "utf8");
     const bloco = pagina.slice(

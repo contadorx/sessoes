@@ -66,6 +66,20 @@ begin
   select conta_id into a_conta from public.usuarios where auth_user_id=a_auth;
   select id into a_prof from public.profissionais where conta_id=a_conta;
 
+  -- **As contas de teste vão para o Solo, e isto é da migração 0061.**
+  --
+  -- O gatilho de signup cria conta em `gratis`, e desde a 0061 o Grátis manda à
+  -- mão: mensagem de template não-essencial nasce em `na_sua_mao`, o worker não a
+  -- reserva, e oferta cuja mensagem está na mão dela não expira. Esta suíte testa
+  -- o **motor automático**, que é o do plano pago — o caminho manual tem suíte
+  -- própria, a 0061.
+  --
+  -- Sem esta linha a suíte testaria um plano que não é o que ela descreve, e
+  -- falharia dizendo "nada expirou" sobre um sistema que está funcionando.
+  set local role postgres;
+  update public.contas set plano = 'solo' where id in (a_conta);
+  reset role;
+
   perform set_config('request.jwt.claims', json_build_object('sub',a_auth,'role','authenticated')::text, true);
   execute 'set local role authenticated';
 

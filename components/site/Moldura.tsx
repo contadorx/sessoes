@@ -30,7 +30,7 @@ export function Moldura({ children }: { children: React.ReactNode }) {
               href="/blog"
               className="hidden text-[12.5px] font-medium text-tinta2 transition-colors hover:text-vaga sm:inline"
             >
-              Textos
+              Artigos
             </Link>
             <Link
               href="/#planos"
@@ -85,7 +85,7 @@ export function RodapeDoSite() {
 
         <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 border-t border-linha pt-4 text-[12px] text-tinta2">
           <Link href="/blog" className="transition-colors hover:text-vaga">
-            Textos
+            Artigos
           </Link>
           <Link href="/termos" className="transition-colors hover:text-vaga">
             Termos de serviço
@@ -95,6 +95,12 @@ export function RodapeDoSite() {
           </Link>
           <Link href="/seguranca" className="transition-colors hover:text-vaga">
             Segurança
+          </Link>
+          {/* O quarto documento. Ele entra no rodapé pelo mesmo motivo dos
+              outros três: metade do plano de incidente é obrigação **dela**, e
+              obrigação de alguém não mora atrás de um clique difícil. */}
+          <Link href="/incidente" className="transition-colors hover:text-vaga">
+            Se acontecer um incidente
           </Link>
         </div>
       </div>

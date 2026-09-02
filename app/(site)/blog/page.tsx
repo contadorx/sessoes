@@ -6,7 +6,7 @@ import { dataPorExtenso } from "@/lib/blog";
 import { chamadaDaVitrine as chamada } from "@/lib/seo";
 
 export const metadata = {
-  title: "Textos",
+  title: "Artigos",
   description:
     "O que a gente aprende conversando com quem atende: agenda, cobrança, recibo e as regras da profissão.",
 };

@@ -474,3 +474,37 @@ export async function usarAlerta(causa: string): Promise<void> {
     console.error("[risco] falhou registrar uso do alerta", e);
   }
 }
+
+/**
+ * Ela mandou pelo WhatsApp dela (OP9).
+ *
+ * O clique no link e o registro são dois atos separados, e é de propósito: o
+ * `wa.me` abre o aplicativo dela, e daquele ponto em diante o produto **não tem
+ * como saber** se a mensagem saiu. Só ela sabe, e por isso é ela quem diz.
+ *
+ * Um botão que registrasse o envio no próprio clique do link afirmaria uma
+ * entrega que ninguém observou — a mesma classe de mentira que a policy do
+ * banco recusa ao não deixar escrever `entregue`.
+ */
+export async function mandeiPeloWhatsapp(id: string): Promise<Resultado> {
+  const supabase = await supabaseSessao();
+  await db("canal.mandei", supabase.rpc("marcar_enviada_a_mao", { p_mensagem: id }));
+  revalidatePath("/agenda");
+  revalidatePath("/encaixes");
+  return { estado: "ok", mensagem: "Anotado. O prazo da resposta começa agora." };
+}
+
+/**
+ * Ela decidiu não mandar.
+ *
+ * Existe porque a alternativa é pior: a expiração da oferta passou a esperar
+ * pela mensagem que está na mão dela, então uma que ficasse parada para sempre
+ * seguraria a fila junto. Desistir devolve a vaga ao relógio.
+ */
+export async function naoVouMandar(id: string): Promise<Resultado> {
+  const supabase = await supabaseSessao();
+  await db("canal.nao_vou", supabase.rpc("nao_vou_mandar", { p_mensagem: id }));
+  revalidatePath("/agenda");
+  revalidatePath("/encaixes");
+  return { estado: "ok", mensagem: "Tirado da lista. A vaga volta a andar sozinha." };
+}

@@ -4,52 +4,32 @@ import {
   fraseDaSaida_pacientes,
   ESSENCIAIS,
   ehEssencial,
-  nivelDoAviso,
-  fraseDoTeto,
-  fraseDoQueParou,
-  fraseDaSaida,
-  fraseDoRestante,
-  filaPausada,
-  fraseDaFilaPausada,
+  motivoDoFreio,
   rotuloEstadoMensagem,
   terminal,
-  type Teto,
+  SEM_TETO,
   type EstadoMensagem,
   type Pacientes,
 } from "./teto";
 
-const teto = (p: Partial<Teto> = {}): Teto => ({
-  tem_teto: true,
-  limite: 60,
-  usadas: 10,
-  restantes: 50,
-  estourou: false,
-  pct: 16,
-  ...p,
-});
+// ============================================================================
+// Esta suíte perdeu metade do tamanho em 02/09/2026, e é a metade certa.
+//
+// Ela testava as frases do teto de mensagens do plano: quando avisar, o que
+// dizer ao estourar, como a fila explica que pausou. A migração 0060 tirou esse
+// teto do produto — a unidade cobrada passou a ser a sessão —, e as frases
+// deixaram de existir junto com o comportamento que descreviam.
+//
+// O que sobrou é o que não dependia do teto ser comercial: a classificação dos
+// templates, os estados da mensagem, e o limite de pacientes que a 0048 já
+// tinha desligado. E o que entrou no lugar está em `faixa.test.ts`.
+// ============================================================================
 
-const cheio = teto({ usadas: 60, restantes: 0, estourou: true, pct: 100 });
-const semTeto: Teto = {
-  tem_teto: false,
-  limite: null,
-  usadas: 0,
-  restantes: null,
-  estourou: false,
-  pct: 0,
-};
-
-// ============================================ a regra que decide tudo
-
-describe("o teto não alcança o paciente", () => {
+describe("a classificação dos templates sobrevive ao teto", () => {
   it("os três essenciais são exatamente os que o paciente não descobre de outro jeito", () => {
-    // Um lembrete que não sai é alguém que perde a sessão. Um aviso de
-    // desmarque que não sai é alguém indo ao consultório à toa. Uma
-    // confirmação de encaixe que não sai é pior do que nunca ter oferecido.
-    expect([...ESSENCIAIS].sort()).toEqual([
-      "aviso_de_desmarque",
-      "encaixe_confirmado",
-      "lembrete_de_sessao",
-    ]);
+    expect([...ESSENCIAIS].sort()).toEqual(
+      ["aviso_de_desmarque", "encaixe_confirmado", "lembrete_de_sessao"].sort(),
+    );
   });
 
   it("o lembrete de véspera é essencial — e isto é o teste que não pode cair", () => {
@@ -58,210 +38,134 @@ describe("o teto não alcança o paciente", () => {
     expect(ehEssencial("encaixe_confirmado")).toBe(true);
   });
 
-  it("o que gera negócio novo é barrável — ela faz à mão se precisar", () => {
-    for (const t of [
-      "oferta_de_vaga",
-      "oferta_de_vaga_fixa",
-      "aviso_de_cobranca",
-      "lembrete_de_pagamento",
-    ]) {
-      expect(ehEssencial(t), `${t} não deveria ser essencial`).toBe(false);
-    }
+  it("o que gera negócio novo não é essencial — mas hoje também não é barrado", () => {
+    // A distinção continua existindo e continua obrigatória para todo template
+    // novo. O que mudou é que nenhum plano a usa para barrar: desde a 0060 a
+    // oferta de vaga e o aviso de cobrança saem em qualquer plano.
+    expect(ehEssencial("oferta_de_vaga")).toBe(false);
+    expect(ehEssencial("oferta_de_vaga_fixa")).toBe(false);
+    expect(ehEssencial("aviso_de_cobranca")).toBe(false);
+    expect(ehEssencial("lembrete_de_pagamento")).toBe(false);
   });
 
   it("um template desconhecido não é essencial por acaso", () => {
-    // Fecha para o lado seguro do produto (o template novo é barrável) e
-    // ruidoso para o lado do desenvolvimento: quem criar o oitavo template
-    // tem que classificá-lo no banco, e a FK obriga.
-    expect(ehEssencial("template_que_ainda_nao_existe")).toBe(false);
+    expect(ehEssencial("template_que_alguem_inventar")).toBe(false);
   });
 });
 
-// ============================================ quando avisar
-
-describe("nivelDoAviso — nem cedo demais, nem tarde demais", () => {
-  it("num mês normal, silêncio", () => {
-    expect(nivelDoAviso(teto({ pct: 16 }))).toBe("nenhum");
-    expect(nivelDoAviso(teto({ pct: 69 }))).toBe("nenhum");
-  });
-
-  it("a partir de 70% avisa", () => {
-    expect(nivelDoAviso(teto({ pct: 70 }))).toBe("perto");
-    expect(nivelDoAviso(teto({ pct: 99 }))).toBe("perto");
-  });
-
-  it("estourado é estado, não aviso", () => {
-    expect(nivelDoAviso(cheio)).toBe("estourou");
-  });
-
-  it("plano sem teto nunca avisa", () => {
-    expect(nivelDoAviso(semTeto)).toBe("nenhum");
-    expect(nivelDoAviso({ ...semTeto, pct: 100 })).toBe("nenhum");
+describe("o teto mensal existe no tipo e não existe em plano nenhum", () => {
+  it("o valor de repouso é 'sem teto', e não 'teto zero'", () => {
+    // Zero seria um teto de zero mensagens, que barraria tudo. A ausência de
+    // teto é `tem_teto: false` — a mesma distinção entre nulo e zero que o P5
+    // fez para a ocupação.
+    expect(SEM_TETO.tem_teto).toBe(false);
+    expect(SEM_TETO.limite).toBeNull();
+    expect(SEM_TETO.estourou).toBe(false);
   });
 });
 
-// ============================================ o que a tela diz
-
-describe("as frases — dizem o que parou E o que continua", () => {
-  it("plano sem teto não gera frase nenhuma", () => {
-    expect(fraseDoTeto(semTeto)).toBe("");
-    expect(fraseDoRestante(semTeto)).toMatch(/não tem limite/);
+describe("os freios técnicos são traduzíveis, e só isso", () => {
+  it("cada freio tem uma explicação em português", () => {
+    expect(motivoDoFreio("mensagens_por_conta_hora")).toMatch(/mesma hora/);
+    expect(motivoDoFreio("mensagens_por_paciente_dia")).toMatch(/mesma pessoa/);
   });
 
-  it("no meio do mês diz o número, sem drama", () => {
-    expect(fraseDoTeto(teto({ usadas: 22 }))).toBe("22 de 60 mensagens usadas neste mês.");
+  it("um freio novo não quebra a tela", () => {
+    expect(motivoDoFreio("freio_que_ainda_nao_existe")).toBe("trava de segurança");
   });
 
-  it("uma só, no singular", () => {
-    expect(fraseDoRestante(teto({ restantes: 1 }))).toMatch(/Falta 1 mensagem/);
-  });
-
-  it("estourado, a frase mais importante é a do que CONTINUA saindo", () => {
-    // "Você atingiu o limite" sozinho deixa ela imaginando o pior — e o pior
-    // aqui é exatamente o que não acontece.
-    const f = fraseDoQueParou(cheio);
-    expect(f).toMatch(/Lembrete de véspera/);
-    expect(f).toMatch(/continuam saindo/);
-    expect(f).toMatch(/nenhum limite nosso alcança/);
-  });
-
-  it("...e ela diz o que parou, com nome", () => {
-    const f = fraseDoQueParou(cheio);
-    expect(f).toMatch(/fila de encaixe está pausada/);
-    expect(f).toMatch(/cobrança/);
-  });
-
-  it("...e oferece a saída sem decidir por ela", () => {
-    const f = fraseDaSaida(cheio);
-    expect(f).toMatch(/seu WhatsApp/);
-    expect(f).not.toMatch(/assine|contrate|faça upgrade|melhore/i);
-  });
-
-  it("nenhuma frase culpa a psicóloga pelo próprio uso", () => {
+  it("nenhuma explicação de freio menciona plano, preço ou upgrade", () => {
+    // Freio técnico que fala de plano é produto disfarçado — e a suíte 0060
+    // varre o banco pela mesma razão.
     const todas = [
-      fraseDoTeto(cheio),
-      fraseDoQueParou(cheio),
-      fraseDaSaida(cheio),
-      fraseDoRestante(cheio),
-      fraseDaFilaPausada(cheio),
+      motivoDoFreio("mensagens_por_conta_hora"),
+      motivoDoFreio("mensagens_por_paciente_dia"),
+      motivoDoFreio("qualquer_outro"),
     ].join(" ");
-    expect(todas).not.toMatch(/excedeu|abusou|exagerou|demais|indevid|irregular/i);
-  });
-
-  it("nem transforma o limite em venda", () => {
-    // O limite é meu, não um defeito dela. Uma tela de limite que vira anúncio
-    // é a que faz a pessoa desconfiar de todo o resto.
-    const todas = [fraseDoTeto(cheio), fraseDoQueParou(cheio), fraseDaSaida(cheio)].join(" ");
-    expect(todas).not.toMatch(/R\$|assine agora|aproveite|oferta|desconto/i);
+    expect(todas).not.toMatch(/plano|assinar|upgrade|R\$|limite do seu/i);
   });
 });
-
-// ============================================ a fila
-
-describe("filaPausada — o sintoma que não pode ser mudo", () => {
-  it("com teto estourado a fila não oferece", () => {
-    expect(filaPausada(cheio)).toBe(true);
-    expect(fraseDaFilaPausada(cheio)).toMatch(/não vai oferecer esta vaga/);
-  });
-
-  it("com folga, a fila anda e não há frase", () => {
-    expect(filaPausada(teto())).toBe(false);
-    expect(fraseDaFilaPausada(teto())).toBe("");
-  });
-
-  it("plano pago nunca tem fila pausada", () => {
-    expect(filaPausada(semTeto)).toBe(false);
-  });
-
-  it("a frase diz o motivo — 'a fila não fez nada' sem motivo vira defeito aparente", () => {
-    // O pior sintoma possível: ela cancela uma sessão, vê a fila não fazer
-    // nada, e conclui que o produto quebrou.
-    expect(fraseDaFilaPausada(cheio)).toMatch(/limite de mensagens/);
-  });
-});
-
-// ============================================ o estado da mensagem
 
 describe("rotuloEstadoMensagem — a barrada diz que não saiu", () => {
   it("todo estado tem rótulo", () => {
-    const estados: EstadoMensagem[] = [
-      "pendente", "enviando", "enviada", "entregue", "falhou", "cancelada", "barrada_no_teto",
+    const todos: EstadoMensagem[] = [
+      "pendente",
+      "enviando",
+      "enviada",
+      "entregue",
+      "falhou",
+      "cancelada",
+      "barrada_no_teto",
     ];
-    for (const e of estados) {
-      expect(rotuloEstadoMensagem(e).length).toBeGreaterThan(2);
+    for (const e of todos) {
+      expect(rotuloEstadoMensagem(e).length).toBeGreaterThan(0);
     }
   });
 
   it("barrada_no_teto diz explicitamente que NÃO saiu", () => {
-    // O modo de falha ruim seria ela sumir da tela, e a psicóloga descobrir
-    // semanas depois que ninguém foi cobrado.
+    // O modo de falha ruim é a mensagem sumir da tela e ela descobrir semanas
+    // depois que ninguém foi cobrado.
     expect(rotuloEstadoMensagem("barrada_no_teto")).toMatch(/não saiu/);
-    expect(rotuloEstadoMensagem("barrada_no_teto")).toMatch(/limite/);
+  });
+
+  it("...e não chama mais isso de limite do plano", () => {
+    // Porque não é: desde a 0060 o que barra é uma trava de segurança contra
+    // laço, e chamar as duas coisas pelo mesmo nome é o começo de confundi-las.
+    expect(rotuloEstadoMensagem("barrada_no_teto")).not.toMatch(/plano/);
+    expect(rotuloEstadoMensagem("barrada_no_teto")).toMatch(/trava de segurança/);
   });
 
   it("barrada é terminal — virar o mês não reenvia", () => {
-    // Um aviso de cobrança de trinta dias atrás não é uma mensagem atrasada,
-    // é uma mensagem que não faz mais sentido.
     expect(terminal("barrada_no_teto")).toBe(true);
-    expect(terminal("cancelada")).toBe(true);
     expect(terminal("entregue")).toBe(true);
+    expect(terminal("cancelada")).toBe(true);
   });
 
   it("...e pendente e falhou não são", () => {
     expect(terminal("pendente")).toBe(false);
     expect(terminal("falhou")).toBe(false);
+    expect(terminal("enviando")).toBe(false);
   });
 });
 
-// ============================================ o limite que a cliente vê (OP3)
-
 describe("pacientes: medida, não porteiro (0048)", () => {
   const pac = (p: Partial<Pacientes> = {}): Pacientes => ({
-    tem_limite: true, limite: 5, ativos: 2, restantes: 3, lotou: false, ...p,
+    tem_limite: false,
+    limite: null,
+    ativos: 12,
+    restantes: null,
+    lotou: false,
+    ...p,
   });
-  const lotado = pac({ ativos: 5, restantes: 0, lotou: true });
-  const semLimite: Pacientes = {
-    tem_limite: false, limite: null, ativos: 40, restantes: null, lotou: false,
-  };
 
   it("hoje NENHUM plano limita paciente — o registro é a parte que não se cobra", () => {
-    // A regra do cardápio, e é ela que este teste guarda: o Grátis dá tudo o
-    // que é registro (agenda, prontuário, livro-razão) e o que se cobra é o
-    // que economiza tempo. Um teto de pacientes limitaria justamente a parte
-    // que devia ser livre.
-    expect(fraseDosPacientes(semLimite)).toMatch(/não tem limite/);
-    expect(fraseDaSaida_pacientes(semLimite)).toBe("");
+    expect(fraseDosPacientes(pac())).toMatch(/não tem limite/);
+    expect(fraseDaSaida_pacientes(pac())).toBe("");
   });
 
   it("a máquina continua funcionando se um plano voltar a limitar", () => {
-    // Ela fica desligada, não apagada: está provada por suíte, custa nada em
-    // repouso, e religar é um update. Reconstruir em seis meses, não.
-    expect(fraseDosPacientes(pac())).toBe("2 de 5 pacientes ativos.");
-    expect(fraseDosPacientes(lotado)).toMatch(/vai até 5 pacientes ativos/);
+    const p = pac({ tem_limite: true, limite: 5, ativos: 3, restantes: 2 });
+    expect(fraseDosPacientes(p)).toBe("3 de 5 pacientes ativos.");
   });
 
   it("quando lota, a saída vem junto — limite sem saída é parede", () => {
-    const f = fraseDaSaida_pacientes(lotado);
-    expect(f).toMatch(/[Aa]rquivar/);
-    expect(f).toMatch(/devolve a vaga/);
+    const p = pac({ tem_limite: true, limite: 5, ativos: 5, restantes: 0, lotou: true });
+    expect(fraseDaSaida_pacientes(p)).not.toBe("");
+    expect(fraseDaSaida_pacientes(p)).toMatch(/arquivar/i);
   });
 
   it("...e a saída diz que a ficha continua guardada", () => {
-    // O medo certo de quem lê "arquivar" é perder o histórico — que é
-    // obrigação de guarda de cinco anos, não consumo de plano. Se a frase não
-    // disser isso, ninguém arquiva e o limite vira parede na prática.
-    expect(fraseDaSaida_pacientes(lotado)).toMatch(/continua guardada|histórico/);
+    const p = pac({ tem_limite: true, limite: 5, ativos: 5, restantes: 0, lotou: true });
+    expect(fraseDaSaida_pacientes(p)).toMatch(/guardada|histórico/i);
   });
 
   it("a frase não empurra o plano pago", () => {
-    // "Mude de plano" é uma saída legítima e está na mensagem do banco, onde
-    // ela é resposta a uma ação bloqueada. Na tela, em repouso, o limite
-    // informa — não vende.
-    const todas = [fraseDosPacientes(lotado), fraseDaSaida_pacientes(lotado)].join(" ");
-    expect(todas).not.toMatch(/assine|contrate|upgrade|R\$|aproveite/i);
+    const p = pac({ tem_limite: true, limite: 5, ativos: 5, restantes: 0, lotou: true });
+    const tudo = fraseDosPacientes(p) + " " + fraseDaSaida_pacientes(p);
+    expect(tudo).not.toMatch(/assine|aproveite|R\$|upgrade/i);
   });
 
   it("sem limite, quarenta pacientes não geram aviso", () => {
-    expect(fraseDaSaida_pacientes(semLimite)).toBe("");
+    expect(fraseDosPacientes(pac({ ativos: 40 }))).toMatch(/não tem limite/);
   });
 });

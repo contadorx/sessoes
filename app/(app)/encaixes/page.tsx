@@ -5,9 +5,9 @@ import {
   vagasAbertas,
   regrasDaConta,
   taxaDePreenchimento,
-  tetoDaConta,
+  faixaDaConta,
 } from "./dados";
-import { AvisoDoTeto } from "@/components/app/Teto";
+import { AvisoDaFaixa } from "@/components/app/Faixa";
 import { EditorFila } from "@/components/app/EditorFila";
 import { RegrasDaFila } from "@/components/app/RegrasDaFila";
 import { formatar, paraCentavos } from "@/lib/dinheiro";
@@ -28,13 +28,13 @@ const QUANDO = new Intl.DateTimeFormat("pt-BR", {
 export default async function Encaixes() {
   const hojeStr = hoje();
 
-  const [fila, candidatos, vagas, regras, metrica, teto] = await Promise.all([
+  const [fila, candidatos, vagas, regras, metrica, faixa] = await Promise.all([
     filaDaConta(),
     foraDaFila(),
     vagasAbertas(),
     regrasDaConta(),
     taxaDePreenchimento(somarDias(hojeStr, -30), hojeStr),
-    tetoDaConta(),
+    faixaDaConta(),
   ]);
 
   const semOferta = vagas.filter((v) => v.ofertas === 0);
@@ -48,13 +48,13 @@ export default async function Encaixes() {
         pede nada a ninguém.
       </p>
 
-      {/* O teto de mensagens virou rede de segurança na OP3 e saiu da tela.
-          Só que ele **age** em silêncio quando age — e uma fila parada sem
-          motivo escrito é indistinguível de uma fila com defeito. Então o
-          aviso continua aqui, e simplesmente não aparece em uso normal:
-          `nivelDoAviso` devolve "nenhum" abaixo de 70% de um teto de 500. */}
+      {/* A faixa de sessões substituiu o teto de mensagens aqui na OP8, e o
+          sentido do bloco mudou junto. O teto avisava que a fila ia parar; a
+          faixa não para nada — ela diz o preço. Continua nesta tela porque é a
+          tela em que o volume do mês aparece, e não numa aba de cobrança:
+          quem olha a fila está olhando quantas sessões o mês teve. */}
       <div className="mt-5">
-        <AvisoDoTeto teto={teto} />
+        <AvisoDaFaixa faixa={faixa} />
       </div>
 
       {/* a métrica que decide o produto */}

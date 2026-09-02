@@ -201,9 +201,22 @@ export default function Privacidade() {
         <Bloco titulo="8. Se algo acontecer">
           <p>
             Em caso de incidente de segurança que possa afetar dados dos seus
-            pacientes, avisamos você — com o que aconteceu, o que foi atingido e
-            o que já foi feito — em tempo de você cumprir os seus próprios
-            deveres perante o paciente e a ANPD.
+            pacientes, avisamos você{" "}
+            <b className="font-medium">em até 24 horas</b> — com o que aconteceu,
+            o que foi atingido na sua conta, o que já foi feito e a hora exata em
+            que soubemos. Essa hora é de onde começa a contar o prazo de{" "}
+            <b className="font-medium">três dias úteis</b> que a Resolução
+            CD/ANPD nº 15/2024 dá a você para comunicar a ANPD e os pacientes.
+          </p>
+          <p>
+            <b className="font-medium">E o dever de comunicar é seu</b>, nos
+            dados dos pacientes: você é a controladora desses dados e nós somos o
+            operador. A{" "}
+            <a href="/incidente" className="underline underline-offset-2 hover:text-vaga">
+              página do incidente
+            </a>{" "}
+            explica por quê, diz o que fazemos nas primeiras horas e traz o
+            modelo do texto que você vai precisar mandar ao paciente.
           </p>
           <p>
             Para exercer qualquer direito, corrigir qualquer coisa desta página

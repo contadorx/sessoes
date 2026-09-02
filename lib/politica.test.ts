@@ -159,10 +159,15 @@ describe("o que acontece com o aviso, dito na hora de decidir", () => {
     expect(fraseDoAviso("silencio_do_paciente", null)).toContain("não receber mensagens");
   });
 
-  it("o teto do plano aparece no momento da decisão, e não depois", () => {
+  it("a trava de segurança aparece no momento da decisão, e não depois", () => {
+    // Era "o teto do plano". A OP8 tirou o teto de mensagens do produto, e a
+    // frase passou a dizer o que de fato segurou: uma trava contra envio
+    // repetido. Dizer "o seu plano atingiu o limite" sobre uma trava técnica
+    // manda a pessoa procurar solução comercial para um problema que não é dela.
     const f = fraseDoAviso("barrado_no_teto", null);
-    expect(f).toContain("teto");
-    expect(f).toContain("não vai sair");
+    expect(f).toContain("trava de segurança");
+    expect(f).not.toContain("plano");
+    expect(f).toContain("cobrança fica registrada");
   });
 
   it("perdão não fala de aviso nenhum", () => {

@@ -1,38 +1,40 @@
 /**
- * Os limites do plano — do lado do app (OP2 e OP3).
+ * O que sobrou do teto — e o que sobrou é freio, não produto (OP8).
  *
- * A regra que este módulo existe para carregar, e que vale mais que a
- * aritmética: **o teto barra o que gera negócio novo, nunca o que o paciente
- * precisa saber.**
+ * **Este módulo mudou de sinal em 02/09/2026.** Ele carregava o teto de
+ * mensagens do plano: 60 por mês no Grátis, a fila pausando quando estourava, o
+ * aviso de cobrança não saindo. A migração 0060 desfez isso — não por defeito,
+ * por decisão —, e a razão está escrita lá inteira. O resumo:
  *
- * Um teto de mensagens parece decisão comercial e não é — ele decide quem fica
- * sem aviso. Se barrasse a próxima mensagem qualquer, o que deixaria de sair
- * seria um lembrete de véspera, ou o aviso de que a sessão de amanhã foi
- * desmarcada, e alguém iria até o consultório encontrar a porta fechada por um
- * limite comercial que essa pessoa não escolheu e nem sabe que existe.
+ *     **Não se vende limite de disparo. Vende-se limite de sessão.**
  *
- * Gêmeo de `teto_da_conta` no banco, com os mesmos valores esperados da suíte
- * 0046.
+ * A unidade cobrada passou a ser a sessão, e ela mora em `lib/faixa.ts`.
+ *
+ * A doutrina que este arquivo carregava não foi abandonada — ela **venceu**. O
+ * arquivo dizia que um teto de mensagens parece decisão comercial e não é,
+ * porque ele decide quem fica sem aviso, e que quem ficaria sem aviso é a
+ * paciente, que não escolheu plano nenhum e não sabe que existe um. A conclusão
+ * de então foi proteger três templates. A conclusão de agora é que o limite
+ * comercial sobre mensagem não devia existir.
+ *
+ * O que resta aqui:
+ *
+ *   · **os templates essenciais**, porque a classificação continua existindo e
+ *     continua sendo o que impede um template novo de nascer barrável por
+ *     acaso;
+ *   · **os estados da mensagem**, inclusive o que não saiu — e agora ele diz
+ *     "trava de segurança" em vez de "limite do plano", porque é isso que
+ *     virou;
+ *   · **o limite de pacientes**, que a 0048 desligou e ninguém religou.
  */
 
 /**
  * Quantos pacientes ativos a conta tem — e é **medida, não porteiro**.
  *
- * A OP3 chegou a pôr limite de cinco pacientes no Grátis, e a 0048 desfez:
- * um teto de pacientes limita o **registro**, que é a parte que devia ser
- * livre. A regra do cardápio ficou sendo uma só —
- *
- *     **o Grátis dá tudo o que é registro; o que se cobra é o que economiza
- *     tempo.**
- *
- * Agenda, prontuário, anamnese, livro-razão: é o trabalho dela ficando
- * guardado, e cobrar por isso é cobrar para ela poder existir organizada. O
- * plano pago vende a máquina trabalhando no lugar dela — a fila que oferece
- * sozinha, a régua que cobra sem ela mandar a mensagem —, que é o que custa
- * dinheiro por unidade e é onde o valor aparece.
- *
- * O tipo fica porque o número continua útil: o tamanho da conta é informação
- * do painel do negócio, mesmo sem limite nenhum em cima.
+ * A OP3 chegou a pôr limite de cinco pacientes no Grátis, e a 0048 desfez: um
+ * teto de pacientes limita o **registro**, que é a parte que devia ser livre.
+ * Nenhum plano usa desde então; o tipo fica porque o número continua útil (o
+ * tamanho da conta é informação do painel do negócio).
  */
 export type Pacientes = {
   tem_limite: boolean;
@@ -53,14 +55,22 @@ export function fraseDosPacientes(p: Pacientes): string {
  *
  * Um limite sem saída é uma parede, e a saída aqui não é só "pague": arquivar
  * quem encerrou o processo devolve a vaga. É o motivo de o limite ser de
- * pacientes **ativos** e não de pacientes cadastrados — o histórico continua
- * lá inteiro, e ele é obrigação de guarda, não consumo de plano.
+ * pacientes **ativos** e não de pacientes cadastrados — o histórico continua lá
+ * inteiro, e ele é obrigação de guarda, não consumo de plano.
  */
 export function fraseDaSaida_pacientes(p: Pacientes): string {
   if (!p.lotou) return "";
   return "Arquivar quem encerrou o processo devolve a vaga — a ficha continua guardada, com o histórico inteiro.";
 }
 
+/**
+ * O teto mensal do plano, que continua existindo no banco e **não é usado**.
+ *
+ * A máquina fica, provada por suíte, e nenhum plano a configura — mesmo critério
+ * da 0048 com o limite de pacientes. O tipo fica pelo mesmo motivo: `tem_teto`
+ * hoje responde `false` para todo mundo, e se algum dia um plano precisar de
+ * teto mensal, ele volta a valer sem deploy.
+ */
 export type Teto = {
   tem_teto: boolean;
   limite: number | null;
@@ -70,6 +80,15 @@ export type Teto = {
   pct: number;
 };
 
+export const SEM_TETO: Teto = {
+  tem_teto: false,
+  limite: null,
+  usadas: 0,
+  restantes: null,
+  estourou: false,
+  pct: 0,
+};
+
 export type Template = {
   codigo: string;
   descricao: string;
@@ -77,7 +96,15 @@ export type Template = {
   motivo: string;
 };
 
-/** O que nunca é barrado, em qualquer plano. Gêmeo de `templates.essencial`. */
+/**
+ * O que nunca foi barrado por limite comercial — e hoje não há limite comercial
+ * nenhum sobre mensagem. Gêmeo de `templates.essencial`.
+ *
+ * A lista continua importando por uma razão que sobrevive à 0060: ela é a
+ * classificação obrigatória. Um template novo sem linha na tabela é recusado
+ * pela chave estrangeira, e a recusa obriga alguém a decidir de qual lado ele
+ * está antes de mandar a primeira mensagem.
+ */
 export const ESSENCIAIS = [
   "lembrete_de_sessao",
   "aviso_de_desmarque",
@@ -89,94 +116,41 @@ export function ehEssencial(template: string): boolean {
 }
 
 /**
- * Quando avisar sobre o teto de MENSAGENS, e quando calar.
+ * Os freios técnicos — invisíveis, e é assim que devem ficar.
  *
- * Desde a OP3 a resposta é quase sempre "calar": o teto virou rede de
- * segurança alta e saiu da tela e da página de preços. Estas funções ficam
- * porque a rede precisa ser visível **quando ela agir** — uma mensagem que
- * não sai sem ninguém saber é o pior modo de falha do outbox.
+ * Gêmeos de `public.limites_tecnicos`. Não aparecem em tela nenhuma da cliente
+ * e não aparecem na página de preços: são proteção contra laço e abuso, não
+ * cardápio. Medidos por hora e por dia de propósito — um mês cheio nunca
+ * estoura um teto horário, e um laço estoura em segundos.
  *
- * Abaixo de 70% o aviso é ruído: ela não precisa pensar no teto num mês
- * normal. De 70 a 99 é aviso; a partir de 100 é estado, não aviso.
- *
- * O limiar existe porque um plano cujo limite só aparece quando estoura não é
- * plano, é armadilha — e porque um aviso que aparece o mês inteiro é um aviso
- * que se aprende a não ler.
+ * Ficam aqui para que o app saiba **traduzir** o motivo de uma mensagem barrada,
+ * e para nada além disso.
  */
-export type Aviso = "nenhum" | "perto" | "estourou";
+export type FreioTecnico = "mensagens_por_conta_hora" | "mensagens_por_paciente_dia";
 
-export function nivelDoAviso(t: Teto): Aviso {
-  if (!t.tem_teto) return "nenhum";
-  if (t.estourou) return "estourou";
-  if (t.pct >= 70) return "perto";
-  return "nenhum";
-}
-
-/** A frase do topo. Fala do plano, nunca do uso que ela faz dele. */
-export function fraseDoTeto(t: Teto): string {
-  if (!t.tem_teto) return "";
-  if (t.estourou) {
-    return `O plano Grátis chegou ao limite de ${t.limite} mensagens neste mês.`;
+export function motivoDoFreio(codigo: string): string {
+  switch (codigo) {
+    case "mensagens_por_conta_hora":
+      return "muitas mensagens saíram desta conta na mesma hora";
+    case "mensagens_por_paciente_dia":
+      return "muitas mensagens para a mesma pessoa hoje";
+    default:
+      return "trava de segurança";
   }
-  return `${t.usadas} de ${t.limite} mensagens usadas neste mês.`;
-}
-
-/**
- * O que exatamente parou de acontecer — e o que continua.
- *
- * É a parte que não pode faltar. "Você atingiu o limite" sozinho deixa ela
- * imaginando o pior, e o pior aqui seria justamente o que não acontece: o
- * paciente ficar sem lembrete.
- */
-export function fraseDoQueParou(t: Teto): string {
-  if (!t.estourou) return "";
-  return (
-    "A fila de encaixe está pausada e os avisos de cobrança não saem até o dia 1º. " +
-    "Lembrete de véspera, aviso de desmarque e confirmação de encaixe continuam saindo normalmente — " +
-    "essas o paciente precisa receber, e nenhum limite nosso alcança elas."
-  );
-}
-
-/** O que ela pode fazer agora, sem que o sistema decida por ela. */
-export function fraseDaSaida(t: Teto): string {
-  if (!t.estourou) return "";
-  return "Você continua podendo oferecer o horário e cobrar pelo seu WhatsApp — o que muda é que o sistema não faz isso sozinho até virar o mês.";
-}
-
-/**
- * Quantas faltam, em português, sem exagerar nem minimizar.
- */
-export function fraseDoRestante(t: Teto): string {
-  if (!t.tem_teto) return "Seu plano não tem limite de mensagens.";
-  if (t.estourou) return "Nenhuma mensagem de fila ou cobrança sai até o dia 1º.";
-  const r = t.restantes ?? 0;
-  if (r === 1) return "Falta 1 mensagem de fila ou cobrança neste mês.";
-  return `Faltam ${r} mensagens de fila ou cobrança neste mês.`;
-}
-
-/**
- * A pergunta que a tela precisa responder antes de a fila parar.
- *
- * `pausaria` diz se abrir uma vaga agora não ofereceria para ninguém. É o que
- * evita o pior sintoma possível: ela cancelar uma sessão, ver a fila não fazer
- * nada, e concluir que o produto quebrou.
- */
-export function filaPausada(t: Teto): boolean {
-  return t.tem_teto && t.estourou;
-}
-
-export function fraseDaFilaPausada(t: Teto): string {
-  return filaPausada(t)
-    ? "A fila não vai oferecer esta vaga: o limite de mensagens do mês foi atingido."
-    : "";
 }
 
 /**
  * O estado de uma mensagem, em português.
  *
  * `barrada_no_teto` tem frase própria e explícita. Uma mensagem que não saiu
- * precisa dizer que não saiu — o modo de falha ruim aqui seria ela sumir da
- * tela e a psicóloga descobrir semanas depois que ninguém foi cobrado.
+ * precisa dizer que não saiu — o modo de falha ruim aqui seria ela sumir da tela
+ * e a psicóloga descobrir semanas depois que ninguém foi cobrado.
+ *
+ * O **valor** do estado continua sendo `barrada_no_teto`, e é histórico: apagar
+ * o valor do check apagaria a leitura das mensagens barradas em agosto, que
+ * foram barradas de verdade. O **rótulo** mudou, porque o que barra hoje é uma
+ * trava de segurança e não um limite de plano — e chamar as duas coisas pelo
+ * mesmo nome é o começo de confundi-las.
  */
 export type EstadoMensagem =
   | "pendente"
@@ -202,7 +176,7 @@ export function rotuloEstadoMensagem(e: EstadoMensagem): string {
     case "cancelada":
       return "cancelada";
     case "barrada_no_teto":
-      return "não saiu — limite do plano";
+      return "não saiu — trava de segurança";
   }
 }
 

@@ -29,6 +29,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE}/termos`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${BASE}/privacidade`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${BASE}/seguranca`, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${BASE}/incidente`, changeFrequency: "yearly", priority: 0.3 },
   ];
 
   const textos = await lerSitemap();

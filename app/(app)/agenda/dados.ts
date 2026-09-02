@@ -7,6 +7,8 @@ import { supabaseSessao } from "@/lib/supabase/server";
 import { diaEmSP, inicioDoDiaSP } from "@/lib/tempo";
 import { somarDias } from "@/lib/semana";
 import { hoje } from "@/lib/tempo-servidor";
+import { sessaoAtual } from "@/lib/conta";
+import { primeiroNaFila, SEM_RESUMO, type NaMao, type ResumoManual } from "@/lib/canal";
 
 export type SessaoLinha = {
   id: string;
@@ -424,5 +426,38 @@ export async function alertasARever(
   } catch (e) {
     console.error("[risco] falhou ler os alertas", e);
     return null;
+  }
+}
+
+/**
+ * O que está esperando o dedo dela (OP9).
+ *
+ * Degrada para lista vazia: a caixa é uma conveniência, e uma agenda que não
+ * abre porque a caixa falhou seria a inversão exata da prioridade.
+ */
+export async function naSuaMao(): Promise<NaMao[]> {
+  const supabase = await supabaseSessao();
+  try {
+    const linhas = await db("canal.na_sua_mao", supabase.rpc("mensagens_na_sua_mao"));
+    return ((linhas ?? []) as unknown as NaMao[]).slice().sort(primeiroNaFila);
+  } catch (e) {
+    console.error("[canal] falhou a caixa manual", e);
+    return [];
+  }
+}
+
+/** A medida do plano manual — números dela, sem comparação inventada. */
+export async function resumoDoEnvioManual(): Promise<ResumoManual> {
+  const supabase = await supabaseSessao();
+  const sessao = await sessaoAtual();
+  try {
+    const j = await db(
+      "canal.resumo",
+      supabase.rpc("resumo_do_envio_manual", { p_conta: sessao.contaId }),
+    );
+    return (j ?? SEM_RESUMO) as unknown as ResumoManual;
+  } catch (e) {
+    console.error("[canal] falhou o resumo manual", e);
+    return SEM_RESUMO;
   }
 }

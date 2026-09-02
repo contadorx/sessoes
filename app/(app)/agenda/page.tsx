@@ -10,6 +10,8 @@ import {
   cobrancasDaSemana,
   retornoDoMes,
   decisoesPendentes,
+  naSuaMao,
+  resumoDoEnvioManual,
   cockpitDoMes,
   alertasARever,
 } from "./dados";
@@ -21,6 +23,7 @@ import { semanaDe, rotuloSemana, somarDias } from "@/lib/semana";
 import { hoje } from "@/lib/tempo-servidor";
 import { FaixaDeConfirmacoes, NumerosDaConfirmacao } from "@/components/app/Confirmacoes";
 import { CaixaDeDecisoes } from "@/components/app/Decisoes";
+import { CaixaNaSuaMao } from "@/components/app/NaSuaMao";
 import { Cockpit } from "@/components/app/Cockpit";
 import { acessosDa } from "@/lib/conta";
 import { prazosDoMes } from "@/app/(app)/prazos";
@@ -44,7 +47,8 @@ export default async function Agenda({
   const referencia = /^\d{4}-\d{2}-\d{2}$/.test(pedida ?? "") ? pedida! : hojeStr;
   const semana = semanaDe(referencia);
 
-  const [sessao, sessoes, ausencias, ate, pacientes, retorno, prazos, comeco, confirmacoes, decisoes] =
+  const [sessao, sessoes, ausencias, ate, pacientes, retorno, prazos, comeco, confirmacoes, decisoes,
+         naMao, resumoManual] =
     await Promise.all([
       sessaoAtual(),
       sessoesDaSemana(semana.inicio),
@@ -61,6 +65,11 @@ export default async function Agenda({
       // As multas esperando decisão (P4). Some sozinha quando não há nenhuma —
       // e, numa conta sem falta nenhuma, é o estado permanente.
       decisoesPendentes(),
+      // O que espera o dedo dela (OP9). As duas degradam sozinhas: a caixa é
+      // conveniência, e uma agenda que não abre porque a caixa falhou seria a
+      // inversão exata da prioridade.
+      naSuaMao(),
+      resumoDoEnvioManual(),
     ]);
 
   // O cockpit do mês (P5). Depende do profissional, então vem depois da sessão
@@ -174,6 +183,16 @@ export default async function Agenda({
           é honesto se a pergunta estiver à vista. */}
       <div className="mt-6">
         <CaixaDeDecisoes decisoes={decisoes} />
+      </div>
+
+      {/* A caixa do que está na mão dela (OP9) vem logo depois das decisões, e
+          pela mesma razão: é trabalho que só acontece se ela vir. No plano
+          Grátis a fila e a cobrança saem do WhatsApp dela, com um toque — e uma
+          oferta que ela não mandou **segura a vaga**, porque o prazo da paciente
+          só começa quando alguém é convidado. Escondida numa aba, essa caixa
+          seria uma fila parada sem motivo aparente. */}
+      <div className="mt-6">
+        <CaixaNaSuaMao mensagens={naMao} resumo={resumoManual} />
       </div>
 
       {/* O cockpit do mês (P5), na primeira tela e não numa aba de relatórios.

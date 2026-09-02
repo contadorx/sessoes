@@ -118,12 +118,30 @@ export default function Termos() {
             , e uma mudança de preço nunca se aplica ao que já foi cobrado.
           </p>
           <p>
-            O plano Grátis tem um limite de 60 mensagens de fila e de cobrança
-            por mês. Lembrete de véspera, aviso de desmarque e confirmação de
-            encaixe <b className="font-medium">não entram nesse limite</b> e são
-            ilimitados em qualquer plano — um limite comercial nosso não pode
+            Cada plano tem uma <b className="font-medium">faixa de sessões por
+            mês</b>, e é essa a unidade cobrada. Atender acima da faixa{" "}
+            <b className="font-medium">não bloqueia nada e não gera cobrança
+            extra</b>: a agenda continua, a fila continua oferecendo, e as
+            mensagens continuam saindo. O que acontece é que avisamos você, e
+            sugerimos o plano seguinte a partir do próximo ciclo.
+          </p>
+          <p>
+            <b className="font-medium">No plano Grátis, a fila e a cobrança são
+            enviadas por você.</b> A mensagem é preparada pelo sistema, com o
+            texto pronto, e sai do seu próprio WhatsApp quando você toca — não
+            enviamos nada por você nesses dois casos. Lembrete de véspera, aviso
+            de desmarque e confirmação de encaixe continuam saindo
+            automaticamente, no Grátis também. Nos planos pagos, tudo é
+            automático, pelo número do Sessões.
+          </p>
+          <p>
+            <b className="font-medium">Não cobramos por mensagem, e não
+            limitamos mensagem por plano.</b> Um limite comercial nosso não pode
             decidir quem fica sem ser avisado de que a sessão de amanhã foi
-            desmarcada.
+            desmarcada — quem receberia esse aviso é o seu paciente, que não
+            escolheu plano nenhum. Existem travas técnicas de segurança contra
+            envio repetido por defeito; elas não são limite de plano e são iguais
+            para todo mundo.
           </p>
         </Bloco>
 

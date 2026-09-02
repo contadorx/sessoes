@@ -7,8 +7,9 @@ import { destinos } from "@/lib/navegacao";
 import { Sair } from "@/components/app/Sair";
 import { FormPix, FormRitmo, FormAssinatura, FormRegua, FormRegime } from "@/components/app/Conta";
 import type { Regime } from "@/lib/receitasaude";
-import { TetoNaConta } from "@/components/app/Teto";
-import { tetoDaConta } from "@/app/(app)/encaixes/dados";
+import { FaixaNaConta } from "@/components/app/Faixa";
+import { Avaliacao } from "@/components/app/Avaliacao";
+import { faixaDaConta, avaliacaoPendente } from "@/app/(app)/encaixes/dados";
 
 export const metadata = { title: "Perfil" };
 
@@ -70,7 +71,7 @@ export default async function Perfil() {
     .select("id", { count: "exact", head: true })
     .eq("estado", "pendente");
 
-  const teto = await tetoDaConta();
+  const [faixa, pendencia] = await Promise.all([faixaDaConta(), avaliacaoPendente()]);
   const acessos = acessosDa(sessao);
 
   return (
@@ -132,13 +133,28 @@ export default async function Perfil() {
       {/* ---------------------------------------------------------- o plano */}
       <section className="mt-8">
         <h2 className="rotulo">O seu plano</h2>
-        {/* Um limite só, e é este. O Grátis dá tudo o que é registro — agenda,
-            prontuário, livro-razão, pacientes sem limite — e cobra o que
-            economiza tempo, que é a mensageria. Fica visível o tempo todo:
-            limite que só aparece quando morde é armadilha. */}
+        {/* A unidade cobrada é a SESSÃO, e desde a 0060 ela é a única. O Grátis
+            dá tudo o que é registro — agenda, prontuário, livro-razão, pacientes
+            sem limite — e o que se cobra é o volume de trabalho que o sistema
+            carrega junto. Fica visível o tempo todo: número que só aparece
+            quando morde é armadilha.
+
+            E ele **não** morde: passar da faixa não trava nada, não para
+            mensagem nenhuma e não gera cobrança extra. */}
         <div className="mt-3 rounded-cartao border border-linha bg-folha px-5 py-4">
-          <TetoNaConta teto={teto} />
+          <FaixaNaConta faixa={faixa} />
         </div>
+      </section>
+
+      {/* ------------------------------------------------------- a avaliação */}
+      {/* Fica no fim do Perfil, e é de propósito: a pergunta é o item menos
+          importante de qualquer tela em que apareça, e ela não trava nada. Não
+          aparece para conta nova, para quem usou pouco, para quem está com a
+          assinatura em atraso, nem para quem já respondeu nos últimos 90 dias —
+          e some de vez com um "agora não" que não pergunta por quê. */}
+      <section className="mt-8">
+        <h2 className="rotulo">O Sessões está servindo?</h2>
+        <Avaliacao pendencia={pendencia} />
       </section>
 
       {/* ------------------------------------------------------ assinatura */}

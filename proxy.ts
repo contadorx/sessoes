@@ -18,10 +18,46 @@ import { createServerClient } from "@supabase/ssr";
  * `middleware.ts`. Mesmo papel, nome novo.
  */
 
-const PUBLICAS = new Set(["/", "/entrar", "/panorama"]);
+const PUBLICAS = new Set([
+  "/",
+  "/entrar",
+  "/panorama",
+
+  // **Os três documentos, e eles estavam atrás do login.**
+  //
+  // Achado escrevendo a B40, e é o terceiro defeito desta mesma família — o
+  // 307 mudo das rotas de máquina e o das URLs limpas do Panorama foram os
+  // dois primeiros. `/termos`, `/privacidade` e `/seguranca` não têm extensão,
+  // então acordam o proxy; o proxy fecha por padrão; e ninguém os tinha posto
+  // nesta lista. Toda visitante sem sessão era mandada para `/entrar`.
+  //
+  // O custo é grande e específico. O rodapé de todas as páginas do site aponta
+  // para os três, e a **própria tela de criar conta** aponta — no parágrafo que
+  // existe porque o Manual do CFP de nov/2025 manda a psicóloga conferir as
+  // cláusulas de eliminação do software **antes** de confiar prontuário a ele.
+  // Ou seja: o único momento em que alguém decide confiar, e o link a joga numa
+  // tela de login.
+  "/termos",
+  "/privacidade",
+  "/seguranca",
+
+  // A página do incidente (B40). É o que ela mostra ao CRP e à ANPD, e é o que
+  // ela abre no dia em que o site dela precisa dizer alguma coisa.
+  "/incidente",
+
+  // O blog. A 0051 o chamou de "a primeira coisa escrita para estranhos", e
+  // estranho nenhum conseguia abri-lo — nem o rastreador do buscador, que não
+  // tem cookie. O `sitemap.xml` da 0054 anunciava endereços que redirecionavam
+  // para `/entrar`, e `/entrar` está no `Disallow` do `robots.txt`: a build
+  // inteira de SEO apontando para uma porta fechada.
+  "/blog",
+]);
 
 const PREFIXOS_PUBLICOS = [
   "/p/", // portal do paciente por link mágico (D18)
+
+  // Cada texto publicado. `/blog` sozinho abre a vitrine e não os posts.
+  "/blog/",
 
   // **A pesquisa Panorama.** Páginas estáticas em `public/panorama/`, com URL
   // limpa por rewrite no `next.config.ts`. Quem chega aqui é uma psicóloga que

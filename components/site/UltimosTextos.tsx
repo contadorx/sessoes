@@ -29,7 +29,7 @@ export async function UltimosTextos() {
       <div className="mx-auto max-w-5xl px-5 py-12 sm:px-8 sm:py-16">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <div>
-            <p className="rotulo">Textos</p>
+            <p className="rotulo">Artigos</p>
             <h2 className="mt-2 max-w-[24ch] font-serif text-[26px] leading-tight tracking-[-0.015em] text-balance sm:text-[32px]">
               O que a gente aprende conversando.
             </h2>
