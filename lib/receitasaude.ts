@@ -212,3 +212,244 @@ export function diaBr(iso: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso.trim());
   return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
 }
+
+// ============================================================ o regime fiscal
+
+/**
+ * PF ou PJ — e por que isto é uma coluna e não uma preferência de tela.
+ *
+ * O Receita Saúde é obrigação **do profissional na qualidade de pessoa
+ * física**. Quem atende por CNPJ não emite recibo no app da Receita: emite
+ * NFS-e, e o dinheiro que sai da empresa para a pessoa é pró-labore ou
+ * distribuição — outro assunto, outra apuração.
+ *
+ * Enquanto isto não existia, o gatilho do banco olhava só o interruptor
+ * `receita_saude` e toda conta PJ acumulava pendência de uma obrigação que
+ * não tem. Este tipo é o espelho da coluna `contas.regime`.
+ */
+export type Regime = "pf" | "pj";
+
+export function fraseDoRegime(r: Regime): string {
+  return r === "pj"
+    ? "Esta conta atende por CNPJ. O caminho fiscal aqui é a NFS-e, e o Receita Saúde — que é obrigação da pessoa física — fica fora."
+    : "Esta conta atende como pessoa física. O recibo do Receita Saúde é obrigatório a cada pagamento recebido.";
+}
+
+// ================================================================== o arquivo
+
+/** Código de ocupação de psicólogo na tabela do carnê-leão. */
+export const OCUPACAO_PSICOLOGO = "255";
+
+/** Código do rendimento de trabalho não assalariado — profissão liberal. */
+export const CODIGO_RENDIMENTO = "R01.001.001";
+
+/** O limite de linhas por importação, no manual v2.1. */
+export const LIMITE_LINHAS = 1000;
+
+/** O separador do arquivo. Ponto e vírgula, não vírgula: a vírgula é decimal. */
+export const SEPARADOR = ";";
+
+export type LinhaBruta = {
+  /** "AAAA-MM-DD" — a data do **pagamento**, não a da sessão. */
+  pagoEm: string;
+  /** Centavos. */
+  centavos: number;
+  /** CPF do paciente, como está no cadastro (com ou sem pontuação). */
+  cpf: string | null;
+};
+
+export type Arquivo = {
+  ano: number;
+  linhas: number;
+  consideradas: number;
+  semCpf: number;
+  limiteAtingido: boolean;
+  texto: string;
+};
+
+/** Só os dígitos. O arquivo da Receita não aceita pontuação no CPF. */
+export function soDigitos(s: string | null | undefined): string {
+  return (s ?? "").replace(/\D/g, "");
+}
+
+export function cpfValidoParaArquivo(s: string | null | undefined): boolean {
+  return soDigitos(s).length === 11;
+}
+
+/**
+ * Centavos → "200,00".
+ *
+ * Vírgula decimal e **sem separador de milhar**: espelho exato do
+ * `to_char(valor, 'FM99999999990.00')` seguido de `replace('.', ',')` que o
+ * banco faz. Com ponto, a Receita leria 200.00 como duzentos mil.
+ */
+export function valorParaCsv(centavos: number): string {
+  if (!Number.isInteger(centavos) || centavos < 0) {
+    throw new Error(`Centavos inválidos: ${centavos}`);
+  }
+  const reais = Math.floor(centavos / 100);
+  const resto = String(centavos % 100).padStart(2, "0");
+  return `${reais},${resto}`;
+}
+
+/**
+ * Uma linha, nas dezesseis colunas da pergunta 24 do manual.
+ *
+ * A coluna 6 é a descrição, e ela sai **vazia de propósito**: é campo livre
+ * que vai para a Receita Federal, e escrever ali o nome de quem se trata
+ * entregaria a lista de pacientes a um terceiro. O que a Receita precisa
+ * saber é quanto e de quem veio o CPF — o resto é sigilo.
+ */
+export function linhaCsv(
+  l: LinhaBruta,
+  cpfProfissional: string,
+  crp: string,
+): string {
+  const cpf = soDigitos(l.cpf);
+  if (cpf.length !== 11) throw new Error("linha sem CPF não entra no arquivo");
+  const prof = soDigitos(cpfProfissional);
+  if (prof.length !== 11) throw new Error("o arquivo exige o CPF do profissional");
+
+  return [
+    diaBr(l.pagoEm),           //  1 data do pagamento
+    CODIGO_RENDIMENTO,         //  2 código do rendimento
+    OCUPACAO_PSICOLOGO,        //  3 código da ocupação
+    valorParaCsv(l.centavos),  //  4 valor
+    "",                        //  5 dedução
+    "",                        //  6 descrição — vazia, e é decisão
+    "PF",                      //  7 recebido de
+    cpf,                       //  8 CPF do pagador
+    cpf,                       //  9 CPF do beneficiário
+    "",                        // 10 indicador de CPF não informado
+    "",                        // 11 CNPJ
+    "",                        // 12 indicador de IRRF
+    "",                        // 13 valor do IRRF
+    "S",                       // 14 indicador de recibo — é o que faz virar Receita Saúde
+    prof,                      // 15 CPF do profissional
+    (crp ?? "").trim(),        // 16 registro profissional
+  ].join(SEPARADOR);
+}
+
+/**
+ * O arquivo inteiro — e a contabilidade do que ficou de fora.
+ *
+ * Espelho de `public.csv_receita_saude`. Devolver só o texto faria a psicóloga
+ * importar 40 de 47 achando que importou 47, e as sete que faltaram são
+ * exatamente as que geram multa.
+ */
+export function montarArquivo(
+  ano: number,
+  brutas: LinhaBruta[],
+  cpfProfissional: string,
+  crp: string,
+  regime: Regime = "pf",
+): Arquivo {
+  if (regime === "pj") {
+    throw new Error(
+      "esta conta é PJ: o caminho fiscal aqui é a NFS-e, e o Receita Saúde é dos profissionais na qualidade de pessoa física",
+    );
+  }
+
+  const linhas: string[] = [];
+  let semCpf = 0;
+  let limiteAtingido = false;
+
+  for (const b of brutas) {
+    if (!cpfValidoParaArquivo(b.cpf)) {
+      semCpf += 1;
+      continue;
+    }
+    if (linhas.length >= LIMITE_LINHAS) {
+      limiteAtingido = true;
+      continue;
+    }
+    linhas.push(linhaCsv(b, cpfProfissional, crp));
+  }
+
+  return {
+    ano,
+    linhas: linhas.length,
+    consideradas: brutas.length,
+    semCpf,
+    limiteAtingido,
+    texto: linhas.join("\n"),
+  };
+}
+
+export function fraseDoArquivo(a: Arquivo): string {
+  const partes: string[] = [];
+  partes.push(
+    a.linhas === 0
+      ? "Nenhuma linha para gerar."
+      : `${a.linhas} linha${a.linhas > 1 ? "s" : ""} de ${a.consideradas} pendência${a.consideradas > 1 ? "s" : ""}.`,
+  );
+  if (a.semCpf > 0) {
+    const verbo = a.semCpf > 1 ? "ficaram" : "ficou";
+    partes.push(
+      `${a.semCpf} ${verbo} de fora por falta de CPF no cadastro — sem CPF a Receita recusa a linha.`,
+    );
+  }
+  if (a.limiteAtingido) {
+    partes.push(
+      `O arquivo aceita ${LIMITE_LINHAS} linhas por importação: o que passou disso fica para a próxima remessa.`,
+    );
+  }
+  return partes.join(" ");
+}
+
+export function nomeDoArquivo(ano: number): string {
+  return `receita-saude-${ano}.csv`;
+}
+
+// ======================================================= a janela de dez dias
+
+/** Dez dias contados da emissão, para desfazer no e-CAC. */
+export const DIAS_PARA_DESFAZER = 10;
+
+/**
+ * Quantos dias ainda restam. Espelho de `public.dias_para_desfazer`.
+ *
+ * `null` para o que não foi emitido; `0` quando a janela fechou — nunca
+ * negativo, porque "faltam -3 dias" não é informação, é ruído.
+ */
+export function diasParaDesfazer(emitidoEm: string | null, hoje: string): number | null {
+  if (!emitidoEm) return null;
+  return Math.max(0, DIAS_PARA_DESFAZER - diasEntre(emitidoEm, hoje));
+}
+
+export function fraseDaJanela(dias: number | null): string {
+  if (dias === null) return "";
+  if (dias === 0) {
+    return "A janela de dez dias para desfazer no e-CAC já fechou. Corrigir agora é assunto do seu contador.";
+  }
+  if (dias === 1) return "Último dia para desfazer este recibo no e-CAC, se algo saiu errado.";
+  return `Ainda dá para desfazer este recibo no e-CAC por ${dias} dias, se algo saiu errado.`;
+}
+
+// ================================================== o que a PJ tem no lugar
+
+/**
+ * As datas que a conta PJ precisa saber, e as que este produto **não** calcula.
+ *
+ * A DMED vence no último dia **útil** de fevereiro, e fevereiro é o mês do
+ * Carnaval: o dia depende de feriado móvel e de feriado municipal. Chutar essa
+ * data seria pior que não dar nenhuma — quem confia num dia errado perde o
+ * prazo achando que tinha mais um. A função diz a regra e manda confirmar.
+ */
+export function fraseDmed(anoBase: number): string {
+  return (
+    `A DMED do ano-calendário ${anoBase} é entregue até o último dia útil de fevereiro de ${anoBase + 1}. ` +
+    "O dia exato depende de feriado móvel — confirme com o seu contador."
+  );
+}
+
+/** Quando a NFS-e passa a ser exigida no padrão IBS/CBS para estes serviços. */
+export const NFSE_IBS_CBS_EXIGIVEL = "2026-10-01";
+
+export function fraseNfse(hoje: string): string {
+  const dias = diasEntre(hoje, NFSE_IBS_CBS_EXIGIVEL);
+  const quando = diaBr(NFSE_IBS_CBS_EXIGIVEL);
+  if (dias < 0) return `A NFS-e no padrão IBS/CBS é exigível desde ${quando}.`;
+  if (dias === 0) return `A NFS-e no padrão IBS/CBS passa a ser exigível hoje, ${quando}.`;
+  return `A NFS-e no padrão IBS/CBS passa a ser exigível em ${quando} — faltam ${dias} dias.`;
+}

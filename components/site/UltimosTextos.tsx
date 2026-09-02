@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { lerVitrine } from "@/lib/blog-dados";
 import { dataPorExtenso } from "@/lib/blog";
+import { chamadaDaVitrine as chamada } from "@/lib/seo";
 
 /**
  * Os últimos textos, na página inicial.
@@ -58,8 +59,8 @@ export async function UltimosTextos() {
                 <h3 className="font-serif text-[18px] leading-snug text-tinta transition-colors group-hover:text-vaga">
                   {p.titulo}
                 </h3>
-                {p.resumo && (
-                  <p className="mt-1.5 text-[13px] leading-relaxed text-tinta2">{p.resumo}</p>
+                {chamada(p) && (
+                  <p className="mt-1.5 text-[13px] leading-relaxed text-tinta2">{chamada(p)}</p>
                 )}
                 <p className="mt-1.5 text-[11px] text-tinta3">
                   {dataPorExtenso(p.publicado_em)}

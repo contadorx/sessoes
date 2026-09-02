@@ -33,12 +33,20 @@ export default async function Blog() {
         <h1 className="font-serif text-[26px] leading-tight tracking-[-0.015em]">
           O blog
         </h1>
-        <Link
-          href="/negocio/blog/novo"
-          className="rounded-full bg-vaga px-4 py-2 text-[12.5px] font-semibold text-white transition-opacity hover:opacity-90"
-        >
-          Escrever
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/negocio/blog/figuras"
+            className="rounded-full border border-linha2 px-4 py-2 text-[12.5px] font-medium text-tinta2 transition-colors hover:bg-folha2"
+          >
+            Figuras
+          </Link>
+          <Link
+            href="/negocio/blog/novo"
+            className="rounded-full bg-vaga px-4 py-2 text-[12.5px] font-semibold text-white transition-opacity hover:opacity-90"
+          >
+            Escrever
+          </Link>
+        </div>
       </div>
 
       <p className="mt-3 max-w-[64ch] text-[12.5px] leading-relaxed text-tinta3">

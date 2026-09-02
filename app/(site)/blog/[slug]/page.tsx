@@ -3,7 +3,12 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { Moldura } from "@/components/site/Moldura";
 import { lerPost } from "@/lib/blog-dados";
-import { paragrafos, dataPorExtenso, minutosDeLeitura } from "@/lib/blog";
+import { dataPorExtenso, minutosDeLeitura } from "@/lib/blog";
+import { Texto as Corpo, Indice } from "@/components/site/Texto";
+import { metaDoPost, jsonLdDoPost, jsonLdSeguro } from "@/lib/seo";
+
+const BASE = "https://sessoes.com.br";
+const AUTOR = "Leandro Alves";
 
 export const revalidate = 300;
 
@@ -15,9 +20,34 @@ export async function generateMetadata({
   const { slug } = await params;
   const achado = await lerPost(slug);
   if (!achado) return { title: "Texto não encontrado" };
+
+  const m = metaDoPost(achado.post, BASE);
+
   return {
-    title: achado.post.titulo,
-    description: achado.post.resumo ?? undefined,
+    title: m.titulo,
+    description: m.descricao,
+    // A canônica diz qual endereço é o original. Sem ela, o mesmo texto
+    // alcançável por dois caminhos vira duas páginas concorrendo entre si.
+    alternates: { canonical: m.canonica },
+    // `noindex` não esconde de ninguém: quem tem o link continua lendo. É um
+    // pedido ao rastreador, e a tela do editor diz isso com essas palavras.
+    robots: m.indexavel ? undefined : { index: false, follow: true },
+    openGraph: {
+      type: "article",
+      title: m.titulo,
+      description: m.descricao,
+      url: m.canonica,
+      siteName: "Sessões",
+      locale: "pt_BR",
+      publishedTime: achado.post.publicado_em ?? undefined,
+      modifiedTime: achado.post.atualizado_em ?? undefined,
+      images: m.figura ? [{ url: m.figura, alt: m.figuraAlt ?? m.titulo }] : undefined,
+    },
+    twitter: {
+      card: m.figura ? "summary_large_image" : "summary",
+      title: m.titulo,
+      description: m.descricao,
+    },
   };
 }
 
@@ -41,9 +71,34 @@ export default async function Texto({ params }: { params: Promise<{ slug: string
   if (!achado) notFound();
 
   const { post, links } = achado;
+  const m = metaDoPost(post, BASE);
+
+  // Os dados estruturados. A documentação do Google diz que **nenhuma
+  // propriedade de Article é obrigatória** — então aqui não há campo com
+  // valor de enfeite para "completar o schema": dado estruturado que não bate
+  // com a página é violação declarada de política, e a ausência é honesta.
+  //
+  // Vai como **filho de texto** do `<script>`, e não por
+  // `dangerouslySetInnerHTML`: o React trata filho de texto como texto, e o
+  // `jsonLdSeguro` ainda escapa o `<` — sem isso, um título que contivesse
+  // `</script>` fecharia a tag no meio do JSON.
+  const dados = jsonLdSeguro(
+    jsonLdDoPost({
+      titulo: post.titulo,
+      slug: post.slug,
+      descricao: m.descricao,
+      publicado_em: post.publicado_em,
+      atualizado_em: post.atualizado_em ?? null,
+      figura: post.figura_url,
+      autor: AUTOR,
+      site: "Sessões",
+      base: BASE,
+    }),
+  );
 
   return (
     <Moldura>
+      <script type="application/ld+json">{dados}</script>
       <article className="mx-auto max-w-[68ch] px-5 py-12 sm:px-8 sm:py-16">
         <Link href="/blog" className="text-[12.5px] text-tinta3 transition-colors hover:text-vaga">
           ← textos
@@ -61,23 +116,20 @@ export default async function Texto({ params }: { params: Promise<{ slug: string
           <Image
             src={post.figura_url}
             alt={post.figura_alt ?? ""}
-            width={1200}
-            height={675}
+            /* As medidas do arquivo, quando existem. Sem elas o navegador não
+               reserva o espaço e o texto pula quando a imagem chega. */
+            width={post.figura_largura ?? 1200}
+            height={post.figura_altura ?? 675}
             priority
             className="mt-7 h-auto w-full rounded-cartao border border-linha"
             sizes="(min-width: 768px) 680px, 100vw"
           />
         )}
 
-        <div className="mt-8 flex flex-col gap-5">
-          {paragrafos(post.corpo).map((p, i) => (
-            <p
-              key={i}
-              className="whitespace-pre-line font-serif text-[16.5px] leading-[1.75] text-tinta"
-            >
-              {p}
-            </p>
-          ))}
+        <Indice corpo={post.corpo} formato={post.formato} />
+
+        <div className="mt-4">
+          <Corpo corpo={post.corpo} formato={post.formato} />
         </div>
 
         {links.length > 0 && (

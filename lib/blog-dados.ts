@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { supabaseServer, supabaseSessao } from "@/lib/supabase/server";
-import type { Post, PostLink, PostNoPainel } from "@/lib/blog";
+import type { Post, PostLink, PostNoPainel, Figura } from "@/lib/blog";
 
 /**
  * As leituras do blog, e elas vêm em dois sabores por um motivo de segurança.
@@ -22,7 +22,7 @@ import type { Post, PostLink, PostNoPainel } from "@/lib/blog";
 
 export type PostNaVitrine = Pick<
   Post,
-  "slug" | "titulo" | "resumo" | "figura_url" | "figura_alt" | "publicado_em"
+  "slug" | "titulo" | "resumo" | "figura_url" | "figura_alt" | "publicado_em" | "corpo" | "formato"
 >;
 
 /**
@@ -63,7 +63,7 @@ export async function lerVitrine(limite = 12): Promise<PostNaVitrine[]> {
 
   const { data, error } = await supabase
     .from("posts")
-    .select("slug, titulo, resumo, figura_url, figura_alt, publicado_em")
+    .select("slug, titulo, resumo, figura_url, figura_alt, publicado_em, corpo, formato")
     .order("publicado_em", { ascending: false })
     .limit(limite);
 
@@ -85,7 +85,7 @@ export async function lerPost(
 
   const { data, error } = await supabase
     .from("posts")
-    .select("id, slug, titulo, resumo, corpo, figura_url, figura_alt, publicado_em, visivel")
+    .select("id, slug, titulo, resumo, corpo, figura_url, figura_alt, publicado_em, visivel, atualizado_em, formato, canonica, indexavel, figura_largura, figura_altura")
     .eq("slug", slug)
     .maybeSingle();
 
@@ -126,4 +126,31 @@ export async function lerPostDoPainel(
     supabase.rpc("post_do_painel", { p_id: id }),
   );
   return v ?? null;
+}
+
+/**
+ * A lista do sitemap.
+ *
+ * Chama a função da 0054 em vez de ler a tabela, e a diferença é o que ela
+ * tira: o que pede `noindex` e o que declara canônica em outro lugar. Sitemap é
+ * a lista dos originais que eu quero que sejam rastreados — não a lista de tudo
+ * o que responde.
+ */
+export async function lerSitemap(): Promise<
+  { slug: string; atualizado_em: string; publicado_em: string }[]
+> {
+  const supabase = clientePublico();
+  if (!supabase) return [];
+  const { data, error } = await supabase.rpc("posts_do_sitemap");
+  if (error) {
+    console.error("[blog] sitemap indisponível", { motivo: error.message });
+    return [];
+  }
+  return (data ?? []) as { slug: string; atualizado_em: string; publicado_em: string }[];
+}
+
+/** A biblioteca de figuras — só o operador. */
+export async function lerFiguras(): Promise<Figura[]> {
+  const supabase = await supabaseSessao();
+  return (await db<Figura[]>("blog.figuras", supabase.rpc("figuras_do_blog"))) ?? [];
 }

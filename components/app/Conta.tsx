@@ -7,9 +7,11 @@ import {
   salvarRitmo,
   salvarAssinatura,
   salvarRegua,
+  mudarRegime,
   type Resultado,
 } from "@/app/(app)/perfil/acoes";
 import { tipoDaChave } from "@/lib/pix";
+import type { Regime } from "@/lib/receitasaude";
 
 const INICIAL: Resultado = { estado: "inicial" };
 
@@ -411,6 +413,73 @@ export function FormRegua({
       </fieldset>
 
       <Recado r={r} />
+    </form>
+  );
+}
+
+/**
+ * O regime fiscal.
+ *
+ * Rádio e não interruptor: interruptor tem um estado "normal" e um "outro", e
+ * aqui não há normal — são dois caminhos fiscais inteiros, e quem atende por
+ * CNPJ não é uma exceção de quem atende como pessoa física.
+ *
+ * A consequência de marcar PJ está escrita **antes** de marcar, não num aviso
+ * depois. É mudança que mexe em lista fiscal aberta, e descobrir isso depois
+ * do clique é descobrir tarde.
+ */
+export function FormRegime({
+  regime,
+  pendentes,
+  podeEditar,
+}: {
+  regime: Regime;
+  pendentes: number;
+  podeEditar: boolean;
+}) {
+  const [r, despachar] = useActionState(mudarRegime, INICIAL);
+
+  return (
+    <form action={despachar} className="rounded-cartao border border-linha bg-folha2 px-5 py-4">
+      <fieldset disabled={!podeEditar} className="space-y-3">
+        <label className="flex items-start gap-2.5">
+          <input type="radio" name="regime" value="pf" defaultChecked={regime === "pf"} className="mt-0.5" />
+          <span className="text-[12.5px] leading-relaxed text-tinta">
+            Pessoa física
+            <span className="mt-0.5 block text-[12px] text-tinta2">
+              Cada pagamento recebido gera um recibo no Receita Saúde, e é ele
+              que alimenta o carnê-leão. Deixar de emitir custa R$ 100 por
+              mês-calendário ou fração, por recibo.
+            </span>
+          </span>
+        </label>
+
+        <label className="flex items-start gap-2.5">
+          <input type="radio" name="regime" value="pj" defaultChecked={regime === "pj"} className="mt-0.5" />
+          <span className="text-[12.5px] leading-relaxed text-tinta">
+            Pessoa jurídica (CNPJ)
+            <span className="mt-0.5 block text-[12px] text-tinta2">
+              O Receita Saúde não se aplica: o caminho é a NFS-e. O sistema para
+              de pedir recibo{" "}
+              {pendentes > 0 && (
+                <>
+                  e dispensa {pendentes === 1 ? "a pendência aberta" : `as ${pendentes} pendências abertas`},
+                  com o motivo registrado — nenhuma é apagada.{" "}
+                </>
+              )}
+              A emissão da NFS-e continua fora daqui.
+            </span>
+          </span>
+        </label>
+
+        <div className="pt-1">
+          <Salvar />
+        </div>
+      </fieldset>
+      <Recado r={r} />
+      {!podeEditar && (
+        <p className="mt-2 text-[12px] text-tinta3">Só a dona da conta muda o regime fiscal.</p>
+      )}
     </form>
   );
 }

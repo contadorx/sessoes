@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { sessaoAtual } from "@/lib/conta";
-import { lerPostDoPainel } from "@/lib/blog-dados";
+import { lerPostDoPainel, lerFiguras } from "@/lib/blog-dados";
 import { BlogEditor, AcoesDoPost } from "@/components/app/BlogEditor";
 import { estadoDoPost, dataPorExtenso } from "@/lib/blog";
 
@@ -26,10 +26,12 @@ export default async function PostDoPainel({
   const ficha = await lerPostDoPainel(id);
   if (!ficha) notFound();
 
+  const figuras = await lerFiguras();
+
   const e = estadoDoPost(ficha.post);
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-5xl">
       <Link href="/negocio/blog" className="text-[12.5px] text-tinta3 hover:text-vaga">
         ← o blog
       </Link>
@@ -59,7 +61,7 @@ export default async function PostDoPainel({
       </div>
 
       <div className="mt-8 border-t border-linha pt-7">
-        <BlogEditor post={ficha.post} links={ficha.links} />
+        <BlogEditor post={ficha.post} links={ficha.links} figuras={figuras} />
       </div>
     </div>
   );

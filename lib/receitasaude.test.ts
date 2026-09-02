@@ -13,6 +13,17 @@ import {
   rotuloEstado,
   diaBr,
   type PainelBruto,
+  fraseDoRegime,
+  valorParaCsv,
+  soDigitos,
+  cpfValidoParaArquivo,
+  linhaCsv,
+  montarArquivo,
+  fraseDoArquivo,
+  diasParaDesfazer,
+  fraseDaJanela,
+  fraseDmed,
+  fraseNfse,
 } from "@/lib/receitasaude";
 import { formatar } from "@/lib/dinheiro";
 
@@ -249,5 +260,174 @@ describe("os rótulos", () => {
   it("a data vira brasileira sem passar por Date", () => {
     expect(diaBr("2027-02-28")).toBe("28/02/2027");
     expect(diaBr("2028-02-29")).toBe("29/02/2028");
+  });
+});
+
+// ==================================================== 0053 · regime e arquivo
+
+describe("o regime fiscal", () => {
+  it("diz que PJ não emite Receita Saúde, e diz o que emite no lugar", () => {
+    expect(fraseDoRegime("pj")).toContain("NFS-e");
+    expect(fraseDoRegime("pj")).not.toMatch(/Receita Saúde é obrigatório/);
+    expect(fraseDoRegime("pf")).toContain("obrigatório");
+  });
+});
+
+describe("o valor no arquivo", () => {
+  it("usa vírgula decimal — com ponto, 200.00 vira duzentos mil na Receita", () => {
+    expect(valorParaCsv(20000)).toBe("200,00");
+    expect(valorParaCsv(18050)).toBe("180,50");
+    expect(valorParaCsv(5)).toBe("0,05");
+    expect(valorParaCsv(0)).toBe("0,00");
+  });
+
+  it("não põe separador de milhar", () => {
+    expect(valorParaCsv(123456789)).toBe("1234567,89");
+    expect(valorParaCsv(123456789)).not.toContain(".");
+  });
+
+  it("recusa centavo quebrado ou negativo em vez de arredondar em silêncio", () => {
+    expect(() => valorParaCsv(10.5)).toThrow();
+    expect(() => valorParaCsv(-100)).toThrow();
+  });
+});
+
+describe("o CPF", () => {
+  it("entra só com dígitos", () => {
+    expect(soDigitos("390.533.447-05")).toBe("39053344705");
+    expect(soDigitos(null)).toBe("");
+  });
+
+  it("recusa o que não tem onze dígitos", () => {
+    expect(cpfValidoParaArquivo("390.533.447-05")).toBe(true);
+    expect(cpfValidoParaArquivo("3905334470")).toBe(false);
+    expect(cpfValidoParaArquivo(null)).toBe(false);
+  });
+});
+
+describe("a linha do arquivo", () => {
+  const l = { pagoEm: "2026-03-04", centavos: 20000, cpf: "390.533.447-05" };
+  const linha = linhaCsv(l, "529.982.247-25", "06/123456");
+  const c = linha.split(";");
+
+  it("tem dezesseis campos separados por ponto e vírgula", () => {
+    expect(c).toHaveLength(16);
+  });
+
+  it("põe os fixos nas posições do manual — os mesmos valores do banco", () => {
+    expect(c[0]).toBe("04/03/2026");
+    expect(c[1]).toBe("R01.001.001");
+    expect(c[2]).toBe("255");
+    expect(c[3]).toBe("200,00");
+    expect(c[6]).toBe("PF");
+    expect(c[7]).toBe("39053344705");
+    expect(c[8]).toBe("39053344705");
+    expect(c[13]).toBe("S");
+    expect(c[14]).toBe("52998224725");
+    expect(c[15]).toBe("06/123456");
+  });
+
+  it("deixa vazio o que o manual manda deixar vazio", () => {
+    for (const i of [4, 5, 9, 10, 11, 12]) expect(c[i]).toBe("");
+  });
+
+  it("não tem onde caber nome de paciente: a descrição sai vazia", () => {
+    // A linha inteira não pode ter mais letra do que os fixos: PF, S,
+    // R01.001.001 e o CRP. Qualquer palavra a mais é dado que vazou.
+    const letras = linha.replace(/[0-9;/,.]/g, "");
+    expect(letras).toBe("RPFS");
+    expect(c[5]).toBe("");
+  });
+
+  it("recusa linha sem CPF em vez de emitir uma linha quebrada", () => {
+    expect(() => linhaCsv({ ...l, cpf: null }, "52998224725", "06/123456")).toThrow();
+  });
+
+  it("recusa arquivo sem o CPF do profissional", () => {
+    expect(() => linhaCsv(l, "", "06/123456")).toThrow();
+  });
+});
+
+describe("o arquivo inteiro", () => {
+  const brutas = [
+    { pagoEm: "2026-03-04", centavos: 20000, cpf: "39053344705" },
+    { pagoEm: "2026-03-05", centavos: 18000, cpf: null },
+  ];
+
+  it("conta o que olhou, não só o que coube — os mesmos números da suíte 0053", () => {
+    const a = montarArquivo(2026, brutas, "52998224725", "06/123456");
+    expect(a.linhas).toBe(1);
+    expect(a.consideradas).toBe(2);
+    expect(a.semCpf).toBe(1);
+    expect(a.limiteAtingido).toBe(false);
+    expect(a.texto.split("\n")).toHaveLength(1);
+  });
+
+  it("não tem linha de cabeçalho", () => {
+    const a = montarArquivo(2026, brutas, "52998224725", "06/123456");
+    expect(a.texto.split("\n")[0].split(";")[1]).toBe("R01.001.001");
+  });
+
+  it("encosta no limite de mil e avisa, em vez de cortar em silêncio", () => {
+    const muitas = Array.from({ length: 1002 }, () => ({
+      pagoEm: "2026-03-04",
+      centavos: 10000,
+      cpf: "39053344705",
+    }));
+    const a = montarArquivo(2026, muitas, "52998224725", "06/123456");
+    expect(a.linhas).toBe(1000);
+    expect(a.consideradas).toBe(1002);
+    expect(a.limiteAtingido).toBe(true);
+    expect(fraseDoArquivo(a)).toContain("1000");
+  });
+
+  it("recusa PJ e diz o caminho de lá", () => {
+    expect(() => montarArquivo(2026, brutas, "52998224725", "06/123456", "pj")).toThrow(
+      /NFS-e/,
+    );
+  });
+
+  it("a frase diz quantas ficaram de fora e por quê", () => {
+    const f = fraseDoArquivo(montarArquivo(2026, brutas, "52998224725", "06/123456"));
+    expect(f).toContain("1 ficou de fora");
+    expect(f).toContain("CPF");
+  });
+});
+
+describe("a janela de dez dias", () => {
+  it("conta da emissão e devolve os mesmos números do banco", () => {
+    expect(diasParaDesfazer("2026-03-04", "2026-03-04")).toBe(10);
+    expect(diasParaDesfazer("2026-03-04", "2026-03-08")).toBe(6);
+    expect(diasParaDesfazer("2026-03-04", "2026-03-14")).toBe(0);
+  });
+
+  it("fecha em zero, nunca em negativo", () => {
+    expect(diasParaDesfazer("2026-03-04", "2026-04-30")).toBe(0);
+  });
+
+  it("não existe para o que não foi emitido", () => {
+    expect(diasParaDesfazer(null, "2026-03-04")).toBeNull();
+    expect(fraseDaJanela(null)).toBe("");
+  });
+
+  it("a frase muda quando fecha, e não promete o que não dá mais", () => {
+    expect(fraseDaJanela(0)).toContain("fechou");
+    expect(fraseDaJanela(1)).toContain("Último dia");
+    expect(fraseDaJanela(7)).toContain("7 dias");
+  });
+});
+
+describe("as obrigações da PJ", () => {
+  it("não inventa o dia da DMED, porque fevereiro tem feriado móvel", () => {
+    const f = fraseDmed(2026);
+    expect(f).toContain("último dia útil de fevereiro de 2027");
+    expect(f).toContain("contador");
+    expect(f).not.toMatch(/2[0-9]\/02/);
+  });
+
+  it("conta os dias até a NFS-e do IBS/CBS e vira o tempo verbal depois", () => {
+    expect(fraseNfse("2026-09-02")).toContain("faltam 29 dias");
+    expect(fraseNfse("2026-10-01")).toContain("hoje");
+    expect(fraseNfse("2026-11-01")).toContain("desde");
   });
 });

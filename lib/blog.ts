@@ -35,7 +35,71 @@ export type Post = {
   publicado_em: string | null;
   visivel: boolean;
   atualizado_em?: string;
+
+  // Da 0054. `formato` decide como o corpo é lido e congela na estreia; os
+  // outros são o que a página diz aos buscadores.
+  formato: string;
+  canonica: string | null;
+  indexavel: boolean;
+  figura_largura: number | null;
+  figura_altura: number | null;
 };
+
+/** Uma figura da biblioteca do blog (0054). */
+export type Figura = {
+  id: string;
+  caminho: string;
+  url: string;
+  alt: string;
+  largura: number;
+  altura: number;
+  bytes: number;
+  tipo: string;
+  criado_em: string;
+  usos: number;
+  usos_no_ar: number;
+};
+
+/** Os tipos que o balde aceita — o mesmo `check` de `post_figuras.tipo`. */
+export const TIPOS_DE_FIGURA = ["image/jpeg", "image/png", "image/webp", "image/avif"];
+
+/** Cinco megabytes, o mesmo `file_size_limit` do balde. */
+export const TETO_DA_FIGURA = 5 * 1024 * 1024;
+
+/**
+ * O que a tela recusa antes de começar a subir.
+ *
+ * Subir 4 MB para ouvir não do outro lado é a pior forma de recusar: gasta o
+ * tempo e a franquia de quem está do lado de cá. O balde recusa igual — esta é
+ * a mesma regra dita mais cedo.
+ */
+export function problemaNoArquivo(a: { type: string; size: number }): string | null {
+  if (!TIPOS_DE_FIGURA.includes(a.type)) {
+    if (a.type === "image/svg+xml") {
+      return "SVG não entra: ele é XML e pode executar script numa página que estranhos abrem. Exporte como PNG ou WebP.";
+    }
+    return "A figura precisa ser JPEG, PNG, WebP ou AVIF.";
+  }
+  if (a.size > TETO_DA_FIGURA) {
+    return `A figura tem ${(a.size / 1024 / 1024).toFixed(1)} MB e o teto é 5 MB. Reduza antes de subir.`;
+  }
+  return null;
+}
+
+/** O nome do arquivo dentro do balde. Sem o nome original: ele costuma carregar o caminho do computador de quem subiu. */
+export function caminhoDaFigura(tipo: string, agora: Date, sorteio: string): string {
+  const ext = tipo === "image/jpeg" ? "jpg" : tipo.replace("image/", "");
+  const ano = agora.getUTCFullYear();
+  const mes = String(agora.getUTCMonth() + 1).padStart(2, "0");
+  return `${ano}/${mes}/${sorteio}.${ext}`;
+}
+
+/** "2,4 MB" · "312 kB" — para a biblioteca dizer o tamanho sem tabela. */
+export function tamanhoLegivel(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} kB`;
+  return `${(bytes / 1024 / 1024).toFixed(1).replace(".", ",")} MB`;
+}
 
 export type PostNoPainel = Omit<Post, "corpo" | "figura_alt"> & { links: number };
 

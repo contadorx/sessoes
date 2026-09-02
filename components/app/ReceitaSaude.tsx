@@ -16,6 +16,9 @@ import {
   fraseDasFaltas,
   fraseSemCpf,
   diaBr,
+  diasParaDesfazer,
+  fraseDaJanela,
+  LIMITE_LINHAS,
   type Painel,
 } from "@/lib/receitasaude";
 import { formatar, paraCentavos } from "@/lib/dinheiro";
@@ -96,10 +99,14 @@ export function PainelReceitaSaude({
   painel,
   aEmitir,
   registrados,
+  hoje,
+  ano,
 }: {
   painel: Painel;
   aEmitir: AEmitir[];
   registrados: Registrado[];
+  hoje: string;
+  ano: number;
 }) {
   const [rMarcar, marcar] = useActionState(marcarEmitido, INICIAL);
   const [rDesmarcar, desfazer] = useActionState(desmarcar, INICIAL);
@@ -274,6 +281,62 @@ export function PainelReceitaSaude({
         <Recado r={rDispensar} />
       </section>
 
+      {/* -------------------------------------------------- o arquivo em lote
+
+          A alternativa a esta seção é a psicóloga digitar uma por uma. Quem
+          atende oito por semana tem umas trinta e cinco por mês, e trinta e
+          cinco digitações à mão é onde o mês passa e a multa chega.
+
+          O passo "Analisar Arquivo" está escrito porque ele existe e é
+          gratuito: é a conferência da própria Receita, feita antes de
+          importar. Mandar conferir aqui seria pedir confiança no nosso
+          formato; mandar conferir lá é pedir confiança na origem. */}
+      {painel.pendentes.n > 0 && (
+        <section className="mt-10">
+          <h2 className="rotulo">Fazer em lote, em vez de uma por uma</h2>
+          <div className="mt-3 rounded-cartao border border-linha bg-folha px-5 py-4">
+            <p className="text-[13px] leading-relaxed text-tinta2">
+              O carnê-leão do e-CAC importa um arquivo com até {LIMITE_LINHAS} lançamentos de
+              uma vez. O arquivo abaixo sai no layout que ele espera, com as{" "}
+              {painel.pendentes.n} pendência{painel.pendentes.n > 1 ? "s" : ""} deste ano
+              {painel.semCpf > 0 && (
+                <> — menos {painel.semCpf} que {painel.semCpf > 1 ? "estão" : "está"} sem CPF</>
+              )}
+              .
+            </p>
+
+            <a
+              href={`/fechamento/receita-saude/csv?ano=${ano}`}
+              className="mt-3 inline-block rounded-full bg-cheia px-4 py-1.5 text-[12.5px] font-semibold text-white transition-opacity hover:opacity-90"
+            >
+              Baixar o arquivo de {ano}
+            </a>
+
+            <ol className="mt-4 space-y-1.5 text-[12.5px] leading-relaxed text-tinta2">
+              <li>
+                <b className="font-medium text-tinta">1.</b> No e-CAC, abra Carnê-Leão →
+                Escrituração → Importar Escrituração.
+              </li>
+              <li>
+                <b className="font-medium text-tinta">2.</b> Use{" "}
+                <b className="font-medium text-tinta">Analisar Arquivo</b> antes de importar.
+                É a conferência da própria Receita, e é onde um engano aparece sem custo.
+              </li>
+              <li>
+                <b className="font-medium text-tinta">3.</b> Importado, volte aqui e marque
+                como emitido — o sistema não fica sabendo sozinho.
+              </li>
+            </ol>
+
+            <p className="mt-4 text-[12px] leading-relaxed text-tinta3">
+              O arquivo leva data, valor, o seu CPF, o CRP e o CPF de quem pagou. Não leva
+              nome de paciente: o campo de descrição vai vazio de propósito, porque é campo
+              livre que sai daqui para um terceiro.
+            </p>
+          </div>
+        </section>
+      )}
+
       {/* --------------------------------------------------- o que já foi feito */}
       {registrados.length > 0 && (
         <section className="mt-10">
@@ -306,6 +369,18 @@ export function PainelReceitaSaude({
                   <input type="hidden" name="recibo" value={r.id} />
                   <Botao rotulo="desfazer" />
                 </form>
+
+                {/* A janela de dez dias.
+
+                    "desfazer" aqui só apaga o que ELA anotou nesta tela — o
+                    recibo continua de pé na Receita. Quem desfaz lá é ela, no
+                    e-CAC, e tem dez dias contados da emissão. Sem esta linha,
+                    o botão parece resolver uma coisa que não resolve. */}
+                {r.estado === "emitido" && (
+                  <p className="w-full text-[11.5px] leading-relaxed text-tinta3">
+                    {fraseDaJanela(diasParaDesfazer(r.emitido_em, hoje))}
+                  </p>
+                )}
               </li>
             ))}
           </ul>

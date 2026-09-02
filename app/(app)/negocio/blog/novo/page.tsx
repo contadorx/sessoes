@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { sessaoAtual } from "@/lib/conta";
+import { lerFiguras } from "@/lib/blog-dados";
 import { BlogEditor } from "@/components/app/BlogEditor";
 
 export const metadata = { title: "Escrever" };
@@ -9,8 +10,10 @@ export default async function NovoPost() {
   const sessao = await sessaoAtual();
   if (!sessao.operador) notFound();
 
+  const figuras = await lerFiguras();
+
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-5xl">
       <Link href="/negocio/blog" className="text-[12.5px] text-tinta3 hover:text-vaga">
         ← o blog
       </Link>
@@ -24,7 +27,7 @@ export default async function NovoPost() {
       </p>
 
       <div className="mt-7">
-        <BlogEditor />
+        <BlogEditor figuras={figuras} />
       </div>
     </div>
   );

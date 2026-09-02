@@ -5,7 +5,8 @@ import { sessaoAtual, acessosDa } from "@/lib/conta";
 import { fraseDoAcesso, ROTULO_PAPEL } from "@/lib/permissao";
 import { destinos } from "@/lib/navegacao";
 import { Sair } from "@/components/app/Sair";
-import { FormPix, FormRitmo, FormAssinatura, FormRegua } from "@/components/app/Conta";
+import { FormPix, FormRitmo, FormAssinatura, FormRegua, FormRegime } from "@/components/app/Conta";
+import type { Regime } from "@/lib/receitasaude";
 import { TetoNaConta } from "@/components/app/Teto";
 import { tetoDaConta } from "@/app/(app)/encaixes/dados";
 
@@ -26,6 +27,7 @@ type ContaLinha = {
   regua_dias: number[];
   mensalidade_dia: number;
   cobra_sessao: boolean;
+  regime: Regime;
 };
 
 type ProfLinha = {
@@ -46,7 +48,7 @@ export default async function Perfil() {
       .select(
         "nome, pix_chave, pix_nome, pix_cidade, cobranca_atraso_min, lembrete_horas, " +
           "silencio_inicio, silencio_fim, retencao_anos, cidade, regua_ativa, regua_dias, " +
-          "mensalidade_dia, cobra_sessao",
+          "mensalidade_dia, cobra_sessao, regime",
       )
       .eq("id", sessao.contaId)
       .limit(1),
@@ -60,6 +62,14 @@ export default async function Perfil() {
   )) as unknown as ProfLinha[];
 
   const prof = profs[0];
+
+  // Só a contagem: a frase do rádio precisa saber quantas pendências a
+  // mudança dispensaria, e ninguém decide o que não sabe que vai acontecer.
+  const { count: pendentes } = await supabase
+    .from("recibos_rfb")
+    .select("id", { count: "exact", head: true })
+    .eq("estado", "pendente");
+
   const teto = await tetoDaConta();
   const acessos = acessosDa(sessao);
 
@@ -142,6 +152,28 @@ export default async function Perfil() {
             documento={prof?.documento ?? null}
             cidade={conta.cidade}
             podeEditar={Boolean(prof)}
+          />
+        </div>
+      </section>
+
+      {/* -------------------------------------------------------- regime fiscal
+
+          Fica **acima** de "Como você recebe" de propósito: o regime decide
+          qual obrigação existe, e a chave PIX é detalhe de operação dentro
+          dela. E fica no Perfil, e não no Fechamento, porque não é uma
+          preferência daquela tela — é um fato sobre quem atende. */}
+      <section id="regime" className="mt-8 scroll-mt-20">
+        <h2 className="rotulo">Como você atende</h2>
+        <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-tinta2">
+          É esta escolha que decide a sua obrigação com a Receita — e não dá
+          para o sistema adivinhar. Marcar errado aqui gera lista fiscal que
+          você não tem, ou esconde a que você tem.
+        </p>
+        <div className="mt-3">
+          <FormRegime
+            regime={conta.regime ?? "pf"}
+            pendentes={pendentes ?? 0}
+            podeEditar={sessao.papel === "dona"}
           />
         </div>
       </section>

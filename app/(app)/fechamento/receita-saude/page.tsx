@@ -2,7 +2,15 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { supabaseSessao } from "@/lib/supabase/server";
 import { hoje } from "@/lib/tempo-servidor";
-import { lerPainel, prazoDoAno, diaBr, type PainelBruto } from "@/lib/receitasaude";
+import {
+  lerPainel,
+  prazoDoAno,
+  diaBr,
+  fraseDmed,
+  fraseNfse,
+  type PainelBruto,
+  type Regime,
+} from "@/lib/receitasaude";
 import {
   PainelReceitaSaude,
   type AEmitir,
@@ -35,6 +43,17 @@ export default async function ReceitaSaude({
   const seguro = ano >= 2000 && ano <= 2100 ? ano : atual;
 
   const supabase = await supabaseSessao();
+
+  // O regime primeiro, e sozinho: conta PJ não tem Receita Saúde nenhum, e
+  // pedir painel, lista e histórico para depois esconder tudo seria três
+  // consultas para desenhar uma tela que não é essa.
+  const contas = (await db(
+    "rfb.regime",
+    supabase.from("contas").select("regime").limit(1),
+  )) as unknown as { regime: Regime }[];
+  const regime: Regime = contas[0]?.regime ?? "pf";
+
+  if (regime === "pj") return <ContaPj ano={seguro} hoje={hoje()} />;
 
   const [bruto, lista, feitos] = await Promise.all([
     db("rfb.painel", supabase.rpc("receita_saude_do_ano", { p_ano: seguro })) as Promise<unknown>,
@@ -93,7 +112,13 @@ export default async function ReceitaSaude({
         {seguro} fecha em <b className="font-semibold text-tinta">{diaBr(prazoDoAno(seguro))}</b>.
       </p>
 
-      <PainelReceitaSaude painel={painel} aEmitir={aEmitir} registrados={registrados} />
+      <PainelReceitaSaude
+        painel={painel}
+        aEmitir={aEmitir}
+        registrados={registrados}
+        hoje={hoje()}
+        ano={seguro}
+      />
 
       {/* ------------------------------------------- o que este modo não faz */}
       <section className="mt-10 border-t border-linha pt-6">
@@ -130,6 +155,69 @@ export default async function ReceitaSaude({
             você, com quem cuida da sua contabilidade.
           </li>
         </ul>
+      </section>
+    </div>
+  );
+}
+
+/**
+ * A tela de quem atende por CNPJ.
+ *
+ * Ela existe porque a alternativa é pior: esconder o item do menu deixaria a
+ * psicóloga que virou PJ achando que o produto quebrou, e mostrar a lista
+ * vazia deixaria achando que está tudo em dia. O que ela precisa ver é que a
+ * obrigação **é outra** — e quais são as datas dessa outra.
+ *
+ * Nenhuma das datas é calculada aqui. A DMED vence no último dia **útil** de
+ * fevereiro, e fevereiro é o mês do Carnaval: o dia depende de feriado móvel e
+ * de feriado municipal. Chutar seria pior que não dizer, porque quem confia num
+ * dia errado perde o prazo achando que ainda tinha um.
+ */
+function ContaPj({ ano, hoje: dia }: { ano: number; hoje: string }) {
+  return (
+    <div className="mx-auto max-w-3xl">
+      <h1 className="font-serif text-[28px] leading-tight tracking-[-0.015em]">
+        Receita Saúde
+      </h1>
+
+      <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-tinta2">
+        Esta conta está marcada como <b className="font-semibold text-tinta">pessoa jurídica</b>,
+        e o Receita Saúde é obrigação do profissional na qualidade de{" "}
+        <b className="font-semibold text-tinta">pessoa física</b>. Aqui não há recibo a emitir —
+        o caminho é a NFS-e.{" "}
+        <Link href="/perfil#regime" className="underline underline-offset-2 hover:text-vaga">
+          Se isso estiver errado, mude em Perfil
+        </Link>
+        .
+      </p>
+
+      <section className="mt-8">
+        <h2 className="rotulo">O que fica no lugar</h2>
+        <ul className="mt-3 max-w-2xl space-y-2 text-[13px] leading-relaxed text-tinta2">
+          <li>
+            <b className="font-medium text-tinta">NFS-e a cada atendimento.</b> {fraseNfse(dia)}{" "}
+            Até o fim de 2026 a nota não é rejeitada por erro de preenchimento, mas a
+            obrigação de emitir já vale.
+          </li>
+          <li>
+            <b className="font-medium text-tinta">DMED, uma vez por ano.</b> {fraseDmed(ano)}{" "}
+            Ela declara quem pagou, quanto e o CPF — e é o que aparece na declaração
+            pré-preenchida do paciente.
+          </li>
+          <li>
+            <b className="font-medium text-tinta">O que sai da empresa para você</b> é
+            pró-labore ou distribuição de lucro, e tem apuração própria. Nada disso passa
+            pelo Receita Saúde.
+          </li>
+        </ul>
+        <p className="mt-4 max-w-2xl text-[12.5px] leading-relaxed text-tinta3">
+          O sistema não emite NFS-e e não transmite DMED. O que ele faz é o{" "}
+          <Link href="/fechamento/contador" className="underline underline-offset-2 hover:text-vaga">
+            fechamento do mês para o seu contador
+          </Link>
+          , com o valor recebido, a data e a pessoa — que é o que ele precisa para
+          fazer as duas coisas.
+        </p>
       </section>
     </div>
   );

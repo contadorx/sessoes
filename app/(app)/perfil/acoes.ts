@@ -222,3 +222,49 @@ export async function salvarRegua(_anterior: Resultado, form: FormData): Promise
   revalidatePath("/recebimentos");
   return { estado: "ok", mensagem: "Ajustado." };
 }
+
+/**
+ * PF ou PJ — e por que esta escolha mora no Perfil, e não no Fechamento.
+ *
+ * Não é uma preferência de tela: é o que decide qual obrigação fiscal existe.
+ * Como pessoa física, cada pagamento recebido gera um recibo no Receita Saúde,
+ * e não emitir custa R$ 100 por mês-calendário ou fração. Como pessoa
+ * jurídica, o Receita Saúde simplesmente não se aplica — o caminho é a NFS-e,
+ * e o dinheiro que sai da empresa para a pessoa é outra apuração.
+ *
+ * Marcar PJ **dispensa** as pendências abertas, com o motivo escrito, por um
+ * gatilho no banco. Não apaga nenhuma: registro fiscal não se apaga, e quem
+ * dispensa uma obrigação deixa dito por quê. Voltar para PF não ressuscita as
+ * dispensadas — o que se decidiu na época fica; o que for pago daqui para a
+ * frente volta a gerar pendência.
+ */
+export async function mudarRegime(_anterior: Resultado, form: FormData): Promise<Resultado> {
+  const sessao = await sessaoAtual();
+  if (sessao.papel !== "dona") {
+    return { estado: "erro", erros: ["Só a dona da conta muda o regime fiscal."] };
+  }
+
+  const regime = String(form.get("regime") ?? "");
+  if (regime !== "pf" && regime !== "pj") {
+    return { estado: "erro", erros: ["Escolha pessoa física ou pessoa jurídica."] };
+  }
+
+  const supabase = await supabaseSessao();
+
+  await db(
+    "conta.regime",
+    supabase.from("contas").update({ regime }).eq("id", sessao.contaId).select("id"),
+  );
+
+  revalidatePath("/perfil");
+  revalidatePath("/fechamento");
+  revalidatePath("/fechamento/receita-saude");
+
+  return {
+    estado: "ok",
+    mensagem:
+      regime === "pj"
+        ? "Anotado. O Receita Saúde saiu da sua lista, e o que estava pendente ficou dispensado com o motivo registrado."
+        : "Anotado. Cada pagamento recebido daqui para a frente volta a gerar recibo de Receita Saúde.",
+  };
+}

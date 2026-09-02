@@ -3,6 +3,7 @@ import Image from "next/image";
 import { Moldura } from "@/components/site/Moldura";
 import { lerVitrine } from "@/lib/blog-dados";
 import { dataPorExtenso } from "@/lib/blog";
+import { chamadaDaVitrine as chamada } from "@/lib/seo";
 
 export const metadata = {
   title: "Textos",
@@ -63,8 +64,8 @@ export default async function BlogPublico() {
                   <h2 className="font-serif text-[21px] leading-snug text-tinta transition-colors group-hover:text-vaga">
                     {p.titulo}
                   </h2>
-                  {p.resumo && (
-                    <p className="mt-2 text-[13.5px] leading-relaxed text-tinta2">{p.resumo}</p>
+                  {chamada(p) && (
+                    <p className="mt-2 text-[13.5px] leading-relaxed text-tinta2">{chamada(p)}</p>
                   )}
                   <p className="mt-2 text-[11.5px] text-tinta3">
                     {dataPorExtenso(p.publicado_em)}

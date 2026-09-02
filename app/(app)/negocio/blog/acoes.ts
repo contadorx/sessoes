@@ -74,6 +74,21 @@ export async function salvarPost(_a: Resultado, form: FormData): Promise<Resulta
     figura_alt: texto(form, "figura_alt"),
   };
 
+  // Os campos da 0054. `formato` só é enviado para rascunho: o gatilho recusa
+  // trocá-lo depois da estreia, e mandar o valor atual de um texto publicado
+  // seria pedir uma recusa que a pessoa não provocou.
+  const formato = texto(form, "formato") || null;
+  const canonica = texto(form, "canonica");
+  const indexavel = String(form.get("indexavel") ?? "") === "1";
+  const larg = Number(texto(form, "figura_largura"));
+  const alt = Number(texto(form, "figura_altura"));
+
+  if (canonica !== "" && !/^https:\/\//.test(canonica)) {
+    return ERRO(
+      "O endereço original precisa começar com https:// — canônica relativa é ambígua para o rastreador.",
+    );
+  }
+
   // As duas conferências antes de qualquer ida ao banco: a tela recusa com a
   // frase que explica, e o banco continua sendo quem decide.
   const problema = problemaNoPost(campos) ?? problemaNosLinks(linksDoForm(form));
@@ -93,6 +108,11 @@ export async function salvarPost(_a: Resultado, form: FormData): Promise<Resulta
       p_resumo: campos.resumo || null,
       p_figura_url: campos.figura_url || null,
       p_figura_alt: campos.figura_alt || null,
+      p_formato: formato,
+      p_canonica: canonica || null,
+      p_indexavel: indexavel,
+      p_figura_largura: Number.isInteger(larg) && larg > 0 ? larg : null,
+      p_figura_altura: Number.isInteger(alt) && alt > 0 ? alt : null,
     }));
 
     await db("blog.links", supabase.rpc("definir_links_do_post", {
@@ -149,4 +169,95 @@ export async function apagarPost(_a: Resultado, form: FormData): Promise<Resulta
 
   revalidarTudo();
   redirect("/negocio/blog");
+}
+
+
+// ============================================================ as figuras (0054)
+
+export type ResultadoFigura =
+  | { estado: "ok"; id: string }
+  | { estado: "erro"; mensagem: string };
+
+/**
+ * Registra a figura que o navegador acabou de subir.
+ *
+ * Recebe objeto e não `FormData` de propósito: quem chama não é um `<form>`, é
+ * o widget de upload depois de o arquivo já ter chegado ao balde. Um
+ * `useActionState` aqui obrigaria a inventar um formulário para uma ação que
+ * não tem nenhum.
+ *
+ * O arquivo **não passa por aqui**. Ele foi do navegador direto para o storage,
+ * com a sessão de quem está logado e as políticas da 0054 no caminho. Passar
+ * megabytes por um server action seria trafegar tudo duas vezes e esbarrar no
+ * limite de corpo justamente na figura grande.
+ */
+export async function registrarFigura(f: {
+  caminho: string;
+  url: string;
+  alt: string;
+  largura: number;
+  altura: number;
+  bytes: number;
+  tipo: string;
+}): Promise<ResultadoFigura> {
+  try {
+    await exigirOperador();
+    const supabase = await supabaseSessao();
+
+    const id = await db<string>("blog.figura.registrar", supabase.rpc("registrar_figura", {
+      p_caminho: f.caminho,
+      p_url: f.url,
+      p_alt: f.alt,
+      p_largura: f.largura,
+      p_altura: f.altura,
+      p_bytes: f.bytes,
+      p_tipo: f.tipo,
+    }));
+
+    revalidatePath("/negocio/blog/figuras");
+    return { estado: "ok", id };
+  } catch (e) {
+    const r = comoErro(e, "Não consegui registrar a figura.");
+    return { estado: "erro", mensagem: r.mensagem };
+  }
+}
+
+/**
+ * Tira a figura da biblioteca, e depois o arquivo do balde.
+ *
+ * **Nesta ordem, e ela é a decisão.** A função do banco recusa se a figura
+ * estiver em texto que já estreou (invariante 3) e devolve o caminho; só então
+ * o arquivo sai. Apagar o arquivo primeiro deixaria, no caso da recusa, uma
+ * linha apontando para um arquivo que não existe mais — e a figura quebrada
+ * apareceria num texto sem ninguém ter mexido nele.
+ *
+ * Se o arquivo não sair, a linha já saiu e sobra um órfão no balde. É o lado
+ * barato de errar, e ele fica no log em vez de virar erro na tela: para quem
+ * está usando, a figura saiu da biblioteca, que é o que ela pediu.
+ */
+export async function apagarFigura(id: string): Promise<Resultado> {
+  try {
+    await exigirOperador();
+    const supabase = await supabaseSessao();
+
+    const caminho = await db<string>(
+      "blog.figura.apagar",
+      supabase.rpc("apagar_figura", { p_id: id }),
+    );
+
+    if (caminho) {
+      const { error } = await supabase.storage.from("blog").remove([caminho]);
+      if (error) {
+        console.error("[blog] a linha saiu e o arquivo ficou no balde", {
+          caminho,
+          motivo: error.message,
+        });
+      }
+    }
+
+    revalidatePath("/negocio/blog/figuras");
+    return OK("Tirada.");
+  } catch (e) {
+    return comoErro(e, "Não consegui tirar a figura.");
+  }
 }
