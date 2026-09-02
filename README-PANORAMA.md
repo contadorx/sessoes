@@ -102,6 +102,24 @@ instrumento-panorama.pdf   o questionário na íntegra, para o OSF (não vai par
 ```
 
 **Copie a pasta `public/panorama/` inteira para o `public/` do projeto.**
+
+### O ícone da aba
+
+As três páginas trazem, no `<head>`, o ícone da marca — **a grade 3×3 com a
+célula rosa**, a mesma do aplicativo:
+
+```
+icone.svg       32×32, vetorial · o que o navegador usa
+icone-32.png    fallback para navegador antigo
+icone-180.png   apple-touch-icon
+```
+
+Sem isso, o Vercel serve o triângulo dele no lugar. Os caminhos são absolutos
+(`/panorama/icone.svg`), então funcionam com ou sem os rewrites de URL limpa.
+
+> **Para resolver no site inteiro, e não só aqui:** copie `icone.svg` para
+> `app/icon.svg` (Next.js 13+ o adota automaticamente em todas as rotas) ou para
+> `public/favicon.ico`. Aí o triângulo some do produto também.
 Funciona sem configuração em Next.js, Vite, Astro, Remix e SvelteKit.
 
 As chaves do Supabase já estão preenchidas, com a chave *publishable* — usada de
