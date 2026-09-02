@@ -294,4 +294,67 @@ describe("as fronteiras que um arquivo guarda", () => {
     }
     expect(culpados).toEqual([]);
   });
+
+  /**
+   * "Psicólogas de verdade" saiu, e não volta.
+   *
+   * A primeira auditoria pediu a troca por soar defensivo, e eu mantive a frase
+   * com a divergência registrada em comentário, porque o pedido do Leandro
+   * tinha sido explícito. A terceira leitura trouxe o argumento que faltava, e
+   * ele não é de tom: a expressão **implica que existem psicólogas
+   * não-verdadeiras**. O que se queria dizer era o contraste com software feito
+   * sobre suposição, e isso se diz sem a implicação.
+   *
+   * Vira teste pelo mesmo motivo do "em construção": uma frase assim volta
+   * sozinha na próxima seção escrita com pressa.
+   */
+  it("nenhuma tela pública chama alguém de psicóloga de verdade", () => {
+    const publicos = [
+      join(RAIZ, "app", "(site)"),
+      join(RAIZ, "app", "entrar"),
+      join(RAIZ, "components", "site"),
+    ].flatMap((d) => arquivos(d, [".tsx"]));
+
+    const culpados = publicos.filter((f) =>
+      /psic[óo]log[ao]s?\s+de\s+verdade/i.test(
+        readFileSync(f, "utf8")
+          .replace(/\/\*[\s\S]*?\*\//g, "")
+          .replace(/^\s*\/\/.*$/gm, ""),
+      ),
+    );
+    expect(culpados).toEqual([]);
+  });
+
+  /**
+   * **Botão que nomeia um plano pago tem de carregar o plano.**
+   *
+   * "Começar no Solo" e "Começar no Pro" apontavam os dois para o mesmo
+   * `/entrar?criar`: a escolha morria no clique, e o rótulo prometia um começo
+   * que não acontece — toda conta nasce no Grátis, porque quem abre assinatura
+   * é uma pessoa (OP5).
+   *
+   * O teste não cobra o texto do rótulo, cobra a **coerência**: se o botão
+   * nomeia Solo ou Pro, o destino tem de levar essa informação. Assim continua
+   * possível reescrever a copy sem reabrir o buraco, e impossível reabri-lo por
+   * distração.
+   */
+  it("o botão que nomeia um plano pago leva o plano no destino", () => {
+    const pagina = readFileSync(join(RAIZ, "app", "(site)", "page.tsx"), "utf8");
+    const bloco = pagina.slice(
+      pagina.indexOf("const PLANOS = ["),
+      pagina.indexOf("];", pagina.indexOf("const PLANOS = [")),
+    );
+
+    const cartoes = bloco.split(/\n  \{/).slice(1);
+    const culpados: string[] = [];
+
+    for (const c of cartoes) {
+      const cta = /cta:\s*"([^"]*)"/.exec(c)?.[1] ?? "";
+      const href = /href:\s*"([^"]*)"/.exec(c)?.[1] ?? "";
+      if (!/\b(Solo|Pro)\b/.test(cta)) continue;
+      if (!href.includes("plano=")) culpados.push(`${cta} → ${href}`);
+    }
+
+    expect(culpados).toEqual([]);
+  });
 });

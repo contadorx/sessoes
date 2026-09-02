@@ -37,9 +37,14 @@
  * não dá** leva `role="img"` e `<title>`, e o título diz o que a figura mostra,
  * não como ela é desenhada.
  *
- * Tudo é SVG inline, sem dependência e sem imagem externa: a página inteira
- * continua sendo um documento que carrega de uma vez.
+ * Quase tudo é SVG inline, sem dependência: a página continua sendo um
+ * documento que carrega de uma vez. A exceção são as duas figuras editoriais do
+ * fim do arquivo — elas explicam uma **ideia** (fragmentação e consequência) em
+ * vez de desenhar um comportamento, e para ideia a ilustração matérica ganha de
+ * um diagrama. Ver o cabeçalho de `FiguraEditorial`.
  */
+
+import Image from "next/image";
 
 // ============================================================ a marca d'água
 
@@ -251,196 +256,9 @@ export function AgendaEExtrato({ className = "" }: { className?: string }) {
 
 // ============================================================ os cinco lugares
 
-/**
- * O mês espalhado — e o mesmo mês junto.
- *
- * O desenho da esquerda é deliberadamente torto: os cinco cartões desalinhados,
- * com linhas cruzando entre eles. É a única figura da página que **não** está
- * em grade, e a desordem é o argumento: a leitora reconhece o próprio mês antes
- * de ler a legenda.
- */
-export function CincoLugares({ className = "" }: { className?: string }) {
-  /**
-   * Os cinco tortos, e **sem se cobrir**.
-   *
-   * A primeira versão sobrepunha os cartões de propósito, para o desenho
-   * parecer bagunçado. Ficou bagunçado do jeito errado: um cartão tapava o
-   * texto do outro, e a figura passava a parecer defeito de renderização em
-   * vez de retrato do mês dela. Desordem que se lê é argumento; desordem que
-   * esconde informação é só desordem.
-   */
-  const espalhados = [
-    { x: 4, y: 10, r: -3.5, t: "agenda no app" },
-    { x: 122, y: 44, r: 3, t: "extrato do banco" },
-    { x: 2, y: 82, r: 2.5, t: "site da Receita" },
-    { x: 124, y: 116, r: -2.5, t: "planilha" },
-    { x: 8, y: 154, r: 1.5, t: "WhatsApp" },
-  ];
-
-  return (
-    <svg
-      role="img"
-      aria-label="À esquerda, cinco lugares desalinhados e ligados por linhas tortas: agenda no app, extrato do banco, site da Receita, planilha e WhatsApp. À direita, uma folha só com tudo dentro."
-      viewBox="0 0 470 200"
-      className={className}
-      fill="none"
-    >
-      <title>Cinco lugares, e depois um só</title>
-
-      {/* --- o emaranhado --- */}
-      <g>
-        {[
-          "M 112 26 C 128 26, 132 40, 128 56",
-          "M 56 40 C 44 56, 48 74, 54 92",
-          "M 176 74 C 186 92, 176 108, 160 124",
-          "M 108 100 C 128 106, 130 116, 132 128",
-          "M 52 112 C 44 132, 50 150, 58 166",
-          "M 118 132 C 100 148, 86 156, 76 168",
-        ].map((d) => (
-          <path key={d} d={d} stroke="var(--color-linha2)" strokeWidth="1.1" strokeDasharray="2.5 3" />
-        ))}
-
-        {espalhados.map((c) => (
-          <g key={c.t} transform={`rotate(${c.r} ${c.x + 55} ${c.y + 14})`}>
-            <rect
-              x={c.x}
-              y={c.y}
-              width="110"
-              height="28"
-              rx="3"
-              fill="var(--color-folha)"
-              stroke="var(--color-linha)"
-            />
-            <text x={c.x + 12} y={c.y + 18} fontSize="10.5" fill="var(--color-tinta2)">
-              {c.t}
-            </text>
-          </g>
-        ))}
-      </g>
-
-      {/* --- a seta --- */}
-      <path d="M 244 100 h 34" stroke="var(--color-linha2)" strokeWidth="1.5" />
-      <path d="M 272 95 l 8 5 l -8 5" stroke="var(--color-linha2)" strokeWidth="1.5" />
-
-      {/* --- a folha única --- */}
-      <rect
-        x="296"
-        y="24"
-        width="156"
-        height="152"
-        rx="4"
-        fill="var(--color-folha)"
-        stroke="var(--color-linha2)"
-      />
-      <text x="310" y="44" fontSize="9.5" letterSpacing="0.9" fill="var(--color-tinta3)">
-        UMA SESSÃO
-      </text>
-      {[
-        "quem confirmou",
-        "quem pagou",
-        "quem tem recibo",
-        "o que ficou a receber",
-        "o que vai ao contador",
-      ].map((t, i) => (
-        <g key={t}>
-          <rect
-            x="310"
-            y={56 + i * 23}
-            width="4"
-            height="4"
-            fill={i === 3 ? "var(--color-aviso)" : "var(--color-cheia)"}
-          />
-          <text x="324" y={62 + i * 23} fontSize="10.5" fill="var(--color-tinta2)">
-            {t}
-          </text>
-        </g>
-      ))}
-    </svg>
-  );
-}
 
 // ============================================================ um registro
 
-/**
- * Um gesto, cinco consequências.
- *
- * A auditoria disse que a página *"ensina o modelo contábil antes de mostrar o
- * trabalho que desaparece"*. Esta figura é a prova visual do contrário: o
- * quadrado à esquerda é a única coisa que a psicóloga faz; tudo à direita
- * acontece porque ela fez aquilo — e não é tarefa nova.
- *
- * As linhas saem todas do mesmo ponto de propósito. Se saíssem em cascata, o
- * desenho diria "cinco passos", que é exatamente o que ele existe para negar.
- */
-export function UmRegistro({ className = "" }: { className?: string }) {
-  const saidas = [
-    "a cobrança do combinado",
-    "o lembrete de pagamento",
-    "a linha do recibo",
-    "o número do contador",
-    "o fechamento do mês",
-  ];
-
-  return (
-    <svg
-      role="img"
-      aria-label="Um único gesto — marcar que a sessão aconteceu — e dele saem a cobrança, o lembrete de pagamento, a linha do recibo, o número do contador e o fechamento do mês."
-      viewBox="0 0 440 190"
-      className={className}
-      fill="none"
-    >
-      <title>Você registra uma vez; o resto acompanha</title>
-
-      {/* o gesto */}
-      <rect
-        x="6"
-        y="66"
-        width="150"
-        height="58"
-        rx="4"
-        fill="var(--color-cheia-bg)"
-        stroke="var(--color-cheia-linha)"
-      />
-      <rect x="6" y="66" width="3" height="58" rx="1.5" fill="var(--color-cheia)" />
-      <text x="22" y="90" fontSize="10" letterSpacing="1.1" fill="var(--color-tinta3)">
-        VOCÊ FAZ ISTO
-      </text>
-      <text x="22" y="110" fontSize="13" fill="var(--color-tinta)">
-        a sessão aconteceu
-      </text>
-
-      {/* as consequências */}
-      {saidas.map((t, i) => {
-        const y = 14 + i * 34;
-        return (
-          <g key={t}>
-            <path
-              d={`M 156 95 C 196 95, 196 ${y + 14}, 236 ${y + 14}`}
-              stroke="var(--color-linha2)"
-              strokeWidth="1.2"
-            />
-            <rect
-              x="236"
-              y={y}
-              width="198"
-              height="28"
-              rx="3"
-              fill="var(--color-folha)"
-              stroke="var(--color-linha)"
-            />
-            <text x="250" y={y + 18} fontSize="11" fill="var(--color-tinta2)">
-              {t}
-            </text>
-          </g>
-        );
-      })}
-
-      <text x="236" y="186" fontSize="9.5" letterSpacing="1.1" fill="var(--color-tinta3)">
-        O SISTEMA FAZ ISTO — NÃO SÃO TAREFAS NOVAS
-      </text>
-    </svg>
-  );
-}
 
 // ============================================================ os quatro glifos
 
@@ -665,5 +483,64 @@ export function Fio({ className = "" }: { className?: string }) {
         <rect key={x} x={x + 0.5} y="0.5" width="9" height="9" stroke="var(--color-linha2)" />
       ))}
     </svg>
+  );
+}
+
+
+/**
+ * A moldura das duas figuras fotografadas.
+ *
+ * **Elas não são SVG, e é a primeira exceção deste arquivo.** As outras figuras
+ * daqui existem porque desenham comportamento — a cascata da fila, a tela
+ * bloqueada, a folha do prontuário. Estas duas explicam uma ideia (fragmentação
+ * e consequência), e para ideia a ilustração matérica ganha: ela dá
+ * profundidade a uma página que, fora as figuras, é feita de caixas brancas.
+ *
+ * TRÊS DECISÕES DE IMPLEMENTAÇÃO
+ *
+ * **1 · Nenhuma palavra dentro da imagem.** A explicação fica na legenda, em
+ * HTML — legível por leitor de tela, traduzível, indexável pelo buscador e
+ * responsiva. Texto gravado em pixel é texto que não existe para metade da
+ * internet.
+ *
+ * **2 · `alt` vazio e `aria-hidden`.** A legenda já diz o que a figura diz; um
+ * `alt` repetindo a legenda faria o leitor de tela ler a mesma frase duas
+ * vezes. Imagem decorativa de conteúdo já descrito ao lado se marca como
+ * decorativa — é o que a WCAG chama de texto redundante.
+ *
+ * **3 · A proporção é a da própria imagem (3:2), e não 16:9.** Com uma moldura
+ * de proporção diferente sobraria faixa nas laterais, e `object-fit: cover`
+ * resolveria isso cortando — justamente o que não se pode fazer aqui, porque os
+ * objetos encostam nas bordas. Declarar `width` e `height` reserva o espaço
+ * certo antes de a imagem chegar, e a página não pula durante o carregamento.
+ */
+export function FiguraEditorial({
+  src,
+  legenda,
+  className = "",
+}: {
+  src: string;
+  legenda: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <figure className={`overflow-hidden rounded-cartao border border-linha ${className}`}>
+      <Image
+        src={src}
+        alt=""
+        aria-hidden="true"
+        width={1536}
+        height={1024}
+        loading="lazy"
+        className="block h-auto w-full"
+        // O celular recebe um recorte de ~430px, e não os 1536 do arquivo. É a
+        // diferença entre 70 KB e 15 KB numa página que alguém abre pelo
+        // telefone, no meio do dia, entre duas sessões.
+        sizes="(min-width: 1024px) 720px, 100vw"
+      />
+      <figcaption className="border-t border-linha bg-folha px-5 py-3.5 text-[12px] leading-relaxed text-tinta3">
+        {legenda}
+      </figcaption>
+    </figure>
   );
 }
