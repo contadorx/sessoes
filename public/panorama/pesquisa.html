@@ -204,14 +204,14 @@
   <div class="q">
     <span class="rot"><span class="cod">Q1.1</span>Pense no <strong>último dia em que você atendeu</strong>. Fora das sessões em si, o que você fez? <span class="obrig">*</span></span>
     <p class="dica">Do começo do dia até você fechar. Tudo o que não foi estar com o paciente na sessão — inclusive o que parece pequeno demais para contar.</p>
-    <textarea name="q11" required minlength="20" placeholder="Pode ser em ordem, pode ser solto. Do jeito que lembrar."></textarea>
-    <div class="erro oculto" data-erro="q11">Escreva ao menos uma frase.</div>
+    <textarea name="q11" required placeholder="Pode ser em ordem, pode ser solto. Do jeito que lembrar."></textarea>
+    <div class="erro oculto" data-erro="q11">Escreva alguma coisa, mesmo que seja curto.</div>
   </div>
 
   <div class="q">
     <span class="rot"><span class="cod">Q1.2</span>Qual foi a parte mais irritante ou cansativa da sua semana passada que <em>não</em> foi atender paciente? <span class="obrig">*</span></span>
-    <textarea name="q12" required minlength="10" placeholder="Pode ser específico — o que aconteceu, em que dia."></textarea>
-    <div class="erro oculto" data-erro="q12">Escreva ao menos uma frase.</div>
+    <textarea name="q12" required placeholder="Pode ser específico — o que aconteceu, em que dia."></textarea>
+    <div class="erro oculto" data-erro="q12">Escreva alguma coisa, mesmo que seja curto.</div>
   </div>
 
   <div class="q">
@@ -222,8 +222,8 @@
 
   <div class="q">
     <span class="rot"><span class="cod">Q1.4</span>O que mais te preocupa hoje em relação ao seu consultório? <span class="obrig">*</span></span>
-    <textarea name="q14" required minlength="10"></textarea>
-    <div class="erro oculto" data-erro="q14">Escreva ao menos uma frase.</div>
+    <textarea name="q14" required></textarea>
+    <div class="erro oculto" data-erro="q14">Escreva alguma coisa, mesmo que seja curto.</div>
   </div>
 
   <div class="nota">
@@ -1100,6 +1100,21 @@
       var nome = g.dataset.check;
       if (!sec.querySelector('input[name="' + nome + '"]:checked')) { erro(sec, nome); ok = false; }
     });
+    // **Não reintroduza `minlength` nas abertas do bloco 1.**
+    //
+    // A Q1.1 tinha `minlength="20"` e a mensagem dizia "escreva ao menos uma
+    // frase" — duas coisas diferentes. Uma frase curta e verdadeira ("Só
+    // atendi e fui embora") era recusada por um número que a respondente não
+    // tinha como conhecer, e a saída dela era **inventar texto** para passar.
+    //
+    // É a mesma família do que a revisão 3 já corrigiu nas Q4.3 e Q4.4: campo
+    // que exige valor onde a verdade é "não se aplica" produz o dado que ele
+    // depois mede. Aqui é pior, porque o bloco 1 é o coração científico do
+    // instrumento — é o que ela pensou ANTES de ver qualquer lista, e uma
+    // resposta curta e seca é achado, não falha de preenchimento.
+    //
+    // A qualidade do material aberto se avalia na análise (`v_qualidade`), e
+    // não na porta de entrada. O `required` fica; o tamanho, não.
     sec.querySelectorAll("textarea[required], input[required], select[required]").forEach(function (el) {
       if (el.closest(".oculto")) return;
       var v = (el.value || "").trim();
