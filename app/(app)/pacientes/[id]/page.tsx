@@ -8,6 +8,7 @@ import {
   filaDeEntradaDoPaciente,
   linkDoPaciente,
   proximaSessaoDo,
+  mesesDoPaciente,
 } from "../dados";
 import { NovoEnquadre } from "@/components/app/NovoEnquadre";
 import { Reajuste } from "@/components/app/Reajuste";
@@ -15,6 +16,7 @@ import { rotuloHorario, rotuloPolitica } from "@/lib/enquadre";
 import { Lastro } from "@/components/app/Lastro";
 import { LinkDoPaciente } from "@/components/app/LinkDoPaciente";
 import { Pacote } from "@/components/app/Pacote";
+import { Meses } from "@/components/app/Meses";
 import { FilaEntrada } from "@/components/app/FilaEntrada";
 import { envioAutomaticoLigado } from "@/lib/promessa";
 import { rotuloModelo } from "@/lib/cobranca";
@@ -67,6 +69,7 @@ export default async function Combinado({
   const pacotes = aberto?.modelo_cobranca === "pacote" ? await pacotesDoPaciente(paciente.id) : [];
   const entrada = aberto ? { naFila: false, desde: null } : await filaDeEntradaDoPaciente(paciente.id);
   const link = await linkDoPaciente(paciente.id);
+  const meses = await mesesDoPaciente(paciente.id);
 
   return (
     <>
@@ -208,10 +211,11 @@ export default async function Combinado({
         <h2 className="rotulo">A página dele</h2>
         <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-tinta2">
           Um link só, que mostra o que estiver esperando por ele: horário para
-          confirmar, pagamento em aberto, documentos dos últimos três meses e o
-          cadastro dele, para conferir. Não mostra prontuário, não mostra
-          histórico e não deixa cancelar sessão — cancelar continua sendo
-          conversa com você.
+          confirmar, pagamento em aberto, documentos dos últimos três meses, os
+          doze últimos meses do combinado — os mesmos que estão logo abaixo — e o
+          cadastro dele, para conferir. Não mostra prontuário, não mostra sessão
+          nenhuma e não deixa cancelar horário: cancelar continua sendo conversa
+          com você.
         </p>
 
         {/* De onde vieram esses dados.
@@ -234,6 +238,31 @@ export default async function Combinado({
           />
         </div>
       </section>
+
+      {/* ------------------------------------------------------------ os meses
+
+          A mesma linha que ele vê na página dele, montada pela mesma função —
+          `linhas_do_mes`, chamada pelos dois lados. Fica logo abaixo do link de
+          propósito: quando ele perguntar "e agosto?", a resposta está na tela
+          que ela já tem aberta, com as mesmas palavras que ele está lendo.
+
+          Não é relatório e não substitui `/recebimentos`: são doze meses desta
+          pessoa, e só o que dá base a recibo e a reembolso. */}
+      {meses.length > 0 && (
+        <section className="mt-8">
+          <h2 className="rotulo">Os meses</h2>
+          <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-tinta2">
+            O que foi combinado, o que entrou e se já há recibo, mês a mês —
+            do jeito que o plano de saúde e a declaração dele pedem. É o que ele
+            lê na página dele, com as mesmas palavras.
+          </p>
+          <Meses
+            linhas={meses}
+            comJanela={false}
+            linkDoRecibo={(l) => (l.recibo ? `/fechamento/documentos/${l.recibo}` : null)}
+          />
+        </section>
+      )}
 
       {historico.length > 0 && (
         <section className="mt-8">

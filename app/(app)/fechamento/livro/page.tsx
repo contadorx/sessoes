@@ -79,7 +79,7 @@ const ORDEM: EixoAgenda[] = ["realizada", "ausente", "cancelada", "reservada"];
 export default async function LivroRazao({
   searchParams,
 }: {
-  searchParams: Promise<{ mes?: string }>;
+  searchParams: Promise<{ mes?: string; prof?: string }>;
 }) {
   const params = await searchParams;
   const mes = mesDe(params.mes, hoje());
@@ -99,17 +99,61 @@ export default async function LivroRazao({
   */
   const sessao = await sessaoAtual();
 
-  const profs = (await db(
+  /*
+    **`profissionais` não tem coluna `nome`, e esta consulta pedia `nome`.**
+
+    Ela entrou na B44 (`a946c95`) junto com a correção que fez esta tela usar a
+    profissional da sessão — e derrubava a página inteira, para toda conta,
+    desde então: `db()` lança quando o PostgREST recusa a coluna (lei 1), e
+    "o que aconteceu com cada hora" é uma das quatro telas-núcleo do produto.
+    Nenhuma verificação pegava: `tsc` não conhece o schema, a suíte SQL não vê
+    tela, e nada renderiza esta rota. Confirmado no banco por
+    `information_schema.columns` e por um `select id, nome` que devolve
+    `42703`.
+
+    O nome de uma profissional mora em `usuarios.nome`, pela FK
+    `profissionais_usuario_id_fkey`; `assina_como` é a saída para quem ainda não
+    tem usuário ligado. A ordenação alfabética sai daqui e vira ordenação em
+    memória — são poucas linhas, e o PostgREST não ordena por coluna de
+    relação embutida. O `id` continua como desempate, que é o que torna a
+    escolha estável.
+  */
+  const brutos = (await db(
     "livro.profissional",
     supabase
       .from("profissionais")
-      .select("id, nome")
+      .select("id, assina_como, usuarios ( nome )")
       .eq("ativo", true)
-      .order("nome")
       .order("id"),
-  )) as unknown as { id: string; nome: string }[];
+  )) as unknown as {
+    id: string;
+    assina_como: string | null;
+    usuarios: { nome: string | null } | { nome: string | null }[] | null;
+  }[];
 
-  const prof = profs.find((x) => x.id === sessao.profissionalId) ?? profs[0];
+  const profs = (brutos ?? [])
+    .map((p) => {
+      const u = Array.isArray(p.usuarios) ? p.usuarios[0] : p.usuarios;
+      return { id: p.id, nome: u?.nome ?? p.assina_como ?? "sem nome" };
+    })
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR") || a.id.localeCompare(b.id));
+
+  /*
+    E de quem ela pode escolher que seja.
+
+    Faltava a metade que o `de Nome` só denunciava: numa clínica a tela dizia de
+    quem era o mês e **não deixava ver o das outras** — a sócia lia o mês da
+    colega, ou o próprio, sem caminho para o que ela queria. O `prof` do
+    endereço resolve isso, e é conferido contra a lista da conta antes de virar
+    argumento de consulta: id de fora da conta cai no padrão, não em erro nem em
+    dado de outra conta (a RLS já recusaria, e esta linha faz a tela não pedir).
+
+    O padrão continua sendo a profissional da sessão — é o que faz esta tela e o
+    Cockpit falarem do mesmo mês —, com a ordenação por nome como saída para a
+    conta em que a sessão ainda não tem profissional.
+  */
+  const escolhida = params.prof ? profs.find((x) => x.id === params.prof) : undefined;
+  const prof = escolhida ?? profs.find((x) => x.id === sessao.profissionalId) ?? profs[0];
 
   if (!prof) {
     return (
@@ -153,14 +197,59 @@ export default async function LivroRazao({
           <span className="text-[13px] text-tinta2">de {prof.nome}</span>
         )}
         <nav className="ml-auto flex items-center gap-3 text-[12.5px]">
-          <Link href={`/fechamento/livro?mes=${mes.anterior}`} className="text-tinta2 hover:text-vaga">
+          {/* O mês anda e a pessoa fica: trocar de mês e perder de quem era o
+              recorte é o mesmo defeito por outro caminho. */}
+          <Link
+            href={`/fechamento/livro?mes=${mes.anterior}&prof=${prof.id}`}
+            className="text-tinta2 hover:text-vaga"
+          >
             ← mês anterior
           </Link>
-          <Link href={`/fechamento/livro?mes=${mes.proximo}`} className="text-tinta3 hover:text-vaga">
+          <Link
+            href={`/fechamento/livro?mes=${mes.proximo}&prof=${prof.id}`}
+            className="text-tinta3 hover:text-vaga"
+          >
             seguinte →
           </Link>
         </nav>
       </div>
+
+      {/*
+        O seletor só existe quando há mais de uma pessoa atendendo, e ele diz o
+        que o recorte é: **uma pessoa por vez**. Somar as profissionais por
+        padrão está fora desta build de propósito — duplicidade de mensalidade,
+        de despesa e de responsabilidade fiscal não está resolvida, e um total
+        da clínica errado é pior que nenhum total.
+      */}
+      {profs.length > 1 && (
+        <div className="mt-4 rounded-cartao border border-linha bg-folha2 px-4 py-3">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <span className="rotulo">De quem é este mês</span>
+            <span className="text-[12px] text-tinta3">
+              uma pessoa por vez — este recorte não é o total da clínica
+            </span>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {profs.map((p) => {
+              const atual = p.id === prof.id;
+              return (
+                <Link
+                  key={p.id}
+                  href={`/fechamento/livro?mes=${mes.de.slice(0, 7)}&prof=${p.id}`}
+                  aria-current={atual ? "page" : undefined}
+                  className={`inline-flex min-h-11 items-center rounded-full border px-3.5 text-[12.5px] font-medium transition-colors ${
+                    atual
+                      ? "border-tinta3 bg-folha text-tinta"
+                      : "border-linha2 text-tinta2 hover:bg-folha"
+                  }`}
+                >
+                  {p.nome}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <p className="mt-3 max-w-[64ch] text-[14px] leading-relaxed text-tinta2">
         Quanto da sua capacidade virou receita, e por onde o resto foi. Cada hora

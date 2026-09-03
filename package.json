@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "verificar": "npm run lint && npx tsc --noEmit && npm run test",
-    "verificar:sql": "node supabase/rodar-suites.mjs"
+    "verificar:sql": "node supabase/rodar-suites.mjs",
+    "verificar:colunas": "node supabase/conferir-colunas.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.5",

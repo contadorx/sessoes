@@ -106,3 +106,74 @@ export async function cancelarDocumento(
     mensagem: "Cancelado. O número fica queimado — sequência com buraco é auditável.",
   };
 }
+
+/**
+ * Avisa a pessoa de que o documento está na página dela (B54, §5.2).
+ *
+ * **A mensagem não carrega o documento.** Ela carrega o aviso; o papel mora na
+ * página, atrás do link que a pessoa já tem. É isso que resolve a tensão da
+ * classe `documento` da fronteira 8: não há valor, procedimento nem período
+ * dentro do texto, então ele pode sair pelo WhatsApp sem tocar em nada.
+ *
+ * **E não acontece sozinho na emissão.** `emitir_documento` continua não
+ * avisando ninguém: "o default que decide por ela" é antipadrão nomeado do §9,
+ * e há emissão que é só contabilidade dela, feita em lote no fechamento do mês.
+ * Aqui é um botão, e o botão é o consentimento.
+ */
+export async function avisarDocumento(
+  _anterior: Resultado,
+  form: FormData,
+): Promise<Resultado> {
+  const id = String(form.get("documento_id") ?? "");
+  if (!id) return { estado: "erro", erros: ["Documento não identificado."] };
+
+  const supabase = await supabaseSessao();
+  let msg: string | null;
+
+  try {
+    msg = await db<string | null>(
+      "documento.avisar",
+      supabase.rpc("avisar_documento_disponivel", { p_documento: id }),
+    );
+  } catch (e) {
+    console.error("[documento] falhou avisar", e);
+    if (e instanceof ErroDeBanco && /link vivo/i.test(e.message)) {
+      return {
+        estado: "erro",
+        erros: [
+          "Esta pessoa ainda não tem página aberta. Gere o link dela na ficha " +
+            "antes de avisar — sem ele, o aviso apontaria para uma página que não abre.",
+        ],
+      };
+    }
+    if (e instanceof ErroDeBanco && /sem (telefone|e-mail)/i.test(e.message)) {
+      return {
+        estado: "erro",
+        erros: ["Falta o contato desta pessoa no cadastro. Sem ele não há para onde mandar."],
+      };
+    }
+    if (e instanceof ErroDeBanco && /cancelado/i.test(e.message)) {
+      return { estado: "erro", erros: ["Este documento foi cancelado: não há o que avisar."] };
+    }
+    return { estado: "erro", erros: ["Não consegui avisar agora. Tente de novo em instantes."] };
+  }
+
+  revalidatePath(`/fechamento/documentos/${id}`);
+
+  // `enfileirar_mensagem` devolve nulo em dois casos, e os dois merecem a
+  // verdade em vez de um "pronto" genérico: a pessoa pediu para não ser
+  // avisada, ou o aviso deste documento já estava na fila (`chave_idem`).
+  if (!msg) {
+    return {
+      estado: "ok",
+      mensagem:
+        "Nada novo foi enfileirado: ou esta pessoa pediu para não ser avisada, " +
+        "ou o aviso deste documento já estava na fila.",
+    };
+  }
+
+  return {
+    estado: "ok",
+    mensagem: "Aviso na fila. Ele diz que há um documento na página dela — e não leva o documento.",
+  };
+}

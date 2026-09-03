@@ -50,7 +50,9 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const relatorio = await despacharPendentes(20);
+    // `true`: só o cron varre a entrega. O empurrão imediato não — ver o
+    // comentário no worker.
+    const relatorio = await despacharPendentes(20, true);
 
     // O calendário pega carona nesta passada em vez de ganhar um cron próprio.
     // Não é economia de arquivo: a Vercel limita a quantidade de crons, e cinco

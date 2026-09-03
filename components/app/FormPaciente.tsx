@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { ESTADOS, ROTULO_ESTADO, CANAIS, ROTULO_CANAL } from "@/lib/paciente";
+import { ESTADOS, ROTULO_ESTADO, ROTULO_CANAL, CANAIS_OFERECIDOS } from "@/lib/paciente";
 import { DIAS, PADRAO_ENQUADRE } from "@/lib/enquadre";
 import { notaDoComoAvisar } from "@/lib/canal";
 import {
@@ -152,7 +152,7 @@ export function FormPaciente({
               onChange={(e) => setCanal(e.target.value as typeof canal)}
               className={ENTRADA}
             >
-              {CANAIS.map((c) => (
+              {CANAIS_OFERECIDOS.map((c) => (
                 <option key={c} value={c}>
                   {ROTULO_CANAL[c]}
                 </option>

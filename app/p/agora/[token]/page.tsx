@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { supabaseServer } from "@/lib/supabase/server";
 import { Confirmacao } from "@/components/publico/Confirmacao";
 import { PixCopia } from "@/components/publico/PixCopia";
+import { Meses } from "@/components/app/Meses";
+import { fraseDosMeses } from "@/lib/meses";
 import {
   saudacao,
   dia,
@@ -75,6 +77,7 @@ export default async function PaginaDoPaciente({
   const confirmar = visto.confirmar ?? [];
   const pagar = visto.pagar ?? [];
   const documentos = visto.documentos ?? [];
+  const meses = visto.meses ?? [];
 
   return (
     <main className="mx-auto max-w-lg px-5 py-10 sm:px-8 sm:py-16">
@@ -159,6 +162,29 @@ export default async function PaginaDoPaciente({
               </Link>
             ))}
           </div>
+        </section>
+      )}
+
+      {/* Os meses (B54, §5.4).
+
+          **O que esta seção resolve é uma conversa por WhatsApp.** Quem precisa
+          pedir reembolso ao plano pergunta à psicóloga o que pagou em agosto e
+          se já tem recibo; ela procura, responde, e as duas gastam a semana
+          nisso. Aqui está escrito, com as mesmas três marcas que ela vê do
+          lado dela — a mesma função monta as duas.
+
+          O recorte é dito em voz alta pelo mesmo motivo dos outros três: quem
+          procurar março e não achar conclui que o consultório perdeu, não que a
+          página tem tamanho. */}
+      {visto.estado === "aberta" && meses.length > 0 && (
+        <section className="mt-9">
+          <h2 className="rotulo">Os seus meses</h2>
+          <Meses
+            linhas={meses}
+            comJanela
+            linkDoRecibo={(l) => (l.recibo ? `/p/agora/${token}/documento/${l.recibo}` : null)}
+          />
+          <p className="mt-3 text-[12px] leading-relaxed text-tinta3">{fraseDosMeses()}</p>
         </section>
       )}
 

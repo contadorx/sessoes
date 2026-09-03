@@ -172,8 +172,11 @@ export function Ficha({
 
       <Campo rotulo="Como prefere ser avisada" nome="msg_canal" erro={porCampo.msg_canal}>
         <select id="msg_canal" name="msg_canal" defaultValue="whatsapp" className={ENTRADA}>
+          {/* Sem SMS: ele é medida de crise da cascata, e não escolha de
+              menu — ver `CANAIS_OFERECIDOS`. Oferecer aqui seria pedir à
+              paciente que escolhesse o canal mais caro do produto sem ter como
+              saber disso. */}
           <option value="whatsapp">WhatsApp</option>
-          <option value="sms">SMS</option>
           <option value="email">E-mail</option>
           <option value="nao_avisar">Prefiro não receber aviso</option>
         </select>

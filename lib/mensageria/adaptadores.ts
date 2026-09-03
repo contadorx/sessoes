@@ -105,7 +105,245 @@ export function mascarar(destino: string): string {
  *
  * Quando o BSP entrar (B10), é aqui que ele é plugado, e só aqui.
  */
+/**
+ * O e-mail, com o caminho próprio na frente e a queda atrás. (B55)
+ *
+ * DUAS COISAS QUE A DOCUMENTAÇÃO DOS PROVEDORES NÃO DEIXA ÓBVIAS
+ *
+ * **1 · O HTTP 200 não decide nada.** O Postal responde `{"status":"success"}`
+ * com 200 quando a mensagem entra **na fila dele** — e responde 200 também
+ * quando devolve erro no corpo. Quem decide é o `status` do JSON, nunca o
+ * código HTTP. É por isso que este adaptador lê o corpo antes de comemorar.
+ *
+ * **2 · `ok: true` aqui significa "o provedor aceitou", e nada além disso.** A
+ * pergunta "chegou?" tem outro dono: o webhook e a varredura. O `idExterno` é o
+ * que amarra os dois — sem ele guardado, a confirmação chega e não acha a
+ * mensagem.
+ *
+ * A queda cobre o provedor **recusar**. Ela não cobre o provedor aceitar e não
+ * entregar, que é o caso que de fato acontece — e para esse existe o disjuntor.
+ */
+const adaptadorDeEmail: Adaptador = {
+  nome: "email",
+  disponivel: true,
+  motivo: null,
+  suporta: (canal) => canal === "email",
+
+  async enviar({ destino, conteudo }): Promise<ResultadoEnvio> {
+    const proprio = process.env.POSTAL_URL?.trim();
+    const chavePropria = process.env.POSTAL_API_KEY?.trim();
+
+    if (proprio && chavePropria) {
+      const r = await pelosProprios(proprio, chavePropria, destino, conteudo);
+      if (r.ok || r.definitivo) return r;
+      // Não foi definitivo: o caminho próprio recusou, e a queda existe para
+      // isto. Um destino inválido não melhora trocando de provedor.
+    }
+
+    const daQueda = process.env.BREVO_API_KEY?.trim();
+    if (!daQueda) {
+      return {
+        ok: false,
+        provedor: "email",
+        erro: "o caminho próprio falhou e não há queda configurada",
+        definitivo: false,
+      };
+    }
+
+    return pelaQueda(daQueda, destino, conteudo);
+  },
+};
+
+async function pelosProprios(
+  url: string,
+  chave: string,
+  destino: string,
+  conteudo: Renderizado,
+): Promise<ResultadoEnvio> {
+  try {
+    const resposta = await fetch(`${url.replace(/\/$/, "")}/api/v1/send/message`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-server-api-key": chave },
+      body: JSON.stringify({
+        to: [destino],
+        from: process.env.POSTAL_FROM ?? "Sessões <nao-responda@sessoes.com.br>",
+        subject: conteudo.assunto ?? "Sessões",
+        plain_body: conteudo.texto,
+      }),
+    });
+
+    // O corpo decide, não o código. Ver o cabeçalho deste adaptador.
+    const corpo = (await resposta.json().catch(() => null)) as
+      | { status?: string; data?: Record<string, unknown> }
+      | null;
+
+    if (corpo?.status === "success") {
+      const id = idDaResposta(corpo.data);
+      return id
+        ? { ok: true, provedor: "postal", idExterno: id }
+        : {
+            // Sem id não há como amarrar a confirmação: aceitar seria voltar a
+            // afirmar entrega que ninguém confere.
+            ok: false,
+            provedor: "postal",
+            erro: "o provedor aceitou e não devolveu id da mensagem",
+            definitivo: false,
+          };
+    }
+
+    return {
+      ok: false,
+      provedor: "postal",
+      erro: `o provedor recusou: ${corpo?.status ?? resposta.status}`,
+      definitivo: resposta.status === 400 || resposta.status === 422,
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      provedor: "postal",
+      erro: e instanceof Error ? e.message : "falha de rede",
+      definitivo: false,
+    };
+  }
+}
+
+async function pelaQueda(
+  chave: string,
+  destino: string,
+  conteudo: Renderizado,
+): Promise<ResultadoEnvio> {
+  try {
+    const resposta = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: { "content-type": "application/json", "api-key": chave },
+      body: JSON.stringify({
+        sender: {
+          email: process.env.BREVO_REMETENTE_EMAIL ?? "nao-responda@sessoes.com.br",
+          name: process.env.BREVO_REMETENTE_NOME ?? "Sessões",
+        },
+        to: [{ email: destino }],
+        subject: conteudo.assunto ?? "Sessões",
+        textContent: conteudo.texto,
+      }),
+    });
+
+    const corpo = (await resposta.json().catch(() => null)) as { messageId?: string } | null;
+
+    if (resposta.ok && corpo?.messageId) {
+      return { ok: true, provedor: "brevo", idExterno: corpo.messageId };
+    }
+
+    return {
+      ok: false,
+      provedor: "brevo",
+      erro: `a queda recusou: ${resposta.status}`,
+      definitivo: resposta.status === 400,
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      provedor: "brevo",
+      erro: e instanceof Error ? e.message : "falha de rede",
+      definitivo: false,
+    };
+  }
+}
+
+/** O id vem em `id` ou `message_id`, conforme a versão do provedor. */
+function idDaResposta(dados: Record<string, unknown> | undefined): string | null {
+  for (const chave of ["message_id", "messageId", "id"]) {
+    const v = dados?.[chave];
+    if (typeof v === "string" && v.trim() !== "") return v.trim();
+    if (typeof v === "number") return String(v);
+  }
+  return null;
+}
+
+/**
+ * O SMS — construído, e **fora da vitrine**. (B52)
+ *
+ * Decisão de 03/09: ele é **medida de crise**. Não é opção de cadastro, não é
+ * escolha da paciente na pré-ficha e não é recurso de plano; entra quando uma
+ * mensagem **urgente** não tem mais por onde sair, e só aí. `precos_canal`, no
+ * banco desde sempre, diz por quê: em milésimos de centavo, e-mail **200**,
+ * WhatsApp **4.500**, SMS **8.000**. Quarenta vezes o e-mail, para chegar ao
+ * mesmo lugar em quase todo caso.
+ *
+ * `testes/o-sms-nao-vira-vitrine.test.ts` reprova quem devolver a opção à tela.
+ */
+const adaptadorDeSms: Adaptador = {
+  nome: "sms",
+  disponivel: true,
+  motivo: null,
+  suporta: (canal) => canal === "sms",
+
+  async enviar({ destino, conteudo }): Promise<ResultadoEnvio> {
+    const chave = process.env.SMS_API_KEY?.trim();
+    const url = process.env.SMS_URL?.trim();
+
+    if (!chave || !url) {
+      return { ok: false, provedor: "sms", erro: "sem provedor de SMS", definitivo: false };
+    }
+
+    try {
+      const resposta = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${chave}` },
+        body: JSON.stringify({
+          // O SMS não tem assunto e não tem formatação: vai o corpo, e o corpo
+          // já nasce discreto — o modo da paciente viaja com a mensagem.
+          to: destino,
+          message: conteudo.texto,
+        }),
+      });
+
+      const corpo = (await resposta.json().catch(() => null)) as
+        | { id?: string; messageId?: string }
+        | null;
+
+      const id = corpo?.id ?? corpo?.messageId;
+      if (resposta.ok && id) return { ok: true, provedor: "sms", idExterno: String(id) };
+
+      return {
+        ok: false,
+        provedor: "sms",
+        erro: `o provedor de SMS recusou: ${resposta.status}`,
+        definitivo: resposta.status === 400,
+      };
+    } catch (e) {
+      return {
+        ok: false,
+        provedor: "sms",
+        erro: e instanceof Error ? e.message : "falha de rede",
+        definitivo: false,
+      };
+    }
+  },
+};
+
+/** Igual ao e-mail: a pergunta é sobre variável de ambiente, não sobre saúde do provedor. */
+export function smsConfigurado(): boolean {
+  return Boolean(process.env.SMS_API_KEY?.trim() && process.env.SMS_URL?.trim());
+}
+
 export function adaptadorPara(canal: Canal): Adaptador {
-  void canal;
+  if (canal === "email" && emailConfigurado()) return adaptadorDeEmail;
+  if (canal === "sms" && smsConfigurado()) return adaptadorDeSms;
   return semProvedor;
+}
+
+/**
+ * O e-mail está de pé? (B55)
+ *
+ * A pergunta é sobre **variável de ambiente**, e não sobre o provedor estar
+ * respondendo: quem responde por "está respondendo?" é o disjuntor, que mede
+ * confirmação de entrega. Aqui é só a diferença entre existir uma ponta e não
+ * existir ponta nenhuma — e ela é a única coisa que faz as telas pararem de
+ * dizer que o envio é manual (B50).
+ *
+ * Sem `POSTAL_URL` **e** sem `BREVO_API_KEY` não há caminho nenhum, e o
+ * adaptador que recusa continua valendo. Com um dos dois, há.
+ */
+export function emailConfigurado(): boolean {
+  return Boolean(process.env.POSTAL_URL?.trim() || process.env.BREVO_API_KEY?.trim());
 }

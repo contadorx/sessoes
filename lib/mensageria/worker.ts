@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { supabaseServico } from "@/lib/supabase/servico";
 import { renderizar, type Parametros } from "./templates";
 import { adaptadorPara, type Canal } from "./adaptadores";
+import { varrerEntrega, type RelatorioDaVarredura } from "./varredura";
+import { ordemDeTentativa, NA_MAO, type Classe, type Canal as CanalDeSaida } from "./roteamento";
 
 /**
  * O despachante.
@@ -33,6 +35,86 @@ type LinhaDeMensagem = {
   tentativas: number;
 };
 
+/**
+ * O degrau seguinte da cascata — ou a mão dela, que é sempre o último. (B52)
+ *
+ * A ordem vem de `ordemDeTentativa`, que é pura e testada; aqui é só o
+ * caminho: descarta os canais já tentados, pega o primeiro que sobrou e pede ao
+ * banco que crie a tentativa. O banco recusa o degrau que repetiria a mesma
+ * mensagem no mesmo canal — a chave de entrega é (mensagem, canal), e sem ela a
+ * paciente recebe a mesma oferta duas vezes.
+ */
+/** Há algum canal com provedor? Sem nenhum, não existe cascata a calcular. */
+function temAlgumCanal(): boolean {
+  return (["whatsapp", "email", "sms"] as const).some((c) => adaptadorPara(c).disponivel);
+}
+
+async function paraAMaoDela(
+  supabase: ReturnType<typeof supabaseServico>,
+  linha: LinhaDeMensagem,
+  motivo: string,
+): Promise<"na_sua_mao"> {
+  await db("mensageria.naSuaMao", supabase.rpc("passar_para_a_sua_mao", {
+    p_mensagem: linha.id,
+    p_motivo: motivo,
+  }));
+  return "na_sua_mao";
+}
+
+async function descerNaCascata(
+  supabase: ReturnType<typeof supabaseServico>,
+  linha: LinhaDeMensagem,
+  classe: Classe,
+  motivo: string,
+): Promise<"reencaminhada" | "na_sua_mao"> {
+  const disponiveis = (["whatsapp", "email", "sms"] as const).filter(
+    (c) => adaptadorPara(c).disponivel,
+  );
+
+  // A cascata vem do banco (B57): é decisão de risco contra dinheiro, e muda
+  // por edição de tabela, não por commit. Sem linha configurada, a rota é
+  // vazia e o único degrau é o canal da paciente — o padrão não inventa degrau
+  // caro por conta própria.
+  const rota = ((await db(
+    "mensageria.rota",
+    supabase
+      .from("rota_do_canal")
+      .select("canal")
+      .eq("classe", classe)
+      .order("posicao"),
+  )) ?? []) as { canal: CanalDeSaida }[];
+
+  const ordem = ordemDeTentativa({
+    preferido: linha.canal as CanalDeSaida,
+    classe,
+    disponiveis,
+    rota: rota.map((r) => r.canal),
+  });
+
+  for (const degrau of ordem) {
+    if (degrau === NA_MAO) break;
+    if (degrau === linha.canal) continue;
+
+    try {
+      const novo = await db<string | null>(
+        "mensageria.reencaminhar",
+        supabase.rpc("reencaminhar_mensagem", { p_mensagem: linha.id, p_canal: degrau }),
+      );
+      if (novo) return "reencaminhada";
+    } catch (e) {
+      // Um degrau que o banco recusou — documento fora do e-mail, paciente sem
+      // aquele contato — não derruba a cascata: tenta o próximo.
+      console.error("[mensageria] degrau recusado", { canal: degrau, e });
+    }
+  }
+
+  await db("mensageria.naSuaMao", supabase.rpc("passar_para_a_sua_mao", {
+    p_mensagem: linha.id,
+    p_motivo: motivo,
+  }));
+  return "na_sua_mao";
+}
+
 export type Relatorio = {
   expiradas: number;
   expiradasFixas: number;
@@ -47,9 +129,20 @@ export type Relatorio = {
    * lado de fora, que o produto **não** está afirmando entrega que ninguém fez.
    */
   naSuaMao: number;
+  /** Quantas desceram um degrau da cascata em vez de esperar o dedo dela (B52). */
+  reencaminhadas: number;
+  /**
+   * A varredura da entrega (B55). Nula quando não roda — o empurrão imediato
+   * não a chama, porque conferir entrega de vinte minutos atrás não tem nada a
+   * ver com fazer uma oferta sair agora.
+   */
+  entrega?: RelatorioDaVarredura;
 };
 
-export async function despacharPendentes(limite = 20): Promise<Relatorio> {
+export async function despacharPendentes(
+  limite = 20,
+  comVarredura = false,
+): Promise<Relatorio> {
   const supabase = supabaseServico();
 
   // **Primeiro expira, depois envia.** Uma oferta que venceu faz a fila andar e
@@ -88,6 +181,28 @@ export async function despacharPendentes(limite = 20): Promise<Relatorio> {
     falhas: 0,
     desistidas: 0,
     naSuaMao: 0,
+    reencaminhadas: 0,
+  };
+
+  /*
+    A classe de cada template decide a cascata — e a consulta é **preguiçosa**,
+    de propósito: enquanto não há provedor nenhum configurado, não existe
+    cascata para calcular, e o caminho que leva tudo para a mão dela não deve
+    pagar uma consulta que não vai usar. `lib/mensageria/worker.test.ts` prova
+    justamente esse caminho, e ele continua sem tocar em `templates`.
+  */
+  let classes: Map<string, Classe> | null = null;
+  const classeDe = async (template: string): Promise<Classe> => {
+    if (!classes) {
+      const linhas = ((await db(
+        "mensageria.classes",
+        supabase.from("templates").select("codigo, classe"),
+      )) ?? []) as { codigo: string; classe: Classe }[];
+      classes = new Map(linhas.map((t) => [t.codigo, t.classe]));
+    }
+    // Sem classe declarada, `rotina` — o padrão seguro: rotina não desce para
+    // SMS e não fura a janela de silêncio.
+    return classes.get(template) ?? "rotina";
   };
 
   for (const linha of lote) {
@@ -107,11 +222,24 @@ export async function despacharPendentes(limite = 20): Promise<Relatorio> {
         esperando o dedo dela.
       */
       if (!adaptador.disponivel) {
-        await db("mensageria.naSuaMao", supabase.rpc("passar_para_a_sua_mao", {
-          p_mensagem: linha.id,
-          p_motivo: adaptador.motivo ?? "sem provedor configurado",
-        }));
-        relatorio.naSuaMao += 1;
+        /*
+          A cascata (B52) entra **aqui**, antes da mão dela: sem provedor para o
+          canal da paciente, ainda pode haver outro caminho. A mão dela continua
+          sendo o último degrau, e nunca o segundo — ela depende de humano
+          acordado, e trocar uma entrega que ainda tinha caminho por uma tarefa
+          que ela pode não ver hoje é perder a mensagem por comodidade nossa.
+        */
+        const desfecho = temAlgumCanal()
+          ? await descerNaCascata(
+              supabase,
+              linha,
+              await classeDe(linha.template),
+              adaptador.motivo ?? "sem provedor configurado",
+            )
+          : await paraAMaoDela(supabase, linha, adaptador.motivo ?? "sem provedor configurado");
+
+        if (desfecho === "reencaminhada") relatorio.reencaminhadas += 1;
+        else relatorio.naSuaMao += 1;
         continue;
       }
 
@@ -165,6 +293,20 @@ export async function despacharPendentes(limite = 20): Promise<Relatorio> {
 
       if (desfecho === "falhou") relatorio.desistidas += 1;
       else relatorio.falhas += 1;
+    }
+  }
+
+  /*
+    A varredura da entrega vem **depois** do envio, e é de propósito: o que
+    acabou de sair ainda está dentro da janela de confirmação, então varrer
+    antes mediria a foto de antes deste lote. E ela não derruba o despacho —
+    conferir entrega é diagnóstico, mandar mensagem é o trabalho.
+  */
+  if (comVarredura) {
+    try {
+      relatorio.entrega = await varrerEntrega("email");
+    } catch (e) {
+      console.error("[entrega] a varredura falhou; o despacho não depende dela", e);
     }
   }
 

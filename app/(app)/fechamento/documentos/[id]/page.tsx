@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { obterDocumento, type DocumentoLinha } from "../dados";
 import { Imprimir } from "@/components/app/Imprimir";
 import { CancelarDocumento } from "@/components/app/CancelarDocumento";
+import { AvisarDocumento } from "@/components/app/AvisarDocumento";
+import { fraseDoEnvioAutomatico } from "@/lib/promessa";
 import { formatar, paraCentavos } from "@/lib/dinheiro";
 import { documentoBr } from "@/lib/formato";
 
@@ -64,7 +66,19 @@ export default async function Documento({ params }: { params: Promise<{ id: stri
             emitido com o valor errado — que leva o nome e o CRP dela — não
             tinha como ser cancelado pela interface.
           */
-          <CancelarDocumento documentoId={doc.id} numero={doc.numero} />
+          <>
+            {/* O aviso (B54, §5.2) — e ele **não** leva o documento.
+
+                A mensagem diz que há um papel na página dela; o papel fica na
+                página, atrás do link que ela já tem. Sem isso, o recibo teria
+                que trafegar por algum canal, e é exatamente o que a fronteira 8
+                proíbe.
+
+                Fica antes do "cancelar" de propósito: a ordem da tela é a ordem
+                do que se costuma fazer, e cancelar é a exceção. */}
+            <AvisarDocumento documentoId={doc.id} frase={fraseDoEnvioAutomatico()} />
+            <CancelarDocumento documentoId={doc.id} numero={doc.numero} />
+          </>
         )}
 
         {!ehDeclaracao && (

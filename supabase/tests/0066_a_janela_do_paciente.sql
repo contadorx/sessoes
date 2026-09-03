@@ -133,13 +133,15 @@ declare
   v_hoje date;
 
   v_templates  text[];
-  -- Dez desde a 0073 (B36): 'aviso_de_pausa' e 'aviso_de_reajuste' entraram
-  -- junto com os renderizadores em lib/mensageria/templates.ts. As duas metades
-  -- deste espelho mudam na mesma build ou uma delas reprova — foi assim que
-  -- 'confirmacao_de_sessao' ficou meses no banco sem renderizador.
+  -- Onze desde a 0095 (B54): 'documento_disponivel' entrou junto com o
+  -- renderizador em lib/mensageria/templates.ts. Antes dele foram as duas da
+  -- 0073 (B36). As duas metades deste espelho mudam na mesma build ou uma delas
+  -- reprova — foi assim que 'confirmacao_de_sessao' ficou meses no banco sem
+  -- renderizador.
   v_esperados  text[] := array['aviso_de_cobranca', 'aviso_de_desmarque',
                                'aviso_de_pausa', 'aviso_de_reajuste',
-                               'confirmacao_de_sessao', 'encaixe_confirmado',
+                               'confirmacao_de_sessao', 'documento_disponivel',
+                               'encaixe_confirmado',
                                'lembrete_de_pagamento', 'lembrete_de_sessao',
                                'oferta_de_vaga', 'oferta_de_vaga_fixa'];
   v_anonimas   text[] := array['pagina_do_paciente', 'confirmar_pelo_link',
@@ -640,12 +642,47 @@ end if;
 if position(v_ss_muda::text in v_pagina::text) > 0 then
   raise exception 'FALHOU 12: a sessão que ninguém perguntou apareceu — é a página virando a agenda dele, e a agenda dele é a agenda dela vista pelo buraco da fechadura';
 end if;
+/*
+  A B54 mudou metade desta regra, e a metade que sobrou é a que importa.
+
+  Até a 0095 a frase era "não há extrato nesta página". Deixou de ser: a linha
+  do mês (§5.4 da estratégia do canal, decidida em 03/09) mostra ao paciente o
+  que foi combinado e o que foi pago, mês a mês, nas **últimas doze**
+  competências — porque é isso que o plano de saúde e a declaração dele pedem, e
+  hoje ele obtém isso perguntando à psicóloga por WhatsApp.
+
+  **O que continua valendo é o id.** Nenhuma cobrança individual aparece: a
+  linha do mês é soma, e soma não é um ponteiro para um registro. Um id numa
+  página de portador é metade de uma URL, e a outra metade é pública.
+
+  Esta suíte reprovou a 0095 exatamente por aqui — o id do recibo antigo estava
+  saindo —, e a 0096 é o conserto. A verificação segue igual porque o que ela
+  cobra não mudou.
+*/
 if position(v_cb_paga::text in v_pagina::text) > 0 then
-  raise exception 'FALHOU 12: a cobrança JÁ PAGA apareceu — não há extrato nesta página, e histórico financeiro atrás de token de portador é o que a 0066 recusou por escrito';
+  raise exception 'FALHOU 12: o id de uma cobrança apareceu na página — a linha do mês é soma, e soma não é ponteiro para registro';
 end if;
 if position(v_doc_velho::text in v_pagina::text) > 0 then
-  raise exception 'FALHOU 12: o recibo de duzentos dias atrás apareceu — recibo velho ele pede a ela, como sempre pediu';
+  raise exception 'FALHOU 12: o id do recibo de duzentos dias atrás apareceu — a lista pode dizer que ele existe, e não pode entregar o endereço dele; recibo velho ele pede a ela, como sempre pediu';
 end if;
+
+/*
+  A linha do mês, e os dois limites que impedem a exceção de virar o portal que
+  o `claude/30` matou: doze competências, e nenhum id fora da janela.
+*/
+if not (v_pagina ? 'meses') then
+  raise exception 'FALHOU 12b: a página deixou de trazer a linha do mês — a B54 saiu do produto sem ninguém notar';
+end if;
+if jsonb_array_length(v_pagina->'meses') > 12 then
+  raise exception 'FALHOU 12b: a linha do mês veio com % competências, e o recorte é doze — extrato sem fim numa tela que outra pessoa pode estar segurando é a fronteira D3 com outra roupa', jsonb_array_length(v_pagina->'meses');
+end if;
+if exists (
+  select 1 from jsonb_array_elements(v_pagina->'meses') x
+   where x->>'recibo' is not null and not (x->>'recibo_na_janela')::boolean
+) then
+  raise exception 'FALHOU 12b: a linha do mês carregou o id de um recibo fora da janela de 90 dias';
+end if;
+raise notice 'ok 12b · a linha do mês cabe em doze meses e não entrega chave de porta fechada';
 
 if jsonb_array_length(v_pagina->'confirmar') <> 1
    or jsonb_array_length(v_pagina->'pagar') <> 1
@@ -1212,6 +1249,6 @@ delete from public.contas where nome in ('Janela Teste', 'Janela Vizinha');
 reset role;
 
 raise notice '';
-raise notice 'SUITE 0066 PASSOU: 29 verificações, e vinte e três delas provam ausência';
+raise notice 'SUITE 0066 PASSOU: 30 verificações, e vinte e quatro delas provam ausência';
 
 end $do$;

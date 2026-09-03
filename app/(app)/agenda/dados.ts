@@ -350,10 +350,12 @@ export async function retornoDoMes(hojeStr: string): Promise<LinhaRetorno> {
       preenchidas: 0,
       taxa: null,
       valor_preenchido: "0",
+      valor_agendado: "0",
       valor_recebido: "0",
       valor_em_aberto: "0",
       valor_perdoado: "0",
       horas_recuperadas: "0",
+      horas_agendadas: "0",
     }
   );
 }

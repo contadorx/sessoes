@@ -63,8 +63,24 @@ a pergunta *"e se quem estiver aqui não puder ler prontuário?"*.
 6. **Perguntas clínicas não vão por formulário ao paciente.** Pré-ficha é
    administrativa.
 7. **O contador recebe finanças, nunca clínica.**
-8. **Sem integração por prefeitura** na NFS-e fora do padrão nacional, e **sem
-   Evolution / API não-oficial de WhatsApp**.
+8. **Sem integração por prefeitura** na NFS-e fora do padrão nacional. E o
+   canal de WhatsApp segue a
+   [estratégia do canal](docs/canal/ESTRATEGIA-DO-CANAL-v5.md), decidida em
+   03/09/2026 — o que **mudou** esta fronteira, que antes recusava
+   transporte não-oficial por inteiro.
+
+   **O que a decisão não afrouxa**, e está no próprio documento:
+   template de classe `documento` — recibo, informe, declaração — **nunca sai
+   por canal não oficial**; toda saída passa pela interface `CanalMensagem`, e
+   nenhuma rota chama a função crua do transporte; e a regra do 9º dígito é
+   trava de sigilo, não de integração — a versão ingênua transforma um fixo
+   num celular real de outra pessoa, e manda a mensagem sobre a consulta de
+   uma paciente para um estranho.
+
+   **O risco fica escrito onde se lê:** número banido pela Meta é a agenda da
+   psicóloga parada, e a conta de WhatsApp é dela, não nossa. É por isso que a
+   cascata termina na mão dela e não num segundo transporte — ver
+   `docs/canal/CAMADA-DE-COMUNICACAO.md`.
 9. **Dado clínico não vai para ambiente de teste**, prompt de IA externa sem
    contrato, ou ferramenta de suporte.
 10. **Roadmap não fura portão.**
@@ -233,10 +249,10 @@ SUPABASE_DB_URL='postgresql://…' npm run verificar:sql -- 0080  # só uma
 > é como se roda no banco errado sem perceber. **Roda antes de commit que toca
 > em migração.**
 
-Suítes SQL: `supabase/tests/*.sql` (61 hoje). Migrações:
-`supabase/migrations/*.sql` (130 no repositório, 135 registradas no banco — a
+Suítes SQL: `supabase/tests/*.sql` (67 hoje). Migrações:
+`supabase/migrations/*.sql` (137 no repositório, 142 registradas no banco — a
 diferença está conferida e explicada no `docs/builds/README.md`).
-**Próxima migração livre: `0090`.**
+**Próxima migração livre: `0097`.**
 
 E a prova do restore: `supabase/verificar-restauracao.sql`, com o roteiro em
 `supabase/RESTAURAR.md`. Ela é o único critério de pronto do projeto que não se

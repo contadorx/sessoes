@@ -57,10 +57,21 @@ export default async function HorariosDeclarados() {
   const sessao = await sessaoAtual();
   const supabase = await supabaseSessao();
 
-  const profs = (await db(
-    "capacidade.profissional",
-    supabase.from("profissionais").select("id, assina_como").eq("ativo", true).limit(1),
-  )) as unknown as { id: string; assina_como: string | null }[];
+  // A semana declarada é a de quem está olhando — não a da primeira linha que
+  // o banco devolver. Ver o comentário do Perfil: `.limit(1)` sem filtro e sem
+  // ordenação deixava uma sócia editar a semana da colega sem saber de quem
+  // era.
+  const profs = sessao.profissionalId
+    ? ((await db(
+        "capacidade.profissional",
+        supabase
+          .from("profissionais")
+          .select("id, assina_como")
+          .eq("id", sessao.profissionalId)
+          .eq("ativo", true)
+          .limit(1),
+      )) as unknown as { id: string; assina_como: string | null }[])
+    : [];
 
   const prof = profs[0];
 
@@ -71,7 +82,8 @@ export default async function HorariosDeclarados() {
           Seus horários
         </h1>
         <p className="mt-3 text-[13.5px] leading-relaxed text-tinta2">
-          Não encontrei um profissional ativo nesta conta.
+          Não há horários seus para declarar aqui: esta conta não tem você
+          como profissional ativo.
         </p>
       </div>
     );

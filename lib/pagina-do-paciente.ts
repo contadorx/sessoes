@@ -7,6 +7,26 @@
  *     Um portal responde "o que já aconteceu comigo?".
  *     Esta página responde "o que está esperando por mim agora?".
  *
+ * **A B54 abriu uma exceção a essa regra, e a exceção tem tamanho escrito.** A
+ * linha do mês (§5.4 da estratégia do canal) responde "o que aconteceu com
+ * agosto" — que é passado. Ela entra porque o pedido de reembolso e a
+ * declaração de imposto de renda são exatamente isso, e hoje eles são feitos
+ * por WhatsApp, perguntando à psicóloga. O que impede a exceção de virar o
+ * portal que o `claude/30` matou são dois limites duros:
+ *
+ *   1. **Doze competências**, e não "tudo". O histórico para de crescer.
+ *   2. **Nenhuma porta nova.** A linha do mês diz que o recibo de março existe;
+ *      quem o serve continua sendo `documento_do_link`, com a janela de 90 dias
+ *      da 0066. Enquanto a fechadura do §5.5 não existir — ela é código de seis
+ *      dígitos por e-mail, e não há adaptador de e-mail neste produto —,
+ *      nenhum documento a mais fica acessível por este link.
+ *   3. **Nem sequer o endereço da porta fechada.** Desde a 0096, o `recibo` e o
+ *      `recibo_numero` do documento fora da janela saem **nulos** deste lado —
+ *      a lista mostra que o papel existe (`recibo_em`) e não entrega o id. Um id
+ *      numa página de portador é metade de uma URL, e a outra metade é pública.
+ *      Quem achou isso foi a suíte 0066, rodando contra o banco depois da 0095:
+ *      a verificação 12 dela existe desde o P7 e reprovou na hora.
+ *
  * O `claude/30` matou o portal do paciente (D18) com três palavras — *"vira
  * produto paralelo"* — e pôs no lugar isto. A diferença não é de tamanho: um
  * portal cresce sozinho, porque toda tela nova parece pertencer a ele. Uma
@@ -36,6 +56,7 @@
 
 import { FUSO } from "@/lib/tempo";
 import { formatar } from "@/lib/dinheiro";
+import type { LinhaDoMes } from "@/lib/meses";
 
 export type EstadoDaPagina = "aberta" | "expirada" | "revogada" | "inexistente";
 
@@ -67,6 +88,8 @@ export type PaginaDoPaciente = {
   confirmar?: ItemDeConfirmacao[];
   pagar?: ItemDePagamento[];
   documentos?: DocumentoNaPagina[];
+  /** B54 · as últimas doze competências. O vocabulário mora em `lib/meses`. */
+  meses?: LinhaDoMes[];
 };
 
 /** A página vazia — o que a tela mostra quando a leitura falha. */

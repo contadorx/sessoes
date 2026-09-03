@@ -251,3 +251,25 @@ function partes(competencia: string): { ano: number; mes: number } {
   if (mes < 1 || mes > 12) throw new Error(`Mês inválido: ${competencia}`);
   return { ano: Number(m[1]), mes };
 }
+
+/**
+ * A hora que a fila preencheu e que **ainda não aconteceu**.
+ *
+ * O painel "Retorno" somava essa hora no número em serifa de 26 px, embaixo da
+ * frase *"que não teria entrado sem a fila e sem a política"*. Na conta de
+ * demonstração isso eram R$ 750,00 de sessões todas `prevista` — dinheiro
+ * apresentado como entrado sobre atendimento que não aconteceu. A mesma tela do
+ * Financeiro, que só conta `realizada`, mostrava R$ 0,00 para o mesmo fato: dois
+ * números sobre dinheiro, discordando, no mesmo produto.
+ *
+ * A `0090` separou os dois no banco. Aqui é a frase, e ela é factual: diz o que
+ * está marcado, sem chamar de ganho e sem prometer que vai acontecer.
+ */
+export function fraseDoAgendado(centavos: number, horas: number): string {
+  if (centavos <= 0) return "";
+
+  const h = horas > 0 ? `${horas.toFixed(1).replace(".", ",")} hora${horas >= 2 ? "s" : ""}` : null;
+  return h
+    ? `Mais ${formatar(centavos)} em ${h} já marcadas, que ainda não aconteceram.`
+    : `Mais ${formatar(centavos)} já marcados, que ainda não aconteceram.`;
+}

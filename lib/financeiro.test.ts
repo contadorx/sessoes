@@ -5,6 +5,7 @@ import {
   lerPainel,
   fraseDasDuasColunas,
   fraseDoRecuperado,
+  fraseDoAgendado,
   fraseSemRegistro,
   nomeDoMes,
   limitesDoMes,
@@ -200,5 +201,35 @@ describe("o mês", () => {
     expect(() => limitesDoMes("2026-13")).toThrow();
     expect(() => mesAnterior("agosto")).toThrow();
     expect(() => competenciaDoDia("ontem")).toThrow();
+  });
+});
+
+/*
+  O número em serifa de 26 px da agenda somava sessão que ainda não aconteceu, e
+  a mesma tela do Financeiro, que só conta `realizada`, mostrava zero para o
+  mesmo fato. A `0090` separou os dois no banco; aqui é a frase do que ficou de
+  fora da soma.
+*/
+describe("fraseDoAgendado — o que a fila preencheu e ainda não aconteceu", () => {
+  it("some quando não há nada marcado", () => {
+    expect(fraseDoAgendado(0, 0)).toBe("");
+    expect(fraseDoAgendado(-100, 2)).toBe("");
+  });
+
+  it("diz o valor e as horas, sem chamar de ganho", () => {
+    // `formatar` usa espaço não-quebrável entre "R$" e o número, como o pt-BR
+    // manda — comparar com literal de teclado reprova por um caractere que a
+    // tela desenha igual.
+    const f = fraseDoAgendado(75000, 2.5);
+    expect(f).toContain(formatar(75000));
+    expect(f).toContain("2,5 horas");
+    expect(f).toContain("ainda não aconteceram");
+    expect(f).not.toMatch(/recuperad|ganho|entrou|voltou/i);
+  });
+
+  it("sem horas, fala só do valor", () => {
+    expect(fraseDoAgendado(20000, 0)).toBe(
+      `Mais ${formatar(20000)} já marcados, que ainda não aconteceram.`,
+    );
   });
 });

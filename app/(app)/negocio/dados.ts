@@ -135,6 +135,7 @@ export async function lerPlanos(): Promise<Plano[]> {
 // ============================================ a régua e a retenção (OP6)
 
 import type { AvisoPendente, Retencao } from "@/lib/negocio";
+import type { Panorama as PanoramaDoCanal } from "@/lib/mensageria/panorama";
 
 /**
  * Os avisos que ainda não saíram.
@@ -158,4 +159,19 @@ export async function lerRetencao(desde?: string): Promise<Retencao | null> {
       supabase.rpc("retencao_do_painel", { p_desde: desde ?? null }),
     )) ?? null
   );
+}
+
+/**
+ * O panorama do canal (B56). Degrada para `null` sem derrubar o painel: é
+ * instrumento de medição, e instrumento não pode quebrar a tela que ele mede.
+ */
+export async function lerPanoramaDoCanal(): Promise<PanoramaDoCanal | null> {
+  try {
+    const supabase = await supabaseSessao();
+    const r = await db("negocio.panoramaCanal", supabase.rpc("panorama_do_canal"));
+    return (r ?? null) as PanoramaDoCanal | null;
+  } catch (e) {
+    console.error("[negocio] o panorama do canal não voltou", e);
+    return null;
+  }
 }

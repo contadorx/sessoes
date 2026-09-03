@@ -424,6 +424,8 @@ describe("as famílias são as mesmas do banco", () => {
     "aviso_de_pausa",
     "aviso_de_reajuste",
     "confirmacao_de_sessao",
+    // A do B54 (migração 0095). Entrou no banco e aqui na mesma build.
+    "documento_disponivel",
     "encaixe_confirmado",
     "lembrete_de_pagamento",
     "lembrete_de_sessao",

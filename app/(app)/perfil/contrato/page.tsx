@@ -33,10 +33,19 @@ export default async function Contratos() {
         .select("id, versao, titulo, corpo, publicado_em")
         .order("versao", { ascending: false }),
     ) as Promise<unknown>,
-    db(
-      "contratos.profissional",
-      supabase.from("profissionais").select("assina_como, crp").limit(1),
-    ) as Promise<unknown>,
+    // O contrato sai com o nome e o CRP de quem assina, e quem assina é a
+    // profissional da sessão. A consulta era `.limit(1)` sem filtro: numa
+    // clínica, a prévia do contrato mostrava o registro de outra pessoa.
+    sessao.profissionalId
+      ? (db(
+          "contratos.profissional",
+          supabase
+            .from("profissionais")
+            .select("assina_como, crp")
+            .eq("id", sessao.profissionalId)
+            .limit(1),
+        ) as Promise<unknown>)
+      : Promise.resolve([] as unknown),
     db("contratos.conta", supabase.from("contas").select("cidade").limit(1)) as Promise<unknown>,
   ]);
 

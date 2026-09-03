@@ -59,10 +59,30 @@ export default async function Perfil() {
 
   const conta = linhas[0];
 
-  const profs = (await db(
-    "conta.profissional",
-    supabase.from("profissionais").select("id, crp, documento, assina_como").limit(1),
-  )) as unknown as ProfLinha[];
+  /*
+    A profissional é a da sessão, e ponto.
+
+    Esta consulta era `.limit(1)` sem filtro e sem ordenação — o Postgres não
+    promete ordem nenhuma nesse caso, então ela devolvia **uma linha qualquer**
+    da conta. Numa clínica com duas profissionais isso não era só mostrar o CRP
+    da pessoa errada: o formulário nasce preenchido com o que a consulta trouxe
+    (`defaultValue`), e `salvarAssinatura` grava em `sessao.profissionalId`.
+    Quem abrisse o Perfil e apertasse Salvar **copiava o CRP da colega para
+    cima do próprio** — e passaria a assinar documento com registro alheio.
+
+    Sem profissional na sessão (secretária, sócia sem atendimento) não há
+    assinatura para mostrar, e `podeEditar` já desliga a edição sozinho.
+  */
+  const profs = sessao.profissionalId
+    ? ((await db(
+        "conta.profissional",
+        supabase
+          .from("profissionais")
+          .select("id, crp, documento, assina_como")
+          .eq("id", sessao.profissionalId)
+          .limit(1),
+      )) as unknown as ProfLinha[])
+    : [];
 
   const prof = profs[0];
 

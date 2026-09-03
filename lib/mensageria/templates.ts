@@ -52,6 +52,10 @@
 
 import { FUSO } from "@/lib/tempo";
 import { formatar } from "@/lib/dinheiro";
+// O nome do mês vem de `lib/meses` — a mesma função que escreve "agosto de
+// 2026" na linha do mês das duas telas. Uma segunda formatação de competência
+// aqui seria a segunda fonte de verdade em cima da palavra, não do número.
+import { nomeDoMes } from "@/lib/meses";
 
 export const FAMILIAS = [
   "oferta_de_vaga",
@@ -73,6 +77,24 @@ export const FAMILIAS = [
   // `aviso_de_cobranca`.
   "aviso_de_reajuste",
   "aviso_de_pausa",
+  /*
+    A décima primeira, do B54 (§5.2 da estratégia do canal), e ela é a que
+    **resolve** a tensão da classe `documento`.
+
+    O recibo nunca trafega. A mensagem carrega só o aviso; o documento mora na
+    página do paciente, atrás do link que ela já tem. Por isso a classe no banco
+    é `rotina` e não `documento`: não há nada dentro deste texto que a fronteira
+    8 proíba de sair por WhatsApp — nem valor, nem procedimento, nem período de
+    atendimento.
+
+    **E ela não carrega URL nenhuma.** O banco não conhece o endereço deste
+    produto (o link do paciente é montado no navegador, com
+    `window.location.origin`), e um link montado com endereço chutado é um link
+    quebrado no celular de uma paciente. O texto diz "na sua página" e a pessoa
+    abre o link que já recebeu. Quando existir um endereço declarado, o template
+    ganha a variável.
+  */
+  "documento_disponivel",
 ] as const;
 
 export type Familia = (typeof FAMILIAS)[number];
@@ -95,6 +117,10 @@ export type Parametros = {
   pausa_ate?: string;
   /** Quantos horários o lembrete de pagamento cobre. */
   quantidade?: number;
+  /** B54 · a competência do documento, em data pura ("2026-08-01"). */
+  competencia?: string;
+  /** B54 · `documentos.tipo`, para o modo completo nomear o papel. */
+  tipo?: string;
   /**
    * O rótulo do horário recorrente — "terça, 15h" —, já montado pelo banco
    * (`rotulo_horario`, da 0031). Vem pronto de propósito: quem decide como um
@@ -354,6 +380,9 @@ export const CORPOS: Record<Modo, Record<Familia, string>> = {
     aviso_de_pausa:
       "Oi, {{1}}. Vou estar fora entre {{2}}, então nossos horários desse período " +
       "não acontecem. Volto {{3}}, no horário de sempre.",
+    documento_disponivel:
+      "Oi, {{1}}. Um documento seu de {{2}} já está disponível na sua página. " +
+      "É só abrir o link que eu te enviei.",
   },
   completo: {
     oferta_de_vaga:
@@ -386,6 +415,9 @@ export const CORPOS: Record<Modo, Record<Familia, string>> = {
     aviso_de_pausa:
       "Oi, {{1}}. {{2}} estará fora entre {{3}}, então as sessões desse período " +
       "não acontecem. Voltam {{4}}, no horário de sempre.",
+    documento_disponivel:
+      "Oi, {{1}}. O seu {{2}} de {{3}} já está disponível na página que {{4}} " +
+      "te enviou. É só abrir o link.",
   },
 };
 
@@ -409,6 +441,7 @@ const VARIAVEIS: Record<Modo, Record<Familia, (c: Campos) => string[]>> = {
     confirmacao_de_sessao: (c) => [c.nome, c.hora],
     aviso_de_reajuste: (c) => [c.nome, c.desde, c.valor],
     aviso_de_pausa: (c) => [c.nome, c.pausa, c.volta],
+    documento_disponivel: (c) => [c.nome, c.mes],
   },
   completo: {
     oferta_de_vaga: (c) => [c.nome, c.hora, c.limite, c.prof],
@@ -421,6 +454,7 @@ const VARIAVEIS: Record<Modo, Record<Familia, (c: Campos) => string[]>> = {
     confirmacao_de_sessao: (c) => [c.nome, c.hora, c.prof],
     aviso_de_reajuste: (c) => [c.nome, c.desde, c.prof, c.valor],
     aviso_de_pausa: (c) => [c.nome, c.prof, c.pausa, c.volta],
+    documento_disponivel: (c) => [c.nome, c.papel, c.mes, c.prof],
   },
 };
 
@@ -437,6 +471,9 @@ type Campos = {
   /** B36 · o período da pausa, e o dia em que os horários voltam. */
   pausa: string;
   volta: string;
+  /** B54 · "agosto de 2026" e "recibo" — a competência e o papel. */
+  mes: string;
+  papel: string;
 };
 
 /**
@@ -470,8 +507,15 @@ export function renderizar(template: string, params: Parametros): Renderizado {
   // vez de vir pronta: quem enfileira já mandou o fim do período, e derivar dele
   // é uma fonte de verdade a menos.
   const volta = dia(diaSeguinte(params.pausa_ate), "assim que eu voltar");
+  // Sem competência não se inventa um mês: "de um período" é vago e verdadeiro,
+  // e "de agosto" errado manda a pessoa procurar o papel do mês errado.
+  const mes = nomeDoMes(
+    typeof params.competencia === "string" ? params.competencia : null,
+    "um período",
+  );
+  const papel = papelDoDocumento(params.tipo);
   const variaveis = VARIAVEIS[modo][template]({
-    nome, hora, limite, prof, valor, quantos, fixo, desde, pausa, volta,
+    nome, hora, limite, prof, valor, quantos, fixo, desde, pausa, volta, mes, papel,
   });
 
   return {
@@ -482,6 +526,26 @@ export function renderizar(template: string, params: Parametros): Renderizado {
     texto: preencher(CORPOS[modo][template], variaveis),
     assunto: assunto(template, modo),
   };
+}
+
+/**
+ * "recibo", "declaração", "informe" — e "documento" para o que não se conhece.
+ *
+ * O modo discreto **não** usa esta função: lá o papel é sempre "um documento
+ * seu". Nomear o papel diz o que a pessoa foi buscar num consultório, e é a
+ * mesma régua que tira o nome do profissional da mensagem discreta.
+ */
+function papelDoDocumento(tipo: string | undefined): string {
+  switch ((tipo ?? "").trim()) {
+    case "recibo":
+      return "recibo";
+    case "declaracao_comparecimento":
+      return "declaração";
+    case "informe_anual":
+      return "informe";
+    default:
+      return "documento";
+  }
 }
 
 /** Troca `{{n}}` pelo n-ésimo valor. É a mesma substituição que a Meta faz. */
@@ -505,6 +569,7 @@ function assunto(familia: Familia, modo: Modo): string {
       confirmacao_de_sessao: "Confirma o seu horário?",
       aviso_de_reajuste: "Sobre o nosso combinado",
       aviso_de_pausa: "Sobre os próximos horários",
+      documento_disponivel: "Um documento seu",
     }[familia];
   }
 
@@ -519,5 +584,6 @@ function assunto(familia: Familia, modo: Modo): string {
     confirmacao_de_sessao: "Confirma a sua sessão?",
     aviso_de_reajuste: "Sobre o valor das sessões",
     aviso_de_pausa: "Sessões suspensas por um período",
+    documento_disponivel: "O seu documento está disponível",
   }[familia];
 }

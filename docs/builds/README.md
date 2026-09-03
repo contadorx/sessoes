@@ -40,15 +40,142 @@ Anexo A só fazem sentido lidas juntas —
 |---|---|---|---|
 | 1 | ~~**B49** · o comando faz o que ele diz~~ | 2 | **entregue em 03/09** — um S1 de tarefa que não acontece e outro de dado que some em silêncio |
 | 2 | ~~**B50** · a oferta só anda depois de sair~~ | 1,5 | **entregue em 03/09** (migrações `0088` e `0089`) — a fila podia queimar inteira sem ninguém ser convidado |
-| 3 | **B52** · o canal entrega, e a oferta fura a fila | a estimar | remove a causa que a B50 só conserta na frase; depende do e-mail |
-| 4 | **B53** · o PIX é dela, e o comprovante propõe | a estimar | depende da cláusula do doc `18`, não de código |
-| 5 | **B54** · a página vira o repositório | a estimar | fecha o ciclo, e dá lugar ao kit de reembolso do doc `23` |
-| 6 | **B51** · de quem é esta tela | 1 | existe e não machuca ninguém hoje; sobe com a primeira conta Clínica |
+| 3 | ~~**B55** · a entrega do e-mail se confere~~ | 3 | **entregue em 03/09** (migração `0091`) — falta só ligar as contas dos provedores — [B55](B55-a-entrega-do-email-se-confere.md) |
+| 4 | ~~**B52** · o canal entrega, e a oferta fura a fila~~ | a estimar | **entregue em 03/09** (migração `0092`) — classe, cascata e a fronteira 8 em código |
+| 5 | ~~**B56** · o painel do canal~~ | a estimar | **entregue em 03/09** (migração `0093`) — o catálogo dos silêncios, em `/negocio` |
+| 6 | ~~**B57** · o canal escolhe pelo custo~~ | a estimar | **entregue em 03/09** (migração `0094`) — a cascata virou `rota_do_canal`, configurável, com o custo à vista |
+| 7 | **B53** · o PIX é dela, e o comprovante propõe | a estimar | depende da cláusula do doc `18`, não de código |
+| 8 | ~~**B54** · a página vira o repositório~~ | a estimar | **a metade de teclado saiu em 03/09** (migrações `0095` e `0096`) — a linha do mês, o aviso que não leva o documento. A `0096` é o conserto que a suíte 0066 cobrou: a lista mostra que o recibo antigo existe e não entrega o id dele. A fechadura do §5.5 fica no backlog: ela é código por e-mail, e não há provedor |
+| 9 | ~~**B51** · de quem é esta tela~~ | 1 | **entregue em 03/09** — e ela achou um S1 vivo: o livro-razão não abria para conta nenhuma |
 
 **As três primeiras somam 4,5 dias; o anexo não traz estimativa e ninguém
-inventou uma.** A **B49 e a B50 saíram em 03/09**; a próxima da fila é a **B52**
-(o canal entrega, e depende do provedor de e-mail) — ou a **B51**, que é a única
-das seis que não depende de credencial nenhuma.
+inventou uma.** A **B49, a B50, a B51, a B52, a B55, a B56, a B57 e a metade de
+teclado da B54 saíram em 03/09**. O que resta do pacote — a **B53** inteira e a
+**fechadura do §5.5**, da B54 — não depende de teclado: a B53 espera a cláusula
+do doc `18`, e a fechadura espera a conta do provedor de e-mail. É sobre isso
+que entrou a
+**B55**: dois documentos chegaram em 03/09 e agora moram em
+[`docs/canal/`](../canal/) — a estratégia do canal, que o pacote citava sem
+existir no repositório, e um repasse técnico de arquitetura de e-mail
+transacional, de outro produto. **O que se leva de cada um, o que colide com o
+que já existe e o que fica bloqueado por documento está em
+[`docs/canal/README.md`](../canal/README.md)** — o repasse não é decisão de
+produto até aquela página dizer o que é.
+
+### A camada de comunicação — o estudo de 03/09
+
+Os dois documentos do canal resolvem metades diferentes: um diz **por onde sai**,
+o outro diz **como se sabe que chegou** — e só no e-mail. O que falta entre eles
+está em [`docs/canal/CAMADA-DE-COMUNICACAO.md`](../canal/CAMADA-DE-COMUNICACAO.md),
+com oito buracos nomeados. Os quatro que mais mudam a fila:
+
+- **Confirmação de entrega só existe no e-mail.** A tese vale mais no WhatsApp,
+  não menos: transporte não oficial responde `sent` com o número já banido.
+- **`precos_canal` está no banco desde sempre e ninguém usa.** E-mail R$ 0,002 ·
+  WhatsApp R$ 0,045 · SMS R$ 0,08. A cascata manda "e-mail + SMS" para urgente
+  sem olhar que o SMS custa **40×**, e o teto do plano conta mensagens em vez de
+  dinheiro.
+- **Não existe o catálogo dos silêncios.** Webhook mudo, cron parado, instância
+  caída, teto batido, disjuntor aberto — cada um falha calado e com sintoma
+  diferente. É o coração da **B56**.
+- **Dedup cross-canal é nomeado e não é construído.** Sem a chave de entrega
+  `(oferta_id, destinatário)`, a cascata manda a mesma oferta por dois canais.
+
+### O que a B54 entregou, e o que ela deixou escrito que não entregou
+
+**Entregue (migração `0095`):**
+
+- **`linhas_do_mes`, e ela é uma só.** A tela dela (`meses_do_paciente`) e a
+  página do paciente (`pagina_do_paciente`) chamam a **mesma** função. A
+  verificação 1 da suíte `0095` compara as duas saídas e reprova se
+  divergirem — é a lição da 0090, onde `retorno` e `financeiro_do_mes`
+  discordavam em R$ 750,00 contra R$ 0,00 sobre o mesmo mês.
+- **A competência, e não a cobrança.** Amarrar recibo a `cobranca_id` quebraria
+  na primeira psicóloga que cobra por sessão e emite recibo por mês. A suíte
+  planta um recibo de 01/07 a 30/09 e prova que ele aparece nos **três** meses.
+- **`lib/meses.ts`: fato no banco, palavra no TypeScript.** Nenhum "pago", "em
+  aberto" ou "disponível" existe em SQL, e nenhuma das duas telas escreve
+  rótulo próprio — `marcasDoMes` monta as três marcas, na mesma ordem, para as
+  duas. `testes/a-linha-do-mes-tem-uma-lingua-so.test.ts` reprova a segunda
+  versão da frase e reprova a divergência entre as chaves do
+  `jsonb_build_object` e os campos de `LinhaDoMes` (o defeito que matou a 0053
+  em silêncio, em miniatura).
+- **O aviso que não leva o documento** (§5.2): template `documento_disponivel`,
+  classe `rotina`, e é ele que resolve a tensão da classe `documento` — o
+  recibo nunca trafega, a mensagem carrega só o aviso e o papel fica na página.
+  Ele **não carrega URL**: o banco não conhece o endereço deste produto, e link
+  montado com endereço chutado é link quebrado no celular de uma paciente.
+- **Avisar é botão, não efeito colateral.** `emitir_documento` continua não
+  avisando ninguém — "o default que decide por ela" é antipadrão do §9, e há
+  emissão que é só contabilidade dela, em lote, no fechamento. A verificação 7
+  prova que emitir não põe mensagem na fila.
+
+**Escrito e não entregue, com o motivo:**
+
+- **A quarta marca, `Comprovante`.** Depende da tabela `comprovantes` (§4.8),
+  que é da B53 — bloqueada pela cláusula do doc `18`. Ela **não aparece**: nem
+  como "não enviado", nem cinza, nem desabilitada. Lugar em branco esperando
+  feature é "a promessa que o software não cumpre".
+- **A fechadura do download (§5.5).** É código de seis dígitos por e-mail, e
+  não há adaptador de e-mail. A alternativa do anexo é cair para a data de
+  nascimento — que sem limite de tentativa é fechadura de mentira, e com limite
+  é uma decisão de quantas tentativas, que é dela. Por isso **nenhuma porta
+  nova se abriu**: o documento continua com a janela de 90 dias da 0066, e
+  `recibo_na_janela` faz a lista não oferecer o que a porta recusa. A
+  verificação 4 confere as duas leituras uma contra a outra.
+
+### O que a suíte 0066 achou contra a B54, no mesmo dia
+
+**Rodar a suíte antiga que a migração toca não é zelo: é o critério de
+regressão deste projeto**, e ele pagou na primeira vez em que foi aplicado
+depois da 0095. A `0066` reprovou, e os dois achados viraram a `0096`.
+
+- **O id do recibo fora da janela estava saindo na página do paciente.** A
+  verificação 12 da 0066 diz, desde o P7, que *"recibo velho ele pede a ela,
+  como sempre pediu"* — e `linhas_do_mes` devolvia o id de todo documento que
+  cobre o mês, inclusive o de duzentos dias atrás. O id sozinho não abre nada
+  (`documento_do_link` recusa, e a suíte prova isso nos dois sentidos), mas um
+  id numa página de portador é metade de uma URL e a outra metade é pública: a
+  defesa passaria a ser só a checagem de data dentro de uma função. **O §5.5 da
+  estratégia previu exatamente isto** — o repositório permanente muda o perfil
+  do link, e a fechadura que compensaria é código por e-mail, que não existe.
+  Eu entreguei a metade que amplia a exposição e deixei fora a que a compensa; a
+  `0096` desfaz a ampliação.
+- **`p_so_na_janela` nasce ligado**, e é decisão: `pagina_do_paciente` não
+  precisou ser reescrita, e quem quiser o id **pede** — há um lugar só que pede,
+  com o motivo escrito ao lado. O defeito de hoje nasceu de um `default` que
+  abria.
+- **O mês fantasma.** Um recibo trimestral cria três competências e as cobranças
+  podem estar lançadas em uma só: as outras duas vinham com `combinado: 0,
+  quantos: 0`, e a tela escrevia *"R$ 0,00 · nenhum horário"* ao lado de um
+  recibo de R$ 800. Agora escreve travessão — a tela não se contradiz sobre o
+  mesmo mês.
+- **E o efeito colateral do conserto, achado ao consertar:** com o id nulo,
+  `marcaDoRecibo` lia "não emitido" sobre um recibo emitido. A existência passou
+  a ser `recibo_em`, não o id — senão a página mandaria a pessoa cobrar dela um
+  papel que ela já fez.
+
+A verificação 12 da 0066 ficou com a redação corrigida em vez de removida: a
+frase *"não há extrato nesta página"* deixou de ser verdadeira quando a B54
+entrou, e o que continua valendo — **nenhum id de registro numa página de
+portador** — está escrito ali com o motivo. É a mesma coisa que a 0022 fez
+quando o P4 tirou a cobrança automática.
+
+### O que a B51 achou que não estava no documento dela
+
+- **O livro-razão não abria para conta nenhuma, e ninguém sabia.** A consulta
+  pedia `profissionais.nome`, e **essa coluna não existe** — o nome mora em
+  `usuarios.nome`, pela FK. Entrou na B44 (`a946c95`), junto com a correção que
+  fez a tela usar a profissional da sessão, e derrubava "o que aconteceu com
+  cada hora" desde então: `db()` lança quando o PostgREST recusa a coluna.
+- **Uma quarta e uma quinta consulta arbitrárias**, além das três listadas:
+  `/perfil/contrato` punha o CRP de outra pessoa na prévia do contrato, e o
+  `.eq("ativo", true).limit(1)` dos horários é filtro que não escolhe ninguém —
+  por isso a varredura exige `eq("id", …)` ou `order()`, e não "algum filtro".
+- **O defeito do Perfil era pior do que "mostra a pessoa errada".** O formulário
+  nasce preenchido com o que a consulta trouxe e a ação grava em
+  `sessao.profissionalId`: abrir e salvar **copiava o CRP da colega para cima do
+  próprio**.
 
 ### O que a B49 achou que não estava no documento dela
 
@@ -71,13 +198,21 @@ três só apareceram porque a entrega obrigou a passar por elas:
   permite emitir recibo (0037). O item de menu passou a apontar para a seção
   onde essas horas estão listadas, em `/recebimentos/movimentacoes`.
 
-**E uma que ficou de pé, com prova, porque é build e não conserto de passagem
-(S2):** há duas fontes de verdade para "uma hora voltou". O livro-razão da 0056
-registra o fato com `reposta_por` — FK para a sessão que consumiu a hora extra,
-preenchida exatamente quando `eixo_capacidade = 'reposta'`. A 0037 responde à
-mesma pergunta contando `origem = 'encaixe'`. As duas podem discordar, e é sobre
-dinheiro. A 0069 já usa a definição estreita (casa `inicio` com a vaga e exige
-oferta aceita), então o desenho certo existe escrito — falta a 0037 usá-lo.
+**E uma S2 ficou de pé aqui e saiu em 03/09, na migração `0090` — com o par que
+eu tinha nomeado errado.** A primeira redação dizia "`reposta_por` (0056) contra
+`origem = 'encaixe'` (0037)", e `reposta_por` é outra coisa: é a **remarcação**,
+a mesma paciente consumindo outra hora com o mesmo dinheiro — duas horas de
+capacidade, uma receita. Está no comentário da coluna, lido do banco.
+
+O par que discordava de verdade é **`retorno` (agenda) contra
+`financeiro_do_mes` (movimentações)**, e a diferença era o estado da sessão: a
+primeira contava toda encaixe não cancelada, inclusive a que ainda vai
+acontecer; a segunda, só `realizada`. Na conta de demonstração isso era
+**R$ 750,00 contra R$ 0,00**, com a agenda escrevendo o número em serifa de
+26 px embaixo de *"que não teria entrado sem a fila e sem a política"* — sobre
+quatro sessões que ainda não tinham acontecido. A `0090` separou
+`valor_preenchido` (aconteceu) de `valor_agendado` (marcado), a falta ficou fora
+das duas somas, e a suíte `0090` prova que as duas telas passam a concordar.
 
 > **A B50 saiu nas migrações `0088` e `0089`** — nem a `0084` do título dela,
 > nem a `0086` da nota de arquivamento: as duas foram ocupadas antes, no mesmo
@@ -141,9 +276,9 @@ e-mail deixar de dar conta.
 
 ## Onde o produto está hoje
 
-**130 migrações no repositório · 61 suítes SQL adversariais, e as sessenta
-rodaram · 1.717 testes unitários em 67 arquivos · build de produção limpo.**
-Próxima migração livre: **`0090`**.
+**137 migrações no repositório · 67 suítes SQL adversariais, e as sessenta
+rodaram · 1.822 testes unitários em 74 arquivos · build de produção limpo.**
+Próxima migração livre: **`0097`**.
 
 > **As suítes SQL ganharam um alvo que as roda**, em 03/09:
 > `SUPABASE_DB_URL='…' npm run verificar:sql`. Elas não entram no `verificar`
@@ -167,6 +302,7 @@ Próxima migração livre: **`0090`**.
 | **P** integridade da receita | P1–P8 | — |
 | **OP** operação | OP1–OP6, OP8, OP9, OP10 | OP7 |
 | **B4x** da auditoria de UX | B43–B48 | — |
+| **B49–B57** o pacote do canal | B49–B52, B55, B56, B57 · B54 na metade de teclado | B53 (cláusula do doc 18) · a fechadura do §5.5 (conta de e-mail) |
 | fora de trilha | Panorama · blog · documentos legais · ficha em abas · a prova do restore | — |
 
 > **Os `[ ]` dos arquivos de build não são fonte de status.** Eles quase nunca
@@ -242,7 +378,7 @@ credencial cada:
 | peça | o que falta | o que muda quando existir |
 |---|---|---|
 | Cliente HTTP do Asaas (B16) | credencial do provedor | o Pix da assinatura e a conciliação automática |
-| Adaptador de e-mail com anexo (B25) | provedor de e-mail | a pasta do contador sai sozinha, e a régua da assinatura para de depender do Leandro |
+| Adaptador de e-mail com anexo (B25) | **a conta do provedor** — a arquitetura chegou em 03/09, ver [`docs/canal/`](../canal/) | a pasta do contador sai sozinha, a régua da assinatura para de depender do Leandro, e a fechadura do download (§5.5, o que falta da B54) deixa de depender da data de nascimento |
 | Cliente da Google Agenda (B26) | OAuth + Calendar API | o espelho da agenda sai da fila |
 
 ---

@@ -12,6 +12,7 @@ import type {
 } from "@/lib/ausencias";
 import type { RegistroDoPaciente } from "@/lib/registro";
 import type { Anamnese, Aviso } from "@/lib/anamnese";
+import type { LinhaDoMes } from "@/lib/meses";
 
 export type EnquadreLinha = {
   id: string;
@@ -292,6 +293,24 @@ export async function objetivosDoPaciente(id: string): Promise<Objetivo[]> {
     supabase.rpc("objetivos_do_paciente", { p_paciente: id }),
   );
   return (linhas ?? []) as unknown as Objetivo[];
+}
+
+/**
+ * A linha do mês desta pessoa (B54).
+ *
+ * `meses_do_paciente` é um invólucro de uma linha em cima de `linhas_do_mes`,
+ * que é a **mesma** função que `pagina_do_paciente` chama. Não há segunda soma
+ * neste produto sobre o dinheiro de um mês — foi o defeito que a 0090 acabou de
+ * consertar entre `retorno` e `financeiro_do_mes`, e ele custou R$ 750 contra
+ * R$ 0,00 na mesma conta.
+ */
+export async function mesesDoPaciente(id: string): Promise<LinhaDoMes[]> {
+  const supabase = await supabaseSessao();
+  const linhas = await db(
+    "paciente.meses",
+    supabase.rpc("meses_do_paciente", { p_paciente: id }),
+  );
+  return (linhas ?? []) as unknown as LinhaDoMes[];
 }
 
 /** A retenção da conta (5 a 20 anos) — entra na conta do prazo de guarda. */

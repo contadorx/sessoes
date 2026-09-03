@@ -1,4 +1,5 @@
 import { formatar, paraCentavos, somar } from "@/lib/dinheiro";
+import { fraseDoAgendado } from "@/lib/financeiro";
 
 export type LinhaRetorno = {
   canceladas: number;
@@ -6,10 +7,13 @@ export type LinhaRetorno = {
   preenchidas: number;
   taxa: number | null;
   valor_preenchido: string;
+  /** Preenchido pela fila e **ainda não acontecido**. Nunca entra na soma (0090). */
+  valor_agendado: string;
   valor_recebido: string;
   valor_em_aberto: string;
   valor_perdoado: string;
   horas_recuperadas: string;
+  horas_agendadas: string;
 };
 
 /**
@@ -30,10 +34,12 @@ export function Retorno({ r, rotulo }: { r: LinhaRetorno; rotulo: string }) {
   const emAberto = paraCentavos(r.valor_em_aberto ?? "0");
   const perdoado = paraCentavos(r.valor_perdoado ?? "0");
   const horas = Number(r.horas_recuperadas ?? 0);
+  const agendado = paraCentavos(r.valor_agendado ?? "0");
+  const horasAgendadas = Number(r.horas_agendadas ?? 0);
 
   const total = somar(preenchido, recebido);
 
-  if (r.canceladas === 0 && total === 0) {
+  if (r.canceladas === 0 && total === 0 && agendado === 0) {
     return (
       <section className="rounded-cartao border border-linha bg-folha2 px-5 py-4">
         <h2 className="rotulo">Retorno · {rotulo}</h2>
@@ -58,6 +64,15 @@ export function Retorno({ r, rotulo }: { r: LinhaRetorno; rotulo: string }) {
           <> São {horas.toFixed(1).replace(".", ",")} horas que estariam vazias.</>
         )}
       </p>
+
+      {/* O que a fila preencheu e ainda não aconteceu fica **fora** do número
+          de cima — ver `fraseDoAgendado`. Somar aqui era apresentar como
+          entrada o dinheiro de uma sessão de terça que ainda não chegou. */}
+      {agendado > 0 && (
+        <p className="mt-1.5 text-[12.5px] leading-relaxed text-tinta3">
+          {fraseDoAgendado(agendado, horasAgendadas)}
+        </p>
+      )}
 
       <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
         <Numero

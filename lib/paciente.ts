@@ -25,8 +25,33 @@ export const ROTULO_ESTADO: Record<Estado, string> = {
   arquivado: "arquivado",
 };
 
+/**
+ * Os canais que o **banco** aceita em `pacientes.msg_canal`.
+ *
+ * O SMS continua aqui porque existe conta com ele escolhido, e porque a cascata
+ * o usa como último degrau (B52). O que ele deixou de ser é **oferta**: ver
+ * `CANAIS_OFERECIDOS` logo abaixo.
+ */
 export const CANAIS = ["whatsapp", "sms", "email", "nao_avisar"] as const;
 export type Canal = (typeof CANAIS)[number];
+
+/**
+ * Os canais que a tela oferece — e o SMS **não é um deles**.
+ *
+ * Decisão de 03/09: o SMS é **medida de crise**, não escolha de menu. Ele
+ * custa, em `precos_canal`, quarenta vezes o e-mail (8.000 contra 200 milésimos
+ * de centavo) e chega ao mesmo lugar em quase todo caso. Como último degrau
+ * antes do silêncio, para mensagem urgente que não tem mais por onde sair, vale
+ * o preço. Como opção de cadastro, é uma conta que estoura sem ninguém ter
+ * pedido nada.
+ *
+ * Quem já tinha SMS escolhido continua recebendo por SMS: o valor é válido no
+ * banco e a tela desenha o rótulo dele. O que não acontece mais é alguém
+ * **escolher** o SMS sem saber o que custa.
+ *
+ * `testes/o-sms-nao-vira-vitrine.test.ts` reprova quem devolver a opção.
+ */
+export const CANAIS_OFERECIDOS = CANAIS.filter((c) => c !== "sms");
 
 export const ROTULO_CANAL: Record<Canal, string> = {
   whatsapp: "WhatsApp",
