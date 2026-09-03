@@ -5,7 +5,7 @@ import { useFormStatus } from "react-dom";
 import { substituirEnquadre, type Resultado } from "@/app/(app)/pacientes/acoes";
 import type { EnquadreLinha } from "@/app/(app)/pacientes/dados";
 import { CamposEnquadre } from "./FormPaciente";
-import { Campo, Erros, ENTRADA } from "./campos";
+import { BOTAO, Campo, Erros, ENTRADA } from "./campos";
 
 const INICIAL: Resultado = { estado: "inicial" };
 
@@ -15,7 +15,7 @@ function Salvar() {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-full bg-vaga px-6 py-2.5 text-[13.5px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-45"
+      className={BOTAO}
     >
       {pending ? "Salvando…" : "Abrir novo combinado"}
     </button>
@@ -32,6 +32,7 @@ export function NovoEnquadre({
   const [abertoNaTela, setAbertoNaTela] = useState(false);
   const [estado, despachar] = useActionState(substituirEnquadre, INICIAL);
   const erros = estado.estado === "erro" ? estado.erros : [];
+  const porCampo = (estado.estado === "erro" && estado.porCampo) || {};
 
   if (!abertoNaTela) {
     return (
@@ -63,7 +64,7 @@ export function NovoEnquadre({
         </Campo>
       )}
 
-      <CamposEnquadre base={aberto ?? undefined} />
+      <CamposEnquadre base={aberto ?? undefined} porCampo={porCampo} />
 
       <Erros erros={erros} />
 

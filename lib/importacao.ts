@@ -1,6 +1,5 @@
 import { DIAS, type DiaSemana } from "@/lib/enquadre";
 import { normalizarTelefone } from "@/lib/paciente";
-import { paraCentavos } from "@/lib/dinheiro";
 
 /**
  * Trazer a agenda de fora.
@@ -92,22 +91,13 @@ export function lerHora(bruto: string): string | null {
   return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
 }
 
-/** "200", "200,00", "R$ 200,00", "1.200,50", "1200.50" → centavos. */
-export function lerValor(bruto: string): number | null {
-  const limpo = bruto.replace(/r\$/i, "").trim();
-  if (limpo === "") return null;
-
-  // "1.200,50" é brasileiro; "1200.50" é o que sai de planilha em inglês.
-  const brasileiro = /,\d{1,2}$/.test(limpo);
-  const normalizado = brasileiro
-    ? limpo.replace(/\./g, "").replace(",", ".")
-    : limpo.replace(/,/g, "");
-
-  if (!/^\d+(\.\d{1,2})?$/.test(normalizado)) return null;
-
-  const centavos = paraCentavos(normalizado);
-  return centavos > 0 ? centavos : null;
-}
+/**
+ * `lerValor` mora em `lib/formato.ts` desde a B48 — ele deixou de ser o parser
+ * do importador e virou o **único** parser de dinheiro digitado do produto.
+ * Reexportado aqui porque a colagem continua sendo o maior usuário dele.
+ */
+import { lerValor } from "@/lib/formato";
+export { lerValor };
 
 /**
  * Lê o texto colado.

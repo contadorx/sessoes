@@ -126,6 +126,7 @@ export function Pacote({
                 id="quantidade"
                 name="quantidade"
                 type="number"
+                onWheel={(e) => e.currentTarget.blur()}
                 min={1}
                 max={60}
                 defaultValue={10}

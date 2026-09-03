@@ -97,51 +97,74 @@ export type Validado = {
   observacao: string | null;
 };
 
-/** Devolve os dados prontos para o banco, ou a lista de problemas. */
+/**
+ * Devolve os dados prontos para o banco, ou os problemas.
+ *
+ * Os problemas saem de duas formas, e as duas são a mesma lista: `erros` para
+ * quem mostra o bloco no fim do formulário, e `porCampo` para quem mostra a
+ * frase **embaixo do campo que a causou**. Antes só existia a primeira, e num
+ * cadastro de duas telas e meia em 375 px isso quer dizer "está errado em algum
+ * lugar aí atrás".
+ */
 export function validarPaciente(
   e: Partial<EntradaPaciente>,
-): { ok: true; dados: Validado } | { ok: false; erros: string[] } {
+):
+  | { ok: true; dados: Validado }
+  | { ok: false; erros: string[]; porCampo: Record<string, string> } {
   const erros: string[] = [];
+  const porCampo: Record<string, string> = {};
+
+  /** Um problema pertence a um campo. O que não pertence a nenhum vai sem dono. */
+  const problema = (campo: string | null, frase: string) => {
+    erros.push(frase);
+    if (campo && !porCampo[campo]) porCampo[campo] = frase;
+  };
 
   const nome = (e.nome ?? "").trim();
-  if (nome.length < 2) erros.push("O nome precisa de ao menos duas letras.");
-  if (nome.length > 120) erros.push("O nome está longo demais.");
+  if (nome.length < 2) problema("nome", "O nome precisa de ao menos duas letras.");
+  if (nome.length > 120) problema("nome", "O nome está longo demais.");
 
   let telefone: string | null = null;
   try {
     telefone = normalizarTelefone(e.telefone ?? "");
   } catch {
-    erros.push("Telefone inválido — confira o DDD e os dígitos.");
+    problema("telefone", "Telefone inválido — confira o DDD e os dígitos.");
   }
 
   const emailBruto = (e.email ?? "").trim().toLowerCase();
   const email = emailBruto === "" ? null : emailBruto;
   if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-    erros.push("E-mail inválido.");
+    problema("email", "E-mail inválido.");
   }
 
   const cpfBruto = (e.cpf ?? "").replace(/\D/g, "");
   const cpf = cpfBruto === "" ? null : cpfBruto;
-  if (cpf && !cpfValido(cpf)) erros.push("CPF inválido.");
+  if (cpf && !cpfValido(cpf)) problema("cpf", "CPF inválido.");
 
   const estado = (e.estado ?? "interessado") as Estado;
-  if (!ESTADOS.includes(estado)) erros.push("Estado desconhecido.");
+  if (!ESTADOS.includes(estado)) problema("estado", "Estado desconhecido.");
 
   const canal = (e.msg_canal ?? "whatsapp") as Canal;
-  if (!CANAIS.includes(canal)) erros.push("Canal de mensagem desconhecido.");
+  if (!CANAIS.includes(canal)) problema("msg_canal", "Canal de mensagem desconhecido.");
 
   const modo = (e.msg_modo ?? "discreto") as "discreto" | "completo";
-  if (modo !== "discreto" && modo !== "completo") erros.push("Modo de mensagem desconhecido.");
+  if (modo !== "discreto" && modo !== "completo") {
+    problema("msg_modo", "Modo de mensagem desconhecido.");
+  }
 
   // Quem vai receber mensagem precisa ter por onde receber.
-  if (canal === "whatsapp" && !telefone) erros.push("Para avisar por WhatsApp, informe o telefone.");
-  if (canal === "sms" && !telefone) erros.push("Para avisar por SMS, informe o telefone.");
-  if (canal === "email" && !email) erros.push("Para avisar por e-mail, informe o e-mail.");
+  if (canal === "whatsapp" && !telefone) {
+    problema("telefone", "Para avisar por WhatsApp, informe o telefone.");
+  }
+  if (canal === "sms" && !telefone) problema("telefone", "Para avisar por SMS, informe o telefone.");
+  if (canal === "email" && !email) problema("email", "Para avisar por e-mail, informe o e-mail.");
 
   const observacao = (e.observacao ?? "").trim() || null;
-  if (observacao && observacao.length > 2000) erros.push("A anotação está longa demais.");
+  if (observacao && observacao.length > 2000) {
+    problema("observacao", "A anotação está longa demais.");
+  }
 
-  if (erros.length > 0) return { ok: false, erros };
+  if (erros.length > 0) return { ok: false, erros, porCampo };
 
   return {
     ok: true,

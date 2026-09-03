@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
+import { cpfValido } from "@/lib/paciente";
+import { caixaMarcada } from "@/lib/formato";
 import { supabaseSessao } from "@/lib/supabase/server";
 import { sessaoAtual } from "@/lib/conta";
 import { tipoDaChave, apenasAscii } from "@/lib/pix";
@@ -88,7 +90,7 @@ export async function salvarRitmo(_anterior: Resultado, form: FormData): Promise
   const atraso = Number(form.get("cobranca_atraso_min") ?? 60);
   const lembrete = Number(form.get("lembrete_horas") ?? 24);
   const dia = Number(form.get("mensalidade_dia") ?? 1);
-  const cobraSessao = String(form.get("cobra_sessao") ?? "") === "1";
+  const cobraSessao = caixaMarcada(form, "cobra_sessao");
 
   if (!Number.isInteger(atraso) || atraso < 0 || atraso > 1440) {
     return { estado: "erro", erros: ["A espera antes do aviso de cobrança vai de 0 a 1440 minutos."] };
@@ -151,6 +153,18 @@ export async function salvarAssinatura(
     };
   }
 
+  // O dígito verificador, e não só o comprimento. Este CPF vai para a coluna 15
+  // de **toda linha** do arquivo do Carnê-Leão; um dígito trocado faz o e-CAC
+  // recusar o arquivo inteiro no "Analisar Arquivo", e ela descobre isso em
+  // fevereiro, no prazo, com trinta e cinco recibos pendentes. A mesma checagem
+  // já existia para o CPF do paciente desde o cadastro.
+  if (documento.length === 11 && !cpfValido(documento)) {
+    return {
+      estado: "erro",
+      erros: ["Esse CPF não fecha — confira os dígitos. É ele que vai no arquivo da Receita."],
+    };
+  }
+
   const supabase = await supabaseSessao();
 
   await db(
@@ -196,7 +210,7 @@ export async function salvarRegua(_anterior: Resultado, form: FormData): Promise
     return { estado: "erro", erros: ["Só a dona da conta muda estes ajustes."] };
   }
 
-  const ativa = String(form.get("regua_ativa") ?? "") === "1";
+  const ativa = caixaMarcada(form, "regua_ativa");
   const escolha = String(form.get("regua_dias") ?? "7,21");
 
   const dias = escolha

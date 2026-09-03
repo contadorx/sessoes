@@ -177,9 +177,10 @@ export default function Privacidade() {
             pedi-la.
           </p>
           <p>
-            Enquanto esse prazo corre, o registro não é excluído: nem a seu
-            pedido, nem ao do paciente. A guarda é uma obrigação sua como
-            profissional, e o sistema existe para você poder cumpri-la.
+            A guarda é uma obrigação sua como profissional, e o sistema existe
+            para você poder cumpri-la. Por isso, antes de excluir qualquer coisa,
+            ele diz até quando aquele registro ainda está no prazo — e a decisão
+            de apagar continua sendo sua, porque quem responde por ela é você.
           </p>
           <p>
             O que <b className="font-medium">é</b> apagado a qualquer momento,

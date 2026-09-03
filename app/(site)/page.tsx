@@ -8,6 +8,7 @@ import { UltimosTextos } from "@/components/site/UltimosTextos";
 import { RodapeDoSite } from "@/components/site/Moldura";
 import { Confirmar } from "@/components/app/Confirmar";
 import { PLANOS, ROTULO_POR_VIR, precoDeTabela, precoDaClinicaCom } from "@/lib/planos";
+import { fraseDoEnvioAutomatico } from "@/lib/promessa";
 import { formatar } from "@/lib/dinheiro";
 import {
   AgendaEExtrato,
@@ -380,12 +381,13 @@ export default function Home() {
           />
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <Cartao titulo="O Pix é comparado com as sessões previstas">
-              Quando os dados disponíveis permitem uma correspondência segura, o
-              pagamento é relacionado à sessão. Os demais — pagamento sem
-              sessão, sessão sem pagamento, valor diferente do combinado — ficam
-              separados numa lista, para você revisar só as divergências em vez
-              de conferir o extrato inteiro no fim do dia.
+            <Cartao titulo="O recebimento fica na sessão, não numa planilha à parte">
+              Hoje quem diz que o dinheiro entrou é você, num toque, na própria
+              sessão — e a partir daí recibo, informe e a pasta do contador saem
+              de lá, sem digitar nada de novo. A comparação automática do Pix
+              com as sessões previstas depende de um provedor de pagamento
+              conectado à conta, e{" "}
+              <b className="font-medium text-tinta">ainda não está ligada</b>.
             </Cartao>
             <Cartao titulo="A cobrança segue o ritmo que você definiu">
               O lembrete de pagamento em atraso não vem de você. Vem da agenda,
@@ -603,9 +605,10 @@ export default function Home() {
                 outro nome.
               </Cartao>
               <Cartao titulo="Cinco anos, e do menor conta da maioridade">
-                O prazo de guarda é calculado por ficha, e o sistema recusa apagar
-                o que ainda está dentro dele. Quando o paciente é menor, o relógio
-                começa quando ele completa dezoito.
+                O prazo de guarda é calculado por ficha, e o sistema diz até quando
+                você continua responsável por aquele registro — antes de apagar
+                qualquer coisa. Quando o paciente é menor, o relógio começa quando
+                ele completa dezoito.
               </Cartao>
               <Cartao titulo="Não entramos na sala">
                 Nada de gravar paciente, transcrever sessão ou IA opinando sobre
@@ -820,6 +823,18 @@ export default function Home() {
               Meta. Enviar do <i>seu</i> número automaticamente ainda não
               existe aqui, e não prometemos que exista.
             </p>
+            {/*
+              O estado real do canal, e ele vem do adaptador — não de uma
+              constante escrita aqui, que seria a segunda fonte de verdade sobre
+              o mesmo fato. Enquanto não há provedor, esta página estaria
+              afirmando uma entrega que ninguém faz, que é o defeito que a B43
+              tirou do app e esta build tira da vitrine.
+            */}
+            {fraseDoEnvioAutomatico() && (
+              <p className="mt-2 border-t border-linha pt-2 text-[12.5px] leading-relaxed text-tinta3">
+                {fraseDoEnvioAutomatico()}
+              </p>
+            )}
           </div>
 
           <p className="mt-6 max-w-[70ch] text-[12.5px] leading-relaxed text-tinta3">

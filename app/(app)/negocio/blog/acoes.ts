@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
+import { caixaMarcada } from "@/lib/formato";
 import { supabaseSessao } from "@/lib/supabase/server";
 import { sessaoAtual } from "@/lib/conta";
 import { problemaNoPost, problemaNosLinks, linksValidos } from "@/lib/blog";
@@ -79,7 +80,7 @@ export async function salvarPost(_a: Resultado, form: FormData): Promise<Resulta
   // seria pedir uma recusa que a pessoa não provocou.
   const formato = texto(form, "formato") || null;
   const canonica = texto(form, "canonica");
-  const indexavel = String(form.get("indexavel") ?? "") === "1";
+  const indexavel = caixaMarcada(form, "indexavel");
   const larg = Number(texto(form, "figura_largura"));
   const alt = Number(texto(form, "figura_altura"));
 

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatar } from "@/lib/dinheiro";
 import { sessaoAtual } from "@/lib/conta";
 import {
   sessoesDaSemana,
@@ -24,6 +25,7 @@ import { hoje } from "@/lib/tempo-servidor";
 import { FaixaDeConfirmacoes, NumerosDaConfirmacao } from "@/components/app/Confirmacoes";
 import { CaixaDeDecisoes } from "@/components/app/Decisoes";
 import { CaixaNaSuaMao } from "@/components/app/NaSuaMao";
+import { adaptadorPara } from "@/lib/mensageria/adaptadores";
 import { Cockpit } from "@/components/app/Cockpit";
 import { acessosDa } from "@/lib/conta";
 import { prazosDoMes } from "@/app/(app)/prazos";
@@ -33,8 +35,10 @@ import { estadoInicial } from "@/app/(app)/comecar/page";
 
 export const metadata = { title: "Agenda" };
 
-const brl = (n: number) =>
-  n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+// O dinheiro da agenda era arredondado para real inteiro, e só aqui: todo o
+// resto do produto usa `formatar` sobre centavos. Duas formatações de dinheiro
+// divergem — a daqui dizia R$ 1.200 onde a de `/recebimentos` dizia
+// R$ 1.199,50, e não havia como saber qual era a certa.
 
 export default async function Agenda({
   searchParams,
@@ -158,7 +162,12 @@ export default async function Agenda({
       {/* a faixa de números */}
       <dl className="mt-5 grid gap-px overflow-hidden rounded-cartao border border-linha bg-linha sm:grid-cols-2 lg:grid-cols-4">
         <Numero rotulo="sessões na semana" valor={String(resumo.vivas)} />
-        <Numero rotulo="previsto" valor={brl(resumo.previsto)} cor="text-cheia" />
+        <Numero
+          rotulo="previsto"
+          valor={formatar(resumo.previsto)}
+          cor="text-cheia"
+          href="/recebimentos"
+        />
         <Numero
           rotulo={resumo.canceladasTarde === 1 ? "cancelou tarde" : "cancelaram tarde"}
           valor={String(resumo.canceladasTarde)}
@@ -166,12 +175,13 @@ export default async function Agenda({
         />
         <Numero
           rotulo="hora vazia"
-          valor={brl(resumo.perdido)}
+          valor={formatar(resumo.perdido)}
           cor={resumo.perdido > 0 ? "text-vaga" : undefined}
+          href="/encaixes"
           nota={
             resumo.perdido > 0
-              ? "o que a política não recupera — é este buraco que a fila existe para preencher"
-              : "nenhum buraco nesta semana"
+              ? "horário que abriu e ninguém ocupou — é este buraco que a fila existe para preencher"
+              : "nenhum horário aberto nesta semana"
           }
         />
       </dl>
@@ -192,7 +202,11 @@ export default async function Agenda({
           só começa quando alguém é convidado. Escondida numa aba, essa caixa
           seria uma fila parada sem motivo aparente. */}
       <div className="mt-6">
-        <CaixaNaSuaMao mensagens={naMao} resumo={resumoManual} />
+        <CaixaNaSuaMao
+          mensagens={naMao}
+          resumo={resumoManual}
+          envioAutomatico={adaptadorPara("whatsapp").disponivel}
+        />
       </div>
 
       {/* O cockpit do mês (P5), na primeira tela e não numa aba de relatórios.
@@ -261,19 +275,30 @@ function Semaninha({ para, rotulo }: { para: string; rotulo: string }) {
   );
 }
 
+/**
+ * Um número da faixa, e para onde ele abre.
+ *
+ * Nenhum dos números do topo abria em nada — ela lia "R$ 3.400 previsto" e não
+ * tinha caminho para as sessões que formam o número, então não tinha como
+ * conferir. Número que não abre é número que ela acredita ou não acredita, e o
+ * produto não pode depender disso. O padrão é o do `Contador.tsx`, que nomeia a
+ * tela de origem em vez de mandar procurar.
+ */
 function Numero({
   rotulo,
   valor,
   cor = "text-tinta",
   nota,
+  href,
 }: {
   rotulo: string;
   valor: string;
   cor?: string;
   nota?: string;
+  href?: string;
 }) {
-  return (
-    <div className="bg-folha px-5 py-4">
+  const conteudo = (
+    <>
       <dt className="rotulo">{rotulo}</dt>
       <dd>
         <span className={`tabular mt-1 block font-mono text-[24px] font-medium leading-none ${cor}`}>
@@ -283,6 +308,14 @@ function Numero({
           <span className="mt-1.5 block text-[11px] leading-relaxed text-tinta3">{nota}</span>
         )}
       </dd>
-    </div>
+    </>
+  );
+
+  if (!href) return <div className="bg-folha px-5 py-4">{conteudo}</div>;
+
+  return (
+    <Link href={href} className="block bg-folha px-5 py-4 transition-colors hover:bg-folha2">
+      {conteudo}
+    </Link>
   );
 }

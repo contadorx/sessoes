@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { supabaseSessao } from "@/lib/supabase/server";
+import { sessaoAtual } from "@/lib/conta";
 import { hoje } from "@/lib/tempo-servidor";
 import { formatar } from "@/lib/dinheiro";
 import { duracao } from "@/lib/capacidade";
@@ -84,12 +85,31 @@ export default async function LivroRazao({
   const mes = mesDe(params.mes, hoje());
   const supabase = await supabaseSessao();
 
+  /*
+    De quem é este mês.
+
+    Era `.eq("ativo", true).limit(1)` **sem ordenação**: o Postgres pode
+    devolver qualquer linha, e pode devolver uma diferente na próxima consulta.
+    Numa clínica com três profissionais, o link "o mês inteiro" levava de um mês
+    para outro mês, com o mesmo título e sem dizer de quem era nenhum dos dois.
+
+    O Cockpit sempre usou o profissional da sessão. Aqui passa a ser o mesmo —
+    é o que faz as duas telas falarem do mesmo mês — e a ordenação por nome só
+    entra como saída, para a conta em que a sessão ainda não tem profissional.
+  */
+  const sessao = await sessaoAtual();
+
   const profs = (await db(
     "livro.profissional",
-    supabase.from("profissionais").select("id").eq("ativo", true).limit(1),
-  )) as unknown as { id: string }[];
+    supabase
+      .from("profissionais")
+      .select("id, nome")
+      .eq("ativo", true)
+      .order("nome")
+      .order("id"),
+  )) as unknown as { id: string; nome: string }[];
 
-  const prof = profs[0];
+  const prof = profs.find((x) => x.id === sessao.profissionalId) ?? profs[0];
 
   if (!prof) {
     return (
@@ -120,6 +140,15 @@ export default async function LivroRazao({
         <h1 className="font-serif text-[28px] leading-tight tracking-[-0.015em]">
           O livro-razão · {mes.rotulo}
         </h1>
+        {/*
+          De quem é o mês — e só quando há mais de uma pessoa atendendo. Numa
+          conta solo, escrever o nome dela de volta é ruído; numa clínica, a
+          ausência do nome era o que fazia dois meses diferentes parecerem o
+          mesmo.
+        */}
+        {profs.length > 1 && (
+          <span className="text-[13px] text-tinta2">de {prof.nome}</span>
+        )}
         <nav className="ml-auto flex items-center gap-3 text-[12.5px]">
           <Link href={`/fechamento/livro?mes=${mes.anterior}`} className="text-tinta2 hover:text-vaga">
             ← mês anterior

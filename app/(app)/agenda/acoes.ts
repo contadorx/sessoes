@@ -5,7 +5,8 @@ import { db, ErroDeBanco } from "@/lib/db";
 import { supabaseSessao } from "@/lib/supabase/server";
 import { sessaoAtual } from "@/lib/conta";
 import { inicioDoDiaSP } from "@/lib/tempo";
-import { paraCentavos } from "@/lib/dinheiro";
+import { deCentavos, paraCentavos } from "@/lib/dinheiro";
+import { lerCentavos } from "@/lib/formato";
 import { adaptadorPara } from "@/lib/pagamentos/adaptadores";
 import { problemaNoAjuste, fraseDoAviso, type DestinoDoAviso } from "@/lib/politica";
 
@@ -160,7 +161,7 @@ export async function criarEncaixe(_anterior: Resultado, form: FormData): Promis
   const dia = String(form.get("dia") ?? "");
   const hora = String(form.get("hora") ?? "");
   const duracao = Number(form.get("duracao_min") ?? 50);
-  const valorBruto = String(form.get("valor") ?? "").trim().replace(",", ".");
+  const valorBruto = String(form.get("valor") ?? "").trim();
 
   const erros: string[] = [];
   if (!pacienteId) erros.push("Escolha o paciente.");
@@ -168,8 +169,8 @@ export async function criarEncaixe(_anterior: Resultado, form: FormData): Promis
   if (!/^\d{2}:\d{2}$/.test(hora)) erros.push("Informe o horário.");
   if (!Number.isInteger(duracao) || duracao < 15 || duracao > 240) erros.push("Duração inválida.");
 
-  const valor = Number(valorBruto);
-  if (!Number.isFinite(valor) || valor < 0) erros.push("Informe o valor.");
+  const valorCentavos = lerCentavos(valorBruto);
+  if (valorCentavos === null) erros.push("Informe o valor.");
   if (erros.length > 0) return { estado: "erro", erros };
 
   const inicio = inicioDaSessao(dia, hora);
@@ -188,7 +189,7 @@ export async function criarEncaixe(_anterior: Resultado, form: FormData): Promis
         fim: fim.toISOString(),
         origem: "encaixe",
         estado: "prevista",
-        valor: valor.toFixed(2),
+        valor: deCentavos(valorCentavos ?? 0),
       }),
     );
   } catch (e) {
@@ -400,12 +401,17 @@ export async function decidirCobranca(_anterior: Resultado, form: FormData): Pro
     return { estado: "erro", erros: ["Escolha cobrar ou não cobrar."] };
   }
 
-  let valor: number | null = null;
+  let valor: string | null = null;
   if (decisao === "cobrar" && bruto) {
-    const centavos = paraCentavos(bruto);
-    const problema = problemaNoAjuste(centavos, teto ? paraCentavos(teto) : null);
+    // Os dois passam pelo parser de entrada: `bruto` porque ela digita, e
+    // `teto` porque, mesmo vindo do banco por campo escondido, ele chega por
+    // formulário — e `paraCentavos` **lança**, o que ali dentro seria um 500
+    // em vez de uma recusa.
+    const centavos = lerCentavos(bruto);
+    if (centavos === null) return { estado: "erro", erros: ["O valor não parece um número."] };
+    const problema = problemaNoAjuste(centavos, teto ? lerCentavos(teto) : null);
     if (problema) return { estado: "erro", erros: [problema] };
-    valor = centavos / 100;
+    valor = deCentavos(centavos);
   }
 
   const supabase = await supabaseSessao();
@@ -487,11 +493,32 @@ export async function usarAlerta(causa: string): Promise<void> {
  * banco recusa ao não deixar escrever `entregue`.
  */
 export async function mandeiPeloWhatsapp(id: string): Promise<Resultado> {
-  const supabase = await supabaseSessao();
-  await db("canal.mandei", supabase.rpc("marcar_enviada_a_mao", { p_mensagem: id }));
-  revalidatePath("/agenda");
-  revalidatePath("/encaixes");
-  return { estado: "ok", mensagem: "Anotado. O prazo da resposta começa agora." };
+  try {
+    const supabase = await supabaseSessao();
+    const registrou = await db<boolean>(
+      "canal.mandei",
+      supabase.rpc("marcar_enviada_a_mao", { p_mensagem: id }),
+    );
+
+    // O RPC devolve `false` quando a mensagem já saiu daquele estado — dois
+    // toques seguidos, ou outra aba. Dizer "Anotado" aí seria a mesma classe de
+    // mentira que esta build existe para consertar.
+    if (registrou === false) {
+      return { estado: "erro", erros: ["Esta já tinha saído da lista. Recarregue para ver como está."] };
+    }
+
+    // Só `/agenda`: é a única tela que mostra a caixa. Revalidar `/encaixes`
+    // junto refazia as consultas de uma página que nem estava aberta, e cada
+    // toque aqui custava duas recargas — oito envios num dia, dezesseis.
+    revalidatePath("/agenda");
+    return { estado: "ok", mensagem: "Anotado. O prazo da resposta começa agora." };
+  } catch (e) {
+    console.error("[canal] falhou registrar o envio a mão", e);
+    return {
+      estado: "erro",
+      erros: ["Não consegui anotar que você mandou. A vaga continua esperando — tente de novo."],
+    };
+  }
 }
 
 /**
@@ -502,9 +529,24 @@ export async function mandeiPeloWhatsapp(id: string): Promise<Resultado> {
  * seguraria a fila junto. Desistir devolve a vaga ao relógio.
  */
 export async function naoVouMandar(id: string): Promise<Resultado> {
-  const supabase = await supabaseSessao();
-  await db("canal.nao_vou", supabase.rpc("nao_vou_mandar", { p_mensagem: id }));
-  revalidatePath("/agenda");
-  revalidatePath("/encaixes");
-  return { estado: "ok", mensagem: "Tirado da lista. A vaga volta a andar sozinha." };
+  try {
+    const supabase = await supabaseSessao();
+    const tirou = await db<boolean>(
+      "canal.nao_vou",
+      supabase.rpc("nao_vou_mandar", { p_mensagem: id }),
+    );
+
+    if (tirou === false) {
+      return { estado: "erro", erros: ["Esta já tinha saído da lista. Recarregue para ver como está."] };
+    }
+
+    revalidatePath("/agenda");
+    return { estado: "ok", mensagem: "Tirado da lista. A vaga volta a andar sozinha." };
+  } catch (e) {
+    console.error("[canal] falhou tirar da lista", e);
+    return {
+      estado: "erro",
+      erros: ["Não consegui tirar da lista. Ela continua aqui — tente de novo."],
+    };
+  }
 }

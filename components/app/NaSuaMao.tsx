@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { mandeiPeloWhatsapp, naoVouMandar } from "@/app/(app)/agenda/acoes";
+import { mandeiPeloWhatsapp, naoVouMandar, type Resultado } from "@/app/(app)/agenda/acoes";
 import { renderizar } from "@/lib/mensageria/templates";
 import {
   linkDoWhatsapp,
@@ -42,11 +42,33 @@ import {
 export function CaixaNaSuaMao({
   mensagens,
   resumo,
+  envioAutomatico,
 }: {
   mensagens: NaMao[];
   resumo: ResumoManual;
+  /**
+   * Se existe um canal capaz de mandar sozinho **agora**. Vem de cima porque
+   * quem sabe é o servidor (`lib/mensageria/adaptadores.ts`), e porque as duas
+   * frases desta caixa que falam em automático são falsas quando ele é falso.
+   */
+  envioAutomatico: boolean;
 }) {
-  if (!resumo.manual) return null;
+  /*
+    Quem vê esta caixa.
+
+    Ela nasceu como caixa do plano Gratuito e só aparecia quando o plano era
+    manual. A partir da B43 uma mensagem também cai aqui quando **não há canal
+    de saída nenhum** — e nesse caso o plano é irrelevante. Manter a condição
+    antiga faria as mensagens de um plano pago ficarem paradas sem tela que as
+    mostrasse: a fila parada sem sintoma, que é o defeito que esta build
+    existe para não criar.
+  */
+  if (!resumo.manual && mensagens.length === 0) return null;
+
+  // Elas estão aqui apesar de o plano dela mandar sozinho — logo, o que falhou
+  // foi o canal, e é isso que a frase tem que dizer.
+  const porFaltaDeCanal = !resumo.manual && mensagens.length > 0;
+
   if (mensagens.length === 0) {
     return (
       <div className="rounded-cartao border border-linha bg-folha px-5 py-4">
@@ -62,8 +84,17 @@ export function CaixaNaSuaMao({
     <div className="rounded-cartao border border-linha bg-folha px-5 py-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="rotulo">Na sua mão</h2>
-        <span className="text-[11.5px] text-tinta3">{fraseDoManual(resumo)}</span>
+        {!porFaltaDeCanal && (
+          <span className="text-[11.5px] text-tinta3">{fraseDoManual(resumo)}</span>
+        )}
       </div>
+
+      {porFaltaDeCanal && (
+        <p className="mt-2 max-w-2xl text-[12.5px] leading-relaxed text-tinta2">
+          O envio automático está indisponível, então estas não saíram. Elas
+          esperam aqui até você mandar pelo seu WhatsApp — e a vaga espera junto.
+        </p>
+      )}
 
       <ul className="mt-3 space-y-3">
         {mensagens.map((m) => (
@@ -71,17 +102,26 @@ export function CaixaNaSuaMao({
         ))}
       </ul>
 
-      <p className="mt-3 max-w-2xl text-[11.5px] leading-relaxed text-tinta3">
-        Lembrete de véspera, aviso de desmarque e confirmação de encaixe{" "}
-        <b className="font-medium text-tinta2">saem sozinhos</b>, no seu plano
-        também — quem receberia é o seu paciente. {fraseDoQueMudaNoPago()}
-      </p>
+      {/*
+        As duas frases que falavam em "saem sozinhos" só aparecem quando isso é
+        verdade. Enquanto não há provedor, nada sai sozinho em plano nenhum, e
+        prometer o contrário aqui — ainda por cima como argumento de upgrade —
+        é a mesma afirmação sem lastro que a build veio consertar.
+      */}
+      {envioAutomatico && (
+        <p className="mt-3 max-w-2xl text-[11.5px] leading-relaxed text-tinta3">
+          Lembrete de véspera, aviso de desmarque e confirmação de encaixe{" "}
+          <b className="font-medium text-tinta2">saem sozinhos</b>, no seu plano
+          também — quem receberia é o seu paciente. {fraseDoQueMudaNoPago()}
+        </p>
+      )}
     </div>
   );
 }
 
 function Item({ m }: { m: NaMao }) {
   const [feito, setFeito] = useState<null | "mandei" | "nao">(null);
+  const [erro, setErro] = useState<string | null>(null);
   const [pendente, iniciar] = useTransition();
 
   // O texto é montado aqui, com o mesmo renderizador que o worker usa. Duas
@@ -94,7 +134,27 @@ function Item({ m }: { m: NaMao }) {
     texto = "";
   }
 
+  // Sem texto renderizado não há link: quem recusa é o `linkDoWhatsapp`, para
+  // que a próxima tela que montar um wa.me não repita o defeito.
   const link = linkDoWhatsapp(m.destino, texto);
+
+  /*
+    O erro fica **no item**, não num aviso global.
+
+    Ela está com o polegar em cima deste item. Um toast no alto da tela é uma
+    mensagem que ela não lê e um item que continua parecendo intocado — então
+    ela toca de novo, e a paciente recebe duas vezes.
+  */
+  const agir = (acao: () => Promise<Resultado>, marca: "mandei" | "nao") =>
+    iniciar(async () => {
+      setErro(null);
+      const r = await acao();
+      if (r.estado === "erro") {
+        setErro(r.erros.join(" "));
+        return;
+      }
+      setFeito(marca);
+    });
 
   if (feito) {
     return (
@@ -138,12 +198,7 @@ function Item({ m }: { m: NaMao }) {
         <button
           type="button"
           disabled={pendente}
-          onClick={() =>
-            iniciar(async () => {
-              await mandeiPeloWhatsapp(m.id);
-              setFeito("mandei");
-            })
-          }
+          onClick={() => agir(() => mandeiPeloWhatsapp(m.id), "mandei")}
           className="rounded-full border border-linha2 px-4 py-2 text-[12.5px] font-medium text-tinta2 transition-colors hover:bg-folha2 disabled:opacity-45"
         >
           Já mandei
@@ -151,17 +206,18 @@ function Item({ m }: { m: NaMao }) {
         <button
           type="button"
           disabled={pendente}
-          onClick={() =>
-            iniciar(async () => {
-              await naoVouMandar(m.id);
-              setFeito("nao");
-            })
-          }
+          onClick={() => agir(() => naoVouMandar(m.id), "nao")}
           className="rounded-full border border-linha2 px-4 py-2 text-[12.5px] font-medium text-tinta2 transition-colors hover:bg-folha2 disabled:opacity-45"
         >
           Não vou mandar
         </button>
       </div>
+
+      {erro && (
+        <p role="alert" className="mt-2 text-[12px] font-medium leading-relaxed text-vaga">
+          {erro}
+        </p>
+      )}
 
       {m.oferta_id && (
         <p className="mt-2 text-[11.5px] leading-relaxed text-tinta3">

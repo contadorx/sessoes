@@ -97,6 +97,7 @@ export function PainelContador({
                 id="pasta_dia"
                 name="pasta_dia"
                 type="number"
+                onWheel={(e) => e.currentTarget.blur()}
                 min={1}
                 max={28}
                 defaultValue={dia}

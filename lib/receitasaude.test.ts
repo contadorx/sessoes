@@ -303,6 +303,16 @@ describe("o CPF", () => {
     expect(cpfValidoParaArquivo("3905334470")).toBe(false);
     expect(cpfValidoParaArquivo(null)).toBe(false);
   });
+
+  /**
+   * O comprimento não bastava. Este CPF vai para a coluna 15 de toda linha, e o
+   * e-CAC recusa o arquivo **inteiro** no "Analisar Arquivo" — sem dizer qual
+   * linha. Um dígito trocado só aparecia em fevereiro, no prazo.
+   */
+  it("recusa onze dígitos com o dígito verificador errado", () => {
+    expect(cpfValidoParaArquivo("390.533.447-06")).toBe(false);
+    expect(cpfValidoParaArquivo("11111111111")).toBe(false);
+  });
 });
 
 describe("a linha do arquivo", () => {

@@ -41,6 +41,12 @@ export type Relatorio = {
   enviadas: number;
   falhas: number;
   desistidas: number;
+  /**
+   * Quantas foram para a caixa "Na sua mão" por não haver provedor. Enquanto
+   * o BSP não entra, este número é o lote inteiro — e é assim que se vê, do
+   * lado de fora, que o produto **não** está afirmando entrega que ninguém fez.
+   */
+  naSuaMao: number;
 };
 
 export async function despacharPendentes(limite = 20): Promise<Relatorio> {
@@ -81,12 +87,35 @@ export async function despacharPendentes(limite = 20): Promise<Relatorio> {
     enviadas: 0,
     falhas: 0,
     desistidas: 0,
+    naSuaMao: 0,
   };
 
   for (const linha of lote) {
     try {
-      const conteudo = renderizar(linha.template, linha.params ?? {});
       const adaptador = adaptadorPara(linha.canal);
+
+      /*
+        A pergunta vem **antes** de renderizar e antes de tentar, e é a
+        correção do pior defeito que este produto teve no ar: o adaptador sem
+        provedor respondia `ok: true` com um id inventado, e a linha abaixo
+        carimbava `marcar_enviada`. A tela dizia à psicóloga que a paciente
+        tinha sido avisada; a paciente não tinha recebido nada.
+
+        Sem provedor, a mensagem não falha nem é enviada — ela vai para a mão
+        dela, com o motivo escrito. `expirar_ofertas` (0061) já segura o
+        relógio da oferta enquanto ela estiver lá, então a vaga não queima
+        esperando o dedo dela.
+      */
+      if (!adaptador.disponivel) {
+        await db("mensageria.naSuaMao", supabase.rpc("passar_para_a_sua_mao", {
+          p_mensagem: linha.id,
+          p_motivo: adaptador.motivo ?? "sem provedor configurado",
+        }));
+        relatorio.naSuaMao += 1;
+        continue;
+      }
+
+      const conteudo = renderizar(linha.template, linha.params ?? {});
 
       const r = await adaptador.enviar({
         canal: linha.canal,

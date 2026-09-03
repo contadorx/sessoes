@@ -126,3 +126,50 @@ describe("validarPaciente — o critério de pronto da B4", () => {
     expect(r.ok && r.dados.email).toBe("bia@exemplo.com.br");
   });
 });
+
+/**
+ * O erro precisa saber de qual campo ele veio.
+ *
+ * O produto tinha zero `aria-invalid` e zero erros ao lado do campo: toda
+ * mensagem caía numa lista no fim do formulário. Num cadastro de duas telas e
+ * meia em 375 px, "Telefone inválido" no rodapé quer dizer "está errado em
+ * algum lugar aí atrás".
+ */
+describe("o erro tem dono", () => {
+  it("cada problema aponta o campo que o causou", () => {
+    const r = validarPaciente({ nome: "A", telefone: "abc", email: "nao-e-email", cpf: "111" });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+
+    expect(r.porCampo.nome).toBe("O nome precisa de ao menos duas letras.");
+    expect(r.porCampo.telefone).toBeDefined();
+    expect(r.porCampo.email).toBe("E-mail inválido.");
+    expect(r.porCampo.cpf).toBe("CPF inválido.");
+  });
+
+  it("porCampo e erros são a mesma lista, e nada se perde entre as duas", () => {
+    const r = validarPaciente({ nome: "", telefone: "", msg_canal: "whatsapp" });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+
+    for (const frase of Object.values(r.porCampo)) {
+      expect(r.erros).toContain(frase);
+    }
+    expect(r.erros.length).toBeGreaterThanOrEqual(Object.keys(r.porCampo).length);
+  });
+
+  it("o canal escolhido decide de quem é a falta", () => {
+    const semTelefone = validarPaciente({ nome: "Ana", telefone: "", msg_canal: "whatsapp" });
+    expect(semTelefone.ok).toBe(false);
+    if (!semTelefone.ok) {
+      expect(semTelefone.porCampo.telefone).toBe("Para avisar por WhatsApp, informe o telefone.");
+    }
+
+    const semEmail = validarPaciente({ nome: "Ana", telefone: "", msg_canal: "email" });
+    expect(semEmail.ok).toBe(false);
+    if (!semEmail.ok) {
+      expect(semEmail.porCampo.email).toBe("Para avisar por e-mail, informe o e-mail.");
+      expect(semEmail.porCampo.telefone).toBeUndefined();
+    }
+  });
+});

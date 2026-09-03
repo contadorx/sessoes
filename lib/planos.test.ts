@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   PLANOS,
   plano,
@@ -259,5 +261,97 @@ describe("as portas", () => {
   it("a Clínica leva para a conversa, e não para o cadastro", () => {
     // Ela não se contrata sozinha: o número de profissionais muda o preço.
     expect(plano("clinica").href).toBe("/#conversa");
+  });
+});
+
+/**
+ * O espelho que faltava — e é ele, não a lista corrigida, que fecha a B46.
+ *
+ * A 0064 criou `planos.por_vir` e a restrição `planos_promessa_nao_e_recurso`
+ * para que promessa não pudesse ser listada como recurso. E a promessa voltou
+ * assim mesmo, no cartão de R$ 129: "permissões por pessoa: quem vê o quê,
+ * **com aprovação em etapas**", sem implementação em lugar nenhum.
+ *
+ * Passou porque **a trava mora na coluna do banco e a landing renderiza a
+ * constante do TypeScript**. Eram dois textos do mesmo produto, e o protegido
+ * era justamente o que ninguém via.
+ *
+ * Este bloco lê a migração `0070` do disco e compara as duas listas linha a
+ * linha, **nos dois sentidos**. Não precisa de banco para rodar — o que a torna
+ * capaz de reprovar num `npm run verificar`, que é onde o defeito teria sido
+ * pego. O outro lado do espelho, banco contra a mesma lista, é a suíte
+ * `supabase/tests/0070_a_lista_de_planos_e_uma_so.sql`.
+ *
+ * A comparação ignora maiúscula e acento de caixa, e só isso: o banco escreve o
+ * primeiro caractere em minúscula por convenção da casa, e isso é apresentação.
+ * Qualquer diferença de **conteúdo** reprova.
+ */
+describe("a lista do TypeScript e a do banco são a mesma", () => {
+  const sql = readFileSync(
+    join(import.meta.dirname, "..", "supabase", "migrations", "0070_a_lista_de_planos_e_uma_so.sql"),
+    "utf8",
+  );
+
+  /**
+   * Os `update ... where codigo = 'x';` da migração, um por plano.
+   *
+   * Recorta por statement antes de procurar o plano: um regex não-guloso a
+   * partir do primeiro `update` casaria do começo do arquivo até o `where` do
+   * plano pedido, e leria os recursos do plano **anterior** — o que faz o
+   * espelho reprovar por engano, e o próximo a mexer nele desconfiar do
+   * espelho em vez do código.
+   */
+  const STATEMENTS = sql
+    .split(/;\s*\n/)
+    .filter((t) => t.includes("update public.planos set"));
+
+  function daMigracao(codigo: string, campo: "recursos" | "por_vir"): string[] {
+    const bloco = STATEMENTS.find((t) => new RegExp(`where codigo = '${codigo}'`).test(t));
+    if (!bloco) throw new Error(`a migração não tem o plano ${codigo}`);
+
+    const vazio = new RegExp(`${campo} = '\\{\\}'::text\\[\\]`).test(bloco);
+    if (vazio) return [];
+
+    const lista = new RegExp(`${campo} = array\\[([\\s\\S]*?)\\n  \\]`).exec(bloco)?.[1];
+    if (!lista) throw new Error(`a migração não tem ${campo} de ${codigo}`);
+
+    return [...lista.matchAll(/'((?:[^']|'')*)'/g)].map((m) => m[1].replace(/''/g, "'"));
+  }
+
+  const igual = (a: string) => a.trim().toLowerCase();
+
+  it("a varredura acha os quatro planos na migração", () => {
+    // Se a leitura parar de achar, tudo abaixo passaria com listas vazias —
+    // que é o modo silencioso de um espelho morrer.
+    for (const p of PLANOS) {
+      expect(daMigracao(p.codigo, "recursos").length, p.codigo).toBeGreaterThan(0);
+    }
+  });
+
+  it.each(PLANOS.map((p) => p.codigo))("%s: recursos batem, linha a linha", (codigo) => {
+    const p = PLANOS.find((x) => x.codigo === codigo)!;
+    expect(daMigracao(codigo, "recursos").map(igual)).toEqual(p.recursos.map(igual));
+  });
+
+  it.each(PLANOS.map((p) => p.codigo))("%s: por_vir bate, linha a linha", (codigo) => {
+    const p = PLANOS.find((x) => x.codigo === codigo)!;
+    expect(daMigracao(codigo, "por_vir").map(igual)).toEqual(p.porVir.map(igual));
+  });
+
+  it("nos dois sentidos: nada existe de um lado só", () => {
+    for (const p of PLANOS) {
+      const noSql = new Set([
+        ...daMigracao(p.codigo, "recursos").map(igual),
+        ...daMigracao(p.codigo, "por_vir").map(igual),
+      ]);
+      const noTs = new Set([...p.recursos, ...p.porVir].map(igual));
+
+      for (const linha of noTs) {
+        expect(noSql.has(linha), `${p.codigo}: "${linha}" só existe no TypeScript`).toBe(true);
+      }
+      for (const linha of noSql) {
+        expect(noTs.has(linha), `${p.codigo}: "${linha}" só existe no banco`).toBe(true);
+      }
+    }
   });
 });

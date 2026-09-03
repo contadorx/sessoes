@@ -154,13 +154,18 @@ export const PLANOS: Plano[] = [
     recursos: [
       "Tudo do Consultório",
       "Sem faixa de sessões",
-      "Permissões por pessoa: quem vê o quê, com aprovação em etapas",
+      "Permissões por pessoa: quem vê o quê",
     ],
     porVir: [
       "NFS-e para quem atende como PJ",
       "Número próprio: as mensagens chegam do número que suas pacientes já conhecem",
       "Página do paciente: confirmar, pagar e receber documento",
       "Reajuste assistido e modo férias",
+      // Estava dentro de `recursos`, colada em "quem vê o quê", e não existe em
+      // `app/`, `lib/` nem `supabase/`. Era o nono recurso inexistente da
+      // landing — o mesmo defeito que a 0064 fechou, voltando pelo lado que a
+      // restrição do banco não alcança. Aqui embaixo ela é verdade.
+      "Aprovação em etapas para quem tem permissão limitada",
     ],
   },
   {

@@ -66,6 +66,7 @@ export function RegrasDaFila({ regras }: { regras: Regras }) {
           <Campo rotulo="Prazo da oferta (min)" dica="Depois disso, a fila anda.">
             <input
               type="number"
+              onWheel={(e) => e.currentTarget.blur()}
               name="oferta_timeout_min"
               min={5}
               max={720}
@@ -76,6 +77,7 @@ export function RegrasDaFila({ regras }: { regras: Regras }) {
           <Campo rotulo="Não incomodar a partir de">
             <input
               type="time"
+              step={900}
               name="silencio_inicio"
               defaultValue={regras.silencio_inicio?.slice(0, 5)}
               className={ENTRADA}
@@ -84,6 +86,7 @@ export function RegrasDaFila({ regras }: { regras: Regras }) {
           <Campo rotulo="Voltar a avisar às">
             <input
               type="time"
+              step={900}
               name="silencio_fim"
               defaultValue={regras.silencio_fim?.slice(0, 5)}
               className={ENTRADA}

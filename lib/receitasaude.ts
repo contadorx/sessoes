@@ -1,4 +1,5 @@
 import { paraCentavos, formatar } from "@/lib/dinheiro";
+import { cpfValido } from "@/lib/paciente";
 
 /**
  * O modo Receita Saúde (F2a) — o lado puro.
@@ -272,8 +273,15 @@ export function soDigitos(s: string | null | undefined): string {
   return (s ?? "").replace(/\D/g, "");
 }
 
+/**
+ * O CPF que vai para o arquivo — com dígito verificador, não só comprimento.
+ *
+ * Os dois lados checam, como já acontece com o CPF do paciente: a tela recusa
+ * na hora de digitar, e o gerador recusa na hora de montar. O arquivo é
+ * conferido de uma vez no e-CAC, e a recusa não diz qual linha está errada.
+ */
 export function cpfValidoParaArquivo(s: string | null | undefined): boolean {
-  return soDigitos(s).length === 11;
+  return cpfValido(soDigitos(s));
 }
 
 /**
@@ -306,9 +314,9 @@ export function linhaCsv(
   crp: string,
 ): string {
   const cpf = soDigitos(l.cpf);
-  if (cpf.length !== 11) throw new Error("linha sem CPF não entra no arquivo");
+  if (!cpfValidoParaArquivo(cpf)) throw new Error("linha sem CPF válido não entra no arquivo");
   const prof = soDigitos(cpfProfissional);
-  if (prof.length !== 11) throw new Error("o arquivo exige o CPF do profissional");
+  if (!cpfValidoParaArquivo(prof)) throw new Error("o arquivo exige o CPF do profissional");
 
   return [
     diaBr(l.pagoEm),           //  1 data do pagamento

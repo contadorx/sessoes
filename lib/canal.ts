@@ -48,6 +48,14 @@ export function linkDoWhatsapp(destino: string | null, texto: string): string | 
   if (!destino) return null;
   const numero = destino.replace(/\D/g, "");
   if (numero.length < 10) return null;
+
+  // Sem texto também não há link — e esta linha faltava, contra o que o próprio
+  // comentário acima já dizia. Quando `renderizar` falha, a caixa "Na sua mão"
+  // escreve "não consegui montar o texto desta mensagem" e **mostrava o botão
+  // assim mesmo**: o toque abria a conversa com a paciente em branco, e a
+  // mensagem passava a ser escrita por ela, na hora, no lugar do produto.
+  if (texto.trim() === "") return null;
+
   return `https://wa.me/${numero}?text=${encodeURIComponent(texto)}`;
 }
 

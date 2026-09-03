@@ -11,11 +11,11 @@ import {
   proximoMesDeCinco,
   type Modelo,
 } from "@/lib/cobranca";
-import { paraCentavos } from "@/lib/dinheiro";
+import { lerCentavos, mascaraCpf, mascaraTelefone } from "@/lib/formato";
 import { OPCOES_DE_HORAS, fraseDoAjuste } from "@/lib/confirmacao";
 import type { Resultado } from "@/app/(app)/pacientes/acoes";
 import type { PacienteLinha, EnquadreLinha } from "@/app/(app)/pacientes/dados";
-import { Campo, Erros, Secao, ENTRADA } from "./campos";
+import { BOTAO, Campo, Erros, RodapeDeAcao, Secao, ENTRADA, mascarar } from "./campos";
 
 const INICIAL: Resultado = { estado: "inicial" };
 
@@ -25,7 +25,7 @@ function Salvar({ rotulo }: { rotulo: string }) {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-full bg-vaga px-6 py-2.5 text-[13.5px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-45"
+      className={BOTAO}
     >
       {pending ? "Salvando…" : rotulo}
     </button>
@@ -46,6 +46,12 @@ export function FormPaciente({
   const [estado, despachar] = useActionState(acao, INICIAL);
   const [canal, setCanal] = useState(paciente?.msg_canal ?? "whatsapp");
   const erros = estado.estado === "erro" ? estado.erros : [];
+  const porCampo = (estado.estado === "erro" && estado.porCampo) || {};
+
+  // `validarPaciente` já exige os dois (lib/paciente.ts) — o que faltava era o
+  // formulário dizer isso antes do envio, em vez de depois.
+  const precisaTelefone = canal === "whatsapp" || canal === "sms";
+  const precisaEmail = canal === "email";
 
   return (
     <form action={despachar} className="rounded-cartao border border-linha bg-folha p-6">
@@ -53,10 +59,27 @@ export function FormPaciente({
 
       <Secao titulo="Quem é">
         <div className="grid gap-3 sm:grid-cols-2">
-          <Campo rotulo="Nome">
-            <input name="nome" required defaultValue={paciente?.nome} className={ENTRADA} />
+          <Campo rotulo="Nome" obrigatorio erro={porCampo.nome}>
+            <input
+              name="nome"
+              required
+              autoComplete="off"
+              defaultValue={paciente?.nome}
+              className={ENTRADA}
+            />
           </Campo>
-          <Campo rotulo="Situação">
+          <Campo
+            rotulo="Situação"
+            erro={porCampo.estado}
+            ajuda={
+              <>
+                Quem está em <strong>alta</strong>, <strong>encerrado</strong> ou{" "}
+                <strong>arquivado</strong> não entra na fila de encaixe, e quem está em{" "}
+                <strong>pausa</strong> não aparece na lista de quem pode ocupar uma vaga.
+                O resto muda só o que você vê nas listas.
+              </>
+            }
+          >
             <select name="estado" defaultValue={paciente?.estado ?? "interessado"} className={ENTRADA}>
               {ESTADOS.map((e) => (
                 <option key={e} value={e}>
@@ -65,23 +88,44 @@ export function FormPaciente({
               ))}
             </select>
           </Campo>
-          <Campo rotulo="Telefone">
+          <Campo
+            rotulo="Telefone"
+            erro={porCampo.telefone}
+            obrigatorio={precisaTelefone}
+            dica={precisaTelefone ? "É por aqui que o aviso sai." : undefined}
+          >
             <input
               name="telefone"
               inputMode="tel"
+              autoComplete="off"
+              required={precisaTelefone}
               placeholder="(11) 98765-4321"
-              defaultValue={paciente?.telefone ?? ""}
+              defaultValue={mascaraTelefone(paciente?.telefone ?? "")}
+              onChange={mascarar(mascaraTelefone)}
               className={ENTRADA}
             />
           </Campo>
-          <Campo rotulo="E-mail">
-            <input type="email" name="email" defaultValue={paciente?.email ?? ""} className={ENTRADA} />
+          <Campo rotulo="E-mail" erro={porCampo.email} obrigatorio={precisaEmail}>
+            <input
+              type="email"
+              name="email"
+              autoComplete="off"
+              required={precisaEmail}
+              defaultValue={paciente?.email ?? ""}
+              className={ENTRADA}
+            />
           </Campo>
-          <Campo rotulo="CPF" dica="Só se for emitir recibo — Receita Saúde exige.">
+          <Campo rotulo="CPF" erro={porCampo.cpf} dica="Só se for emitir recibo — Receita Saúde exige.">
             <input
               name="cpf"
               inputMode="numeric"
-              defaultValue={paciente?.cpf ?? ""}
+              /* O Chrome ignora autoComplete="off" em campo que ele acha que é
+                 documento, e oferece o CPF **dela** dentro da ficha da paciente
+                 — que no caminho do Receita Saúde vira recibo com o CPF errado. */
+              autoComplete="new-password"
+              placeholder="000.000.000-00"
+              defaultValue={mascaraCpf(paciente?.cpf ?? "")}
+              onChange={mascarar(mascaraCpf)}
               className={ENTRADA}
             />
           </Campo>
@@ -121,7 +165,7 @@ export function FormPaciente({
         </div>
       </Secao>
 
-      {comEnquadre && <CamposEnquadre />}
+      {comEnquadre && <CamposEnquadre porCampo={porCampo} />}
 
       <Secao titulo="Anotação administrativa" nota="Nada clínico aqui — prontuário é outra camada, com outro sigilo.">
         <textarea
@@ -134,20 +178,41 @@ export function FormPaciente({
 
       <Erros erros={erros} />
 
-      <div className="mt-6">
+      <RodapeDeAcao>
         <Salvar rotulo={rotuloBotao} />
-      </div>
+      </RodapeDeAcao>
     </form>
   );
 }
 
-export function CamposEnquadre({ base }: { base?: EnquadreLinha }) {
+export function CamposEnquadre({
+  base,
+  porCampo = {},
+}: {
+  base?: EnquadreLinha;
+  porCampo?: Record<string, string>;
+}) {
   const [modelo, setModelo] = useState<Modelo>(
     (base?.modelo_cobranca as Modelo) ?? "avulso",
   );
   const [dia, setDia] = useState<number>(base?.dia_semana ?? 2);
   const [valor, setValor] = useState(base?.valor ?? "");
   const [mensal, setMensal] = useState(base?.mensalidade_valor ?? "");
+
+  // Quem já tinha 30% continua vendo 30% — o combinado dela não vira uma das
+  // três opções por causa de uma mudança de tela.
+  const guardado = (v: number | null | undefined, padrao: number, opcoes: string[]) => {
+    const atual = String(v ?? padrao);
+    return opcoes.includes(atual) ? atual : "outro";
+  };
+  const [horas, setHoras] = useState(() =>
+    guardado(base?.politica_horas, 24, ["12", "24", "48"]),
+  );
+  const [horasLivre, setHorasLivre] = useState(String(base?.politica_horas ?? 24));
+  const [pct, setPct] = useState(() =>
+    guardado(base?.politica_percentual, 50, ["0", "50", "100"]),
+  );
+  const [pctLivre, setPctLivre] = useState(String(base?.politica_percentual ?? 50));
   const [confirma, setConfirma] = useState(
     base?.confirmacao_horas_antes == null ? "" : String(base.confirmacao_horas_antes),
   );
@@ -158,7 +223,7 @@ export function CamposEnquadre({ base }: { base?: EnquadreLinha }) {
       nota="Dia, hora, valor e a política de falta. É deste combinado que nascem as sessões, a cobrança e, depois, o contrato."
     >
       <div className="grid gap-3 sm:grid-cols-3">
-        <Campo rotulo="Dia">
+        <Campo rotulo="Dia" erro={porCampo.dia_semana}>
           <select
             name="dia_semana"
             value={dia}
@@ -172,12 +237,19 @@ export function CamposEnquadre({ base }: { base?: EnquadreLinha }) {
             ))}
           </select>
         </Campo>
-        <Campo rotulo="Hora">
-          <input type="time" name="hora" defaultValue={base?.hora?.slice(0, 5) ?? ""} className={ENTRADA} />
+        <Campo rotulo="Hora" erro={porCampo.hora}>
+          <input
+            type="time"
+            step={900}
+            name="hora"
+            defaultValue={base?.hora?.slice(0, 5) ?? ""}
+            className={ENTRADA}
+          />
         </Campo>
-        <Campo rotulo="Duração (min)">
+        <Campo rotulo="Duração (min)" erro={porCampo.duracao_min}>
           <input
             type="number"
+            onWheel={(e) => e.currentTarget.blur()}
             name="duracao_min"
             min={15}
             max={240}
@@ -186,7 +258,7 @@ export function CamposEnquadre({ base }: { base?: EnquadreLinha }) {
             className={ENTRADA}
           />
         </Campo>
-        <Campo rotulo="Valor da sessão (R$)">
+        <Campo rotulo="Valor da sessão (R$)" erro={porCampo.valor}>
           <input
             name="valor"
             inputMode="decimal"
@@ -210,32 +282,92 @@ export function CamposEnquadre({ base }: { base?: EnquadreLinha }) {
             ))}
           </select>
         </Campo>
-        <label className="flex items-end gap-2 pb-2.5 text-[13px] text-tinta2">
-          <input type="checkbox" name="social" defaultChecked={base?.social} className="accent-vaga" />
-          valor social
+        <label className="flex flex-col justify-end gap-1 pb-2.5 text-[13px] text-tinta2">
+          <span className="flex items-center gap-2">
+            <input type="checkbox" name="social" defaultChecked={base?.social} className="accent-vaga" />
+            valor social
+          </span>
+          <span className="text-[11px] leading-relaxed text-tinta3">
+            Marca o combinado como valor social. Não muda o preço, o recibo nem a
+            ordem da fila — é o que separa, no fechamento, o que você atendeu por
+            um valor menor do que o seu.
+          </span>
         </label>
       </div>
 
+      {/*
+        A política em palavra, não em número.
+
+        Perguntar "Senão, cobra (%)" a quem se descreve como ruim com números é
+        pedir um número que ela não tem — e o campo ainda ficava a uma rolagem
+        de distância do cursor, então rolar a página em cima dele mudava a
+        política de falta sem clique. As três respostas que quase todo mundo dá
+        viram opção; quem cobra 30% continua tendo onde escrever 30.
+      */}
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <Campo rotulo="Avisar com antecedência de (horas)">
-          <input
-            type="number"
-            name="politica_horas"
-            min={0}
-            max={168}
-            defaultValue={base?.politica_horas ?? 24}
-            className={ENTRADA}
-          />
+        <Campo rotulo="Desmarcar com menos de" erro={porCampo.politica_horas}>
+          <>
+            <select
+              value={horas}
+              onChange={(e) => setHoras(e.target.value)}
+              className={ENTRADA}
+            >
+              <option value="12">12 horas</option>
+              <option value="24">24 horas</option>
+              <option value="48">48 horas</option>
+              <option value="outro">outro prazo…</option>
+            </select>
+            {horas === "outro" && (
+              <input
+                type="number"
+                onWheel={(e) => e.currentTarget.blur()}
+                inputMode="numeric"
+                min={0}
+                max={168}
+                value={horasLivre}
+                onChange={(e) => setHorasLivre(e.target.value)}
+                aria-label="Prazo em horas"
+                className={`${ENTRADA} mt-2`}
+              />
+            )}
+            <input
+              type="hidden"
+              name="politica_horas"
+              value={horas === "outro" ? horasLivre : horas}
+            />
+          </>
         </Campo>
-        <Campo rotulo="Senão, cobra (%)">
-          <input
-            type="number"
-            name="politica_percentual"
-            min={0}
-            max={100}
-            defaultValue={base?.politica_percentual ?? 50}
-            className={ENTRADA}
-          />
+        <Campo rotulo="Aí a sessão é cobrada" erro={porCampo.politica_percentual}>
+          <>
+            <select
+              value={pct}
+              onChange={(e) => setPct(e.target.value)}
+              className={ENTRADA}
+            >
+              <option value="0">nada</option>
+              <option value="50">metade</option>
+              <option value="100">por inteiro</option>
+              <option value="outro">outro valor…</option>
+            </select>
+            {pct === "outro" && (
+              <input
+                type="number"
+                onWheel={(e) => e.currentTarget.blur()}
+                inputMode="numeric"
+                min={0}
+                max={100}
+                value={pctLivre}
+                onChange={(e) => setPctLivre(e.target.value)}
+                aria-label="Percentual cobrado"
+                className={`${ENTRADA} mt-2`}
+              />
+            )}
+            <input
+              type="hidden"
+              name="politica_percentual"
+              value={pct === "outro" ? pctLivre : pct}
+            />
+          </>
         </Campo>
       </div>
 
@@ -253,7 +385,7 @@ export function CamposEnquadre({ base }: { base?: EnquadreLinha }) {
           A frase embaixo diz o que acontece com quem **não** responde, porque é
           a parte que assusta — e a resposta é: nada acontece com o horário. */}
       <div className="mt-5">
-        <Campo rotulo="Pedir confirmação ao paciente">
+        <Campo rotulo="Pedir confirmação ao paciente" erro={porCampo.confirmacao_horas_antes}>
           <select
             name="confirmacao_horas_antes"
             value={confirma}
@@ -322,19 +454,12 @@ function Mensalidade({
   mensal: string;
   setMensal: (v: string) => void;
 }) {
-  let centavos = 0;
-  try {
-    centavos = valor.trim() === "" ? 0 : paraCentavos(valor.trim().replace(",", "."));
-  } catch {
-    centavos = 0;
-  }
-
-  let fixo: number | null = null;
-  try {
-    fixo = mensal.trim() === "" ? null : paraCentavos(mensal.trim().replace(",", "."));
-  } catch {
-    fixo = null;
-  }
+  // A prévia lê com o mesmo parser do servidor. Quando eram dois, digitar
+  // "1.200" mostrava a previsão de R$ 1,20 e gravava R$ 1.200,00 — ou o
+  // contrário. Prévia que discorda do que vai ser gravado é pior que prévia
+  // nenhuma.
+  const centavos = lerCentavos(valor) ?? 0;
+  const fixo = lerCentavos(mensal);
 
   const cinco = proximoMesDeCinco(dia);
   const previsao =

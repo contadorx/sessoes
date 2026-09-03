@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { cpfBr } from "@/lib/formato";
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import {
@@ -81,12 +82,6 @@ function Recado({ r }: { r: Resultado }) {
 
 const CAMPO =
   "w-full rounded-cartao border border-linha2 bg-folha px-3 py-1.5 text-[12.5px] text-tinta focus:border-tinta3 focus:outline-none";
-
-/** O CPF como a Receita pede: 000.000.000-00. */
-function cpfBr(cpf: string | null): string {
-  if (!cpf || cpf.length !== 11) return "—";
-  return `${cpf.slice(0, 3)}.${cpf.slice(3, 6)}.${cpf.slice(6, 9)}-${cpf.slice(9)}`;
-}
 
 /**
  * A lista de digitação.
@@ -236,8 +231,12 @@ export function PainelReceitaSaude({
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <form action={marcar} className="flex flex-wrap items-center gap-2">
                       <input type="hidden" name="recibo" value={r.id} />
+                      {/* Ela está com o app da Receita na outra mão: o teclado
+                          que abre aqui tem que ser o de número. */}
                       <input
                         name="numero"
+                        inputMode="numeric"
+                        autoComplete="off"
                         placeholder="número do recibo (opcional)"
                         maxLength={60}
                         className={`${CAMPO} w-56`}

@@ -14,6 +14,7 @@ import {
   type Faixa,
   type Destino,
 } from "@/lib/capacidade";
+import { RodapeDeAcao } from "./campos";
 
 const INICIAL: Resultado = { estado: "ok", mensagem: "" };
 
@@ -26,7 +27,7 @@ function Botao({ children }: { children: React.ReactNode }) {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-full border border-linha2 px-4 py-2 text-[12.5px] font-medium text-tinta2 transition-colors hover:bg-folha2 disabled:opacity-45"
+      className="min-h-11 w-full rounded-full border border-linha2 px-4 py-3 text-[12.5px] font-medium text-tinta2 transition-colors hover:bg-folha2 disabled:opacity-45 sm:w-auto"
     >
       {pending ? "…" : children}
     </button>
@@ -104,6 +105,7 @@ export function Horarios({
                       <input type="hidden" name="faixa_dia" value={f.dia} />
                       <input
                         type="time"
+                        step={900}
                         name="faixa_inicio"
                         value={f.inicio}
                         onChange={(e) => mudar(i, "inicio", e.target.value)}
@@ -113,6 +115,7 @@ export function Horarios({
                       <span className="text-[12px] text-tinta3">às</span>
                       <input
                         type="time"
+                        step={900}
                         name="faixa_fim"
                         value={f.fim}
                         onChange={(e) => mudar(i, "fim", e.target.value)}
@@ -183,13 +186,9 @@ export function Horarios({
           <p className="mt-3 text-[12.5px] leading-relaxed text-vaga">{problema}</p>
         )}
 
-        <div className="mt-4">
-          <Botao>Guardar a semana</Botao>
-        </div>
-
         {r.mensagem && (
           <p
-            className={`mt-2 text-[12px] leading-relaxed ${
+            className={`mt-3 text-[12px] leading-relaxed ${
               r.estado === "erro" ? "text-vaga" : "text-cheia"
             }`}
           >
@@ -204,6 +203,15 @@ export function Horarios({
           você mexe na agenda de amanhã.
         </p>
       </div>
+
+      {/*
+        A grade guarda a semana inteira em `useState`: sair da tela antes de
+        chegar ao botão perde tudo o que ela montou, e em 375 px o botão estava
+        a duas telas e meia do topo. O rodapé senta acima da barra de navegação.
+      */}
+      <RodapeDeAcao>
+        <Botao>Guardar a semana</Botao>
+      </RodapeDeAcao>
     </form>
   );
 }

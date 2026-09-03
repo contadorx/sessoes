@@ -90,12 +90,13 @@ export function Encaixe({ pacientes, dias }: { pacientes: Paciente[]; dias: stri
             </Campo>
 
             <Campo rotulo="Hora">
-              <input type="time" name="hora" required className={ENTRADA} />
+              <input type="time" step={900} name="hora" required className={ENTRADA} />
             </Campo>
 
             <Campo rotulo="Duração">
               <input
                 type="number"
+                onWheel={(e) => e.currentTarget.blur()}
                 name="duracao_min"
                 min={15}
                 max={240}

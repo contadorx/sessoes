@@ -65,10 +65,10 @@ function CamposJanela({ base }: { base?: NaFila }) {
 
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <Campo rotulo="A partir de">
-          <input type="time" name="de" defaultValue={j.de ?? ""} className={ENTRADA} />
+          <input type="time" step={900} name="de" defaultValue={j.de ?? ""} className={ENTRADA} />
         </Campo>
         <Campo rotulo="Até">
-          <input type="time" name="ate" defaultValue={j.ate ?? ""} className={ENTRADA} />
+          <input type="time" step={900} name="ate" defaultValue={j.ate ?? ""} className={ENTRADA} />
         </Campo>
       </div>
 
@@ -136,6 +136,7 @@ function Linha({ item }: { item: NaFila }) {
               <Campo rotulo="Prioridade manual" dica="Empata por cima da regra. 0 = sem desempate.">
                 <input
                   type="number"
+                  onWheel={(e) => e.currentTarget.blur()}
                   name="prioridade"
                   min={0}
                   max={99}

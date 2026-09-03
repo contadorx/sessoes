@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { salvarDemanda, escreverEvolucao, type Resultado } from "@/app/(app)/pacientes/acoes";
 import {
@@ -20,6 +20,7 @@ import {
   type RegistroDoPaciente,
   type Camada,
 } from "@/lib/registro";
+import { apagarRascunho, guardarRascunho, lerRascunho } from "@/lib/rascunho";
 
 const INICIAL: Resultado = { estado: "inicial" };
 
@@ -58,26 +59,39 @@ function Recado({ r }: { r: Resultado }) {
 const CAMPO =
   "w-full rounded-cartao border border-linha2 bg-folha px-3 py-2 text-[13px] leading-relaxed text-tinta focus:border-tinta3 focus:outline-none";
 
-/** A escolha da camada, com a consequência ao lado — nunca só o nome. */
+/**
+ * A escolha da camada, com a consequência de **cada** opção à vista.
+ *
+ * Antes só a frase da opção marcada aparecia — e clicar no outro rádio para ler
+ * o que ele faz já era escolher. Escolher em que camada o registro nasce é a
+ * decisão mais difícil de desfazer desta tela; ela precisa das duas frases
+ * antes de decidir, não depois.
+ */
 function EscolhaDaCamada({ atual }: { atual: Camada }) {
   const [c, setC] = useState<Camada>(atual);
   return (
-    <div className="mt-2">
-      <div className="flex flex-wrap gap-4">
-        {(["prontuario", "documental"] as Camada[]).map((v) => (
-          <label key={v} className="flex items-center gap-2 text-[12.5px] text-tinta2">
-            <input
-              type="radio"
-              name="camada"
-              value={v}
-              checked={c === v}
-              onChange={() => setC(v)}
-            />
-            {rotuloCamada(v)}
-          </label>
-        ))}
-      </div>
-      <p className="mt-1 text-[11.5px] leading-relaxed text-tinta3">{explicaCamada(c)}</p>
+    <div className="mt-2 grid gap-3 sm:grid-cols-2">
+      {(["prontuario", "documental"] as Camada[]).map((v) => (
+        <label
+          key={v}
+          className="flex cursor-pointer gap-2 rounded-cartao border border-linha2 px-3 py-2.5 has-[:checked]:border-vaga has-[:checked]:bg-vaga-bg"
+        >
+          <input
+            type="radio"
+            name="camada"
+            value={v}
+            checked={c === v}
+            onChange={() => setC(v)}
+            className="mt-0.5"
+          />
+          <span>
+            <span className="block text-[12.5px] text-tinta">{rotuloCamada(v)}</span>
+            <span className="mt-0.5 block text-[11.5px] leading-relaxed text-tinta3">
+              {explicaCamada(v)}
+            </span>
+          </span>
+        </label>
+      ))}
     </div>
   );
 }
@@ -106,6 +120,54 @@ export function Evolucao({
 }) {
   const [r, escrever] = useActionState(escreverEvolucao, INICIAL);
   const [aberta, setAberta] = useState(Boolean(comecaAberta));
+
+  /*
+    O rascunho.
+
+    Ela escreve isto de pé, entre uma sessão e outra, num aparelho que descarta
+    PWA em segundo plano — e até esta build o produto não tinha rascunho em
+    forma nenhuma. Sair da tela perdia o texto, sem aviso.
+
+    A textarea continua **não-controlada**: o rascunho é gravado no `onInput`
+    com uma pausa, e o valor nunca volta como prop. Controlar o campo custaria
+    re-render a cada tecla numa tela que já faz quinze consultas, e é
+    justamente o que o arquivo da build recusa.
+  */
+  const campo = useRef<HTMLTextAreaElement>(null);
+  const relogio = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [recuperado, setRecuperado] = useState(false);
+
+  useEffect(() => {
+    const guardado = lerRascunho(
+      typeof window === "undefined" ? null : window.localStorage,
+      sessaoId,
+    );
+    // Só recupera o que **acrescenta**: se o rascunho é igual ao que já está
+    // salvo, não há nada a recuperar e o aviso seria ruído.
+    if (guardado === null || guardado === (texto ?? "")) return;
+    if (campo.current) {
+      campo.current.value = guardado;
+      setRecuperado(true);
+    }
+  }, [sessaoId, texto]);
+
+  // Gravou: o rascunho serviu e some. Um que sobrevive ao salvamento é texto
+  // clínico parado no aparelho sem ninguém precisar dele.
+  useEffect(() => {
+    if (r.estado !== "ok") return;
+    apagarRascunho(typeof window === "undefined" ? null : window.localStorage, sessaoId);
+  }, [r, sessaoId]);
+
+  const aoDigitar = (valor: string) => {
+    if (relogio.current) clearTimeout(relogio.current);
+    relogio.current = setTimeout(() => {
+      guardarRascunho(
+        typeof window === "undefined" ? null : window.localStorage,
+        sessaoId,
+        valor,
+      );
+    }, 600);
+  };
 
   if (!aberta) {
     return (
@@ -141,13 +203,35 @@ export function Evolucao({
         <span className="text-[12px] font-medium text-tinta2">evolução do trabalho</span>
       </div>
       <textarea
+        ref={campo}
         name="texto"
         rows={5}
         maxLength={20000}
         defaultValue={texto ?? ""}
+        onInput={(e) => aoDigitar(e.currentTarget.value)}
         placeholder="O que foi trabalhado, e como."
         className={`mt-2 ${CAMPO}`}
       />
+      {recuperado && r.estado !== "ok" && (
+        <p className="mt-1 text-[11.5px] leading-relaxed text-tinta3">
+          Recuperei o que você tinha começado a escrever neste aparelho. Ele some
+          quando você guardar.
+        </p>
+      )}
+      {/*
+        Ditar, sem que o áudio passe por aqui.
+
+        O microfone do teclado do celular escreve neste campo como escreve em
+        qualquer outro, e a gravação nunca chega ao produto: ela não sai do
+        aparelho dela. Um gravador embutido teria que mandar o áudio de uma
+        evolução para um serviço de transcrição de terceiro — e áudio de
+        evolução é dado clínico. É a fronteira 9, e ela não se atravessa em nome
+        de conveniência.
+      */}
+      <p className="mt-1 text-[11.5px] leading-relaxed text-tinta3">
+        Dá para ditar: o microfone do teclado do seu celular escreve aqui, e o
+        áudio não passa pelo Sessões.
+      </p>
       <EscolhaDaCamada atual={camada} />
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <Botao rotulo="Guardar" destaque />

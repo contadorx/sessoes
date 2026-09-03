@@ -9,11 +9,14 @@ import { sessaoAtual } from "@/lib/conta";
 import { validarPaciente } from "@/lib/paciente";
 import { hoje } from "@/lib/tempo-servidor";
 import { adaptadorPara } from "@/lib/pagamentos/adaptadores";
-import { paraCentavos } from "@/lib/dinheiro";
+import { deCentavos, paraCentavos } from "@/lib/dinheiro";
+import { caixaMarcada, lerCentavos } from "@/lib/formato";
 
 export type Resultado =
   | { estado: "inicial" }
-  | { estado: "erro"; erros: string[] }
+  // `porCampo` é a mesma lista, endereçada: o formulário mostra a frase
+  // embaixo do campo que a causou, e não só no bloco do fim.
+  | { estado: "erro"; erros: string[]; porCampo?: Record<string, string> }
   // Salvar cadastro redireciona, então não precisava de "ok". As ações de
   // privacidade (B13) precisam: a resposta do banco — a data até quando o
   // registro fica guardado — é justamente o que a psicóloga vai repassar.
@@ -22,67 +25,82 @@ export type Resultado =
 const INICIAL: Resultado = { estado: "inicial" };
 
 /** Lê os campos do enquadre do formulário. Devolve null quando ela não preencheu. */
-function lerEnquadre(form: FormData): { erros: string[]; dados: Record<string, unknown> | null } {
+function lerEnquadre(form: FormData): {
+  erros: string[];
+  porCampo: Record<string, string>;
+  dados: Record<string, unknown> | null;
+} {
   const hora = String(form.get("hora") ?? "").trim();
-  const valorBruto = String(form.get("valor") ?? "").trim().replace(",", ".");
+  const valorBruto = String(form.get("valor") ?? "").trim();
 
-  if (hora === "" && valorBruto === "") return { erros: [], dados: null };
+  if (hora === "" && valorBruto === "") return { erros: [], porCampo: {}, dados: null };
 
   const erros: string[] = [];
-  if (!/^\d{2}:\d{2}$/.test(hora)) erros.push("Informe o horário da sessão.");
+  const porCampo: Record<string, string> = {};
+  const problema = (campo: string, frase: string) => {
+    erros.push(frase);
+    if (!porCampo[campo]) porCampo[campo] = frase;
+  };
 
-  const valor = Number(valorBruto);
-  if (!Number.isFinite(valor) || valor < 0) erros.push("Informe o valor da sessão.");
+  if (!/^\d{2}:\d{2}$/.test(hora)) problema("hora", "Informe o horário da sessão.");
+
+  const valorCentavos = lerCentavos(valorBruto);
+  if (valorCentavos === null) problema("valor", "Informe o valor da sessão.");
 
   const dia = Number(form.get("dia_semana"));
-  if (!Number.isInteger(dia) || dia < 0 || dia > 6) erros.push("Escolha o dia da semana.");
+  if (!Number.isInteger(dia) || dia < 0 || dia > 6) problema("dia_semana", "Escolha o dia da semana.");
 
   const duracao = Number(form.get("duracao_min") ?? 50);
   if (!Number.isInteger(duracao) || duracao < 15 || duracao > 240) {
-    erros.push("A duração precisa ficar entre 15 e 240 minutos.");
+    problema("duracao_min", "A duração precisa ficar entre 15 e 240 minutos.");
   }
 
   // O valor fixo do mês é opcional por desenho: em branco significa "cobro por
   // sessão do mês", e é essa ausência que responde ao mês de cinco terças.
-  const mensalBruto = String(form.get("mensalidade_valor") ?? "").trim().replace(",", ".");
+  const mensalBruto = String(form.get("mensalidade_valor") ?? "").trim();
   let mensalidade: string | null = null;
   if (mensalBruto !== "") {
-    const m = Number(mensalBruto);
-    if (!Number.isFinite(m) || m < 0) {
-      erros.push("O valor fixo do mês não parece um número.");
+    const m = lerCentavos(mensalBruto);
+    if (m === null) {
+      problema("mensalidade_valor", "O valor fixo do mês não parece um número.");
     } else {
-      mensalidade = m.toFixed(2);
+      mensalidade = deCentavos(m);
     }
   }
 
   const horas = Number(form.get("politica_horas") ?? 24);
   const pct = Number(form.get("politica_percentual") ?? 50);
-  if (!Number.isInteger(horas) || horas < 0 || horas > 168) erros.push("Prazo da política inválido.");
-  if (!Number.isInteger(pct) || pct < 0 || pct > 100) erros.push("Percentual da política inválido.");
+  if (!Number.isInteger(horas) || horas < 0 || horas > 168) {
+    problema("politica_horas", "Prazo da política inválido.");
+  }
+  if (!Number.isInteger(pct) || pct < 0 || pct > 100) {
+    problema("politica_percentual", "Percentual da política inválido.");
+  }
 
   // A confirmação da 0057. Vazio é **não pedir**, e é o padrão — quem não pede
   // confirmação hoje não passa a pedir porque o formulário ganhou um campo.
   const confBruto = String(form.get("confirmacao_horas_antes") ?? "").trim();
   const confirmacao = confBruto === "" ? null : Number(confBruto);
   const problemaConf = problemaNasHoras(confirmacao);
-  if (problemaConf) erros.push(problemaConf);
+  if (problemaConf) problema("confirmacao_horas_antes", problemaConf);
 
-  if (erros.length > 0) return { erros, dados: null };
+  if (erros.length > 0) return { erros, porCampo, dados: null };
 
   return {
     erros: [],
+    porCampo,
     dados: {
       dia_semana: dia,
       hora,
       duracao_min: duracao,
-      valor: valor.toFixed(2), // numeric vai como string; nunca float no caminho
-      social: form.get("social") === "on",
+      valor: deCentavos(valorCentavos ?? 0), // numeric vai como string; nunca float no caminho
+      social: caixaMarcada(form, "social"),
       modelo_cobranca: String(form.get("modelo_cobranca") ?? "avulso"),
       // Só faz sentido no mensal: guardar um valor fixo num combinado avulso
       // criaria um número que a tela mostra e o sistema nunca usa.
       mensalidade_valor:
         String(form.get("modelo_cobranca") ?? "avulso") === "mensal" ? mensalidade : null,
-      falta_cobra_a_parte: form.get("falta_cobra_a_parte") === "on",
+      falta_cobra_a_parte: caixaMarcada(form, "falta_cobra_a_parte"),
       politica_horas: horas,
       politica_percentual: pct,
       confirmacao_horas_antes: confirmacao,
@@ -113,6 +131,7 @@ export async function criarPaciente(_anterior: Resultado, form: FormData): Promi
     return {
       estado: "erro",
       erros: [...(paciente.ok ? [] : paciente.erros), ...enquadre.erros],
+      porCampo: { ...(paciente.ok ? {} : paciente.porCampo), ...enquadre.porCampo },
     };
   }
 
@@ -161,7 +180,9 @@ export async function atualizarPaciente(_anterior: Resultado, form: FormData): P
     observacao: String(form.get("observacao") ?? ""),
   });
 
-  if (!paciente.ok) return { estado: "erro", erros: paciente.erros };
+  if (!paciente.ok) {
+    return { estado: "erro", erros: paciente.erros, porCampo: paciente.porCampo };
+  }
 
   const supabase = await supabaseSessao();
 
@@ -196,7 +217,9 @@ export async function substituirEnquadre(
   if (!pacienteId) return { estado: "erro", erros: ["Paciente não identificado."] };
 
   const enquadre = lerEnquadre(form);
-  if (enquadre.erros.length > 0) return { estado: "erro", erros: enquadre.erros };
+  if (enquadre.erros.length > 0) {
+    return { estado: "erro", erros: enquadre.erros, porCampo: enquadre.porCampo };
+  }
   if (!enquadre.dados) return { estado: "erro", erros: ["Preencha o novo combinado."] };
 
   const supabase = await supabaseSessao();
@@ -315,7 +338,7 @@ export async function venderPacote(_anterior: Resultado, form: FormData): Promis
   const paciente = String(form.get("paciente") ?? "");
   const quantidade = Number(form.get("quantidade") ?? 0);
   const validade = String(form.get("validade") ?? "").trim();
-  const bruto = String(form.get("valor") ?? "").trim().replace(/\./g, "").replace(",", ".");
+  const bruto = String(form.get("valor") ?? "").trim();
 
   const erros: string[] = [];
   if (!Number.isInteger(quantidade) || quantidade < 1 || quantidade > 60) {
@@ -324,8 +347,8 @@ export async function venderPacote(_anterior: Resultado, form: FormData): Promis
   if (!/^\d{4}-\d{2}-\d{2}$/.test(validade)) {
     erros.push("Escolha até quando o pacote vale.");
   }
-  const valor = Number(bruto);
-  if (bruto === "" || !Number.isFinite(valor) || valor < 0) {
+  const valorCentavos = lerCentavos(bruto);
+  if (valorCentavos === null) {
     erros.push("Informe o valor total do pacote.");
   }
   if (erros.length > 0) return { estado: "erro", erros };
@@ -337,7 +360,7 @@ export async function venderPacote(_anterior: Resultado, form: FormData): Promis
       supabase.rpc("vender_pacote", {
         p_paciente: paciente,
         p_quantidade: quantidade,
-        p_valor: valor.toFixed(2),
+        p_valor: deCentavos(valorCentavos ?? 0),
         p_validade: validade,
       }),
     );

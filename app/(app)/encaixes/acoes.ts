@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db, ErroDeBanco } from "@/lib/db";
+import { caixaMarcada } from "@/lib/formato";
 import { supabaseSessao } from "@/lib/supabase/server";
 import { sessaoAtual } from "@/lib/conta";
 import { montarJanela } from "@/lib/janela";
@@ -44,7 +45,7 @@ export async function entrarNaFila(_anterior: Resultado, form: FormData): Promis
       supabase.from("fila_encaixe").insert({
         paciente_id: pacienteId,
         janelas: lerJanela(form),
-        topa_antecipar: form.get("topa_antecipar") !== "nao",
+        topa_antecipar: caixaMarcada(form, "topa_antecipar"),
       }),
     );
   } catch (e) {
@@ -75,9 +76,9 @@ export async function atualizarNaFila(_anterior: Resultado, form: FormData): Pro
         .from("fila_encaixe")
         .update({
           janelas: lerJanela(form),
-          topa_antecipar: form.get("topa_antecipar") !== "nao",
+          topa_antecipar: caixaMarcada(form, "topa_antecipar"),
           prioridade: Number.isInteger(prioridade) ? prioridade : 0,
-          ativo: form.get("ativo") !== "nao",
+          ativo: caixaMarcada(form, "ativo"),
         })
         .eq("id", id),
     );

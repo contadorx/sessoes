@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { SessaoLinha, CobrancaLinha } from "@/app/(app)/agenda/dados";
 import { faixaDeHoras, posicaoNaGrade, porDiaDaSemana, type Semana as TSemana } from "@/lib/semana";
@@ -42,6 +42,23 @@ export function Semana({
   hoje: string;
 }) {
   const [escolhida, setEscolhida] = useState<string | null>(null);
+  const painel = useRef<HTMLDivElement>(null);
+
+  /*
+    Levar o painel ao campo de visão.
+
+    Em 375 px a lista dos sete dias tem várias telas de altura, e o painel abre
+    **abaixo dela inteira**. Tocar numa sessão não mudava nada do que ela estava
+    vendo: a conclusão razoável é que o toque não funcionou, então ela toca de
+    novo — e o segundo toque fecha o painel que o primeiro tinha aberto.
+
+    `block: "nearest"` e não `"center"`: no desktop o painel já está visível, e
+    rolar a página por baixo de quem não pediu é o oposto de sinal de vida.
+  */
+  useEffect(() => {
+    if (!escolhida) return;
+    painel.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [escolhida]);
 
   const [de, ate] = useMemo(() => faixaDeHoras(sessoes), [sessoes]);
   const porDia = useMemo(() => porDiaDaSemana(sessoes, semana.dias), [sessoes, semana.dias]);
@@ -159,10 +176,18 @@ export function Semana({
               <ul className="mt-2 overflow-hidden rounded-cartao border border-linha bg-folha">
                 {doDia.map((s) => (
                   <li key={s.id} className="border-t border-linha first:border-t-0">
+                    {/*
+                      A grade do desktop já marcava a sessão escolhida com um
+                      anel; esta lista, que é o caminho do celular, não marcava
+                      nada. Era o toque sem resposta visível.
+                    */}
                     <button
                       type="button"
                       onClick={() => setEscolhida(s.id === escolhida ? null : s.id)}
-                      className="flex w-full flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 text-left"
+                      aria-pressed={s.id === escolhida}
+                      className={`flex w-full flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 text-left transition-colors ${
+                        s.id === escolhida ? "bg-folha2" : ""
+                      }`}
                     >
                       <span className="font-mono text-[13px] tabular text-tinta2">
                         {horaEmSP(new Date(s.inicio))}
@@ -205,11 +230,29 @@ export function Semana({
       )}
 
       {sessaoAberta && (
-        <div className="mt-4">
+        <div ref={painel} className="mt-4 scroll-mt-4">
+          {/*
+            A `key`, e ela é o conserto de um S1.
+
+            Sem ela o painel fica na mesma posição da árvore e o React só troca
+            as props — não desmonta. O campo escondido com o `sessao_id` é
+            controlado por `value` e **atualiza**; a `<textarea>` da evolução é
+            não-controlada por `defaultValue` e **não atualiza**. Então: escrever
+            a evolução da Helena sem salvar, tocar na sessão do João na mesma
+            lista, tocar em Guardar — e o texto da Helena era gravado no
+            prontuário do João. Guarda de cinco anos, e `evolucao_nao_se_reescreve`
+            impede desfazer.
+
+            Trocar a textarea para controlada resolveria o mesmo e pioraria o
+            resto: re-render a cada tecla numa tela que já faz quinze consultas.
+            A `key` custa zero.
+          */}
           <PainelSessao
+            key={sessaoAberta.id}
             sessao={sessaoAberta}
             cobranca={cobrancas[sessaoAberta.id] ?? null}
             aoFechar={() => setEscolhida(null)}
+            hoje={hoje}
           />
         </div>
       )}

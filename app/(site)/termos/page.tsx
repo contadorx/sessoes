@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Moldura, Documento, Bloco } from "@/components/site/Moldura";
+import { fraseDoEnvioAutomatico } from "@/lib/promessa";
 
 export const metadata = {
   title: "Termos de serviço",
@@ -118,12 +119,20 @@ export default function Termos() {
             , e uma mudança de preço nunca se aplica ao que já foi cobrado.
           </p>
           <p>
-            Cada plano tem uma <b className="font-medium">faixa de sessões por
-            mês</b>, e é essa a unidade cobrada. Atender acima da faixa{" "}
-            <b className="font-medium">não bloqueia nada e não gera cobrança
+            O <b className="font-medium">Consultório</b> tem uma faixa de 60
+            sessões por mês, e é essa a unidade cobrada nele. Atender acima da
+            faixa <b className="font-medium">não bloqueia nada e não gera cobrança
             extra</b>: a agenda continua, a fila continua oferecendo, e as
             mensagens continuam saindo. O que acontece é que avisamos você, e
             sugerimos o plano seguinte a partir do próximo ciclo.
+          </p>
+          <p>
+            Os outros três não têm faixa. No{" "}
+            <b className="font-medium">Gratuito</b> não há limite de sessões; no{" "}
+            <b className="font-medium">Consultório Completo</b> e na{" "}
+            <b className="font-medium">Clínica</b>, o uso é livre e{" "}
+            <b className="font-medium">você não recebe aviso de faixa nenhuma</b> —
+            seria um aviso sobre um limite que esta mesma página diz não existir.
           </p>
           <p>
             <b className="font-medium">No plano Gratuito, a fila e a cobrança são
@@ -132,7 +141,8 @@ export default function Termos() {
             enviamos nada por você nesses dois casos. Lembrete de véspera, aviso
             de desmarque e confirmação de encaixe continuam saindo
             automaticamente, no Gratuito também. Nos planos pagos, tudo é
-            automático, pelo número do Sessões.
+            automático, pelo número do Sessões.{" "}
+            <b className="font-medium">{fraseDoEnvioAutomatico()}</b>
           </p>
           <p>
             <b className="font-medium">Não cobramos por mensagem, e não

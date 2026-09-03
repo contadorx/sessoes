@@ -167,3 +167,24 @@ describe("o que muda no pago é dito sem prometer resultado de terceiro", () => 
     expect(f).not.toMatch(/preenche|mais vagas|garante|dobra|aumenta/i);
   });
 });
+
+/**
+ * O botão que abria a conversa em branco.
+ *
+ * Quando `renderizar` falha, a caixa "Na sua mão" escreve "não consegui montar
+ * o texto desta mensagem — nada foi enviado" e, até a B43, mostrava
+ * **"Abrir no WhatsApp" logo abaixo**. O toque abria a conversa com a paciente
+ * sem texto nenhum, e a mensagem passava a ser escrita por ela, de pé, no lugar
+ * do produto — que é justamente o trabalho que o Sessões existe para tirar.
+ */
+describe("sem texto não há link", () => {
+  it("recusa o link quando o texto não renderizou", () => {
+    expect(linkDoWhatsapp("5511999998888", "")).toBeNull();
+    expect(linkDoWhatsapp("5511999998888", "   ")).toBeNull();
+    expect(linkDoWhatsapp("5511999998888", "\n")).toBeNull();
+  });
+
+  it("com texto, continua devolvendo o link de sempre", () => {
+    expect(linkDoWhatsapp("5511999998888", "oi")).toContain("wa.me/5511999998888");
+  });
+});

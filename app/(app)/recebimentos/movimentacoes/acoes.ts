@@ -2,9 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
+import { lerValor } from "@/lib/formato";
 import { supabaseSessao } from "@/lib/supabase/server";
 import { sessaoAtual } from "@/lib/conta";
-import { deCentavos, paraCentavos } from "@/lib/dinheiro";
+import { deCentavos } from "@/lib/dinheiro";
 import { hoje } from "@/lib/tempo-servidor";
 import { CATEGORIAS } from "@/lib/financeiro";
 
@@ -105,12 +106,7 @@ export async function lancarDespesa(
     erros.push("A descrição tem de 2 a 120 caracteres.");
   }
 
-  let centavos = 0;
-  try {
-    centavos = paraCentavos(valorCru.replace(/\./g, "").replace(",", "."));
-  } catch {
-    erros.push("O valor não parece um número.");
-  }
+  const centavos = lerValor(valorCru) ?? 0;
   if (centavos <= 0) erros.push("O valor precisa ser maior que zero.");
 
   if (erros.length > 0) return { estado: "erro", erros };

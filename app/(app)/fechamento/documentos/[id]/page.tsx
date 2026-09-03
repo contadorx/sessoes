@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { obterDocumento, type DocumentoLinha } from "../dados";
 import { Imprimir } from "@/components/app/Imprimir";
 import { formatar, paraCentavos } from "@/lib/dinheiro";
+import { documentoBr } from "@/lib/formato";
 
 export const metadata = { title: "Documento" };
 
@@ -21,18 +22,6 @@ const DIA_E_HORA = new Intl.DateTimeFormat("pt-BR", {
   hour: "2-digit",
   minute: "2-digit",
 });
-
-/** "123.456.789-01" / "12.345.678/0001-99" — como as pessoas leem. */
-function documento(bruto: string | null): string | null {
-  if (!bruto) return null;
-  if (bruto.length === 11) {
-    return `${bruto.slice(0, 3)}.${bruto.slice(3, 6)}.${bruto.slice(6, 9)}-${bruto.slice(9)}`;
-  }
-  if (bruto.length === 14) {
-    return `${bruto.slice(0, 2)}.${bruto.slice(2, 5)}.${bruto.slice(5, 8)}/${bruto.slice(8, 12)}-${bruto.slice(12)}`;
-  }
-  return bruto;
-}
 
 function porExtenso(iso: string): string {
   const [a, m, d] = iso.split("-").map(Number);
@@ -99,7 +88,7 @@ export default async function Documento({ params }: { params: Promise<{ id: stri
           <p className="mt-0.5 text-[12.5px] text-tinta2">
             {[
               r.profissional?.crp ? `CRP ${r.profissional.crp}` : null,
-              documento(r.profissional?.documento ?? null),
+              documentoBr(r.profissional?.documento ?? null),
             ]
               .filter(Boolean)
               .join(" · ") || "—"}
@@ -118,7 +107,7 @@ export default async function Documento({ params }: { params: Promise<{ id: stri
             <>
               Declaro para os devidos fins que{" "}
               <b className="font-semibold">{r.paciente.nome}</b>
-              {r.paciente.cpf ? `, CPF ${documento(r.paciente.cpf)},` : ""} esteve
+              {r.paciente.cpf ? `, CPF ${documentoBr(r.paciente.cpf)},` : ""} esteve
               presente em <b className="font-semibold">{doc.quantidade}</b>{" "}
               atendimento{doc.quantidade > 1 ? "s" : ""} nas datas e horários
               relacionados abaixo.
@@ -126,7 +115,7 @@ export default async function Documento({ params }: { params: Promise<{ id: stri
           ) : (
             <>
               Recebi de <b className="font-semibold">{r.paciente.nome}</b>
-              {r.paciente.cpf ? `, CPF ${documento(r.paciente.cpf)},` : ""} a
+              {r.paciente.cpf ? `, CPF ${documentoBr(r.paciente.cpf)},` : ""} a
               importância de <b className="font-semibold">{total}</b>, referente a{" "}
               <b className="font-semibold">{doc.quantidade}</b> atendimento
               {doc.quantidade > 1 ? "s" : ""} psicológico

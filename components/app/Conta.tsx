@@ -1,6 +1,8 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { mascaraDocumento } from "@/lib/formato";
+import { mascarar } from "./campos";
 import { useFormStatus } from "react-dom";
 import {
   salvarPix,
@@ -304,6 +306,8 @@ export function FormAssinatura({
             <input
               id="crp"
               name="crp"
+              inputMode="numeric"
+              autoComplete="off"
               defaultValue={crp ?? ""}
               placeholder="06/123456"
               className={`mt-1 ${CAMPO}`}
@@ -313,10 +317,14 @@ export function FormAssinatura({
             <label htmlFor="documento" className="text-[12px] font-medium text-tinta2">
               CPF ou CNPJ
             </label>
+            {/* O placeholder prometia a máscara desde sempre; agora ela existe. */}
             <input
               id="documento"
               name="documento"
-              defaultValue={documento ?? ""}
+              inputMode="numeric"
+              autoComplete="off"
+              defaultValue={mascaraDocumento(documento ?? "")}
+              onChange={mascarar(mascaraDocumento)}
               placeholder="000.000.000-00"
               className={`mt-1 ${CAMPO}`}
             />

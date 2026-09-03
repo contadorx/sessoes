@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
+import { caixaMarcada, lerCentavos } from "@/lib/formato";
 import { supabaseSessao } from "@/lib/supabase/server";
 import { sessaoAtual } from "@/lib/conta";
 import { motivoValido, fraseDoMotivoCurto } from "@/lib/negocio";
@@ -66,7 +67,7 @@ export async function abrirAssinatura(_a: Resultado, form: FormData): Promise<Re
       p_ciclo: texto(form, "ciclo") || "mensal",
       p_origem: texto(form, "origem") || "painel",
       p_valor_centavos: null,
-      p_trial: form.get("trial") === "on",
+      p_trial: caixaMarcada(form, "trial"),
     }));
 
     revalidatePath("/negocio");
@@ -219,8 +220,8 @@ export async function lancarCustoFixo(_a: Resultado, form: FormData): Promise<Re
 
   // Centavos como inteiro, sempre. O campo da tela é em reais porque é assim
   // que eu leio a fatura do fornecedor; a conversão acontece aqui, uma vez.
-  const reais = Number(String(form.get("valor") ?? "").replace(",", "."));
-  if (!Number.isFinite(reais) || reais < 0) return ERRO("Valor inválido.");
+  const centavos = lerCentavos(String(form.get("valor") ?? ""));
+  if (centavos === null) return ERRO("Valor inválido.");
 
   try {
     await exigirOperador();
@@ -228,7 +229,7 @@ export async function lancarCustoFixo(_a: Resultado, form: FormData): Promise<Re
     await db("negocio.lancar_custo", supabase.rpc("lancar_custo_fixo", {
       p_mes: texto(form, "mes"),
       p_rubrica: rubrica,
-      p_centavos: Math.round(reais * 100),
+      p_centavos: centavos,
       p_nota: texto(form, "nota") || null,
     }));
     revalidatePath("/negocio/custos");

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
+import { caixaMarcada } from "@/lib/formato";
 import { supabaseSessao } from "@/lib/supabase/server";
 import { sessaoAtual } from "@/lib/conta";
 import { primeiroDia } from "@/lib/contador";
@@ -19,7 +20,7 @@ export async function salvarContador(
   const email = String(form.get("contador_email") ?? "").trim();
   const nome = String(form.get("contador_nome") ?? "").trim();
   const dia = Number(form.get("pasta_dia") ?? 5);
-  const ativa = String(form.get("pasta_ativa") ?? "") === "1";
+  const ativa = caixaMarcada(form, "pasta_ativa");
 
   const erros: string[] = [];
   if (email !== "" && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {

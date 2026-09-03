@@ -160,7 +160,7 @@ export function PainelVagas({ vagas }: { vagas: VagaLinha[] }) {
                 <label htmlFor="hora" className="text-[12px] font-medium text-tinta2">
                   Hora
                 </label>
-                <input id="hora" name="hora" type="time" className={`mt-1 ${CAMPO}`} />
+                <input id="hora" name="hora" type="time" step={900} className={`mt-1 ${CAMPO}`} />
               </div>
               <div>
                 <label htmlFor="duracao_min" className="text-[12px] font-medium text-tinta2">
@@ -170,6 +170,7 @@ export function PainelVagas({ vagas }: { vagas: VagaLinha[] }) {
                   id="duracao_min"
                   name="duracao_min"
                   type="number"
+                  onWheel={(e) => e.currentTarget.blur()}
                   min={15}
                   max={240}
                   step={5}

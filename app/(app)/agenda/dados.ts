@@ -2,6 +2,7 @@ import "server-only";
 import type { RespostaBruta } from "@/lib/confirmacao";
 import type { HistoricoBruto } from "@/lib/politica";
 import type { CockpitBruto, AlertasBrutos } from "@/lib/risco";
+import { paraCentavos } from "@/lib/dinheiro";
 import { db } from "@/lib/db";
 import { supabaseSessao } from "@/lib/supabase/server";
 import { diaEmSP, inicioDoDiaSP } from "@/lib/tempo";
@@ -63,44 +64,58 @@ export async function sessoesDaSemana(segunda: string): Promise<SessaoLinha[]> {
 
 export type ResumoSemana = {
   vivas: number;
+  /** Centavos inteiros, como todo dinheiro da aplicação (lei 4). */
   previsto: number;
   canceladasTarde: number;
   perdido: number;
-  emRisco: number;
 };
 
 /**
- * A faixa de números do topo. `perdido` é o que a política **não** recupera:
- * o buraco que a fila da B7 existe para preencher.
+ * A faixa de números do topo. `perdido` é a hora que abriu e ninguém ocupou.
+ *
+ * **Ele soma o valor cheio, inclusive no cancelamento tarde** — e isso mudou.
+ * Antes descontava a multa: `perdido += valor - multa`. Só que desde a 0058 a
+ * política não recupera nada sozinha; o que nasce é uma `proposta_de_cobranca`,
+ * que a própria migração descreve como *"NÃO é dinheiro"*. Descontar uma multa
+ * indecisa era a tela assumir o que a caixa de decisões, dez centímetros
+ * abaixo, ainda está perguntando — dois números da mesma semana, na mesma
+ * tela, um respondendo o que o outro pergunta.
+ *
+ * Quando ela decidir cobrar e a cobrança for paga, o valor aparece em
+ * "Retorno", que é a tela que fala de recuperação. Aqui só se descreve o
+ * horário que ficou sem ninguém.
+ *
+ * O `emRisco` que existia aqui foi embora junto: era calculado, era a metade
+ * descontada, e **nenhuma tela o mostrava**.
  */
 export function resumoDaSemana(sessoes: SessaoLinha[]): ResumoSemana {
   let previsto = 0;
   let perdido = 0;
-  let emRisco = 0;
   let vivas = 0;
   let canceladasTarde = 0;
 
   for (const s of sessoes) {
-    const valor = Number(s.valor);
+    // Centavos, e não reais: a conta da multa era feita em reais com
+    // `Math.round`, enquanto `multa_da_politica` arredonda em centavos — duas
+    // aritméticas de dinheiro para a mesma semana.
+    const centavos = paraCentavos(s.valor);
 
     if (s.estado === "cancelada_tarde") {
       canceladasTarde++;
-      const multa = Math.round((valor * s.politica_percentual) / 100);
-      emRisco += multa;
-      perdido += valor - multa;
+      perdido += centavos;
       continue;
     }
 
     if (s.estado === "cancelada_cedo") {
-      perdido += valor;
+      perdido += centavos;
       continue;
     }
 
     vivas++;
-    previsto += valor;
+    previsto += centavos;
   }
 
-  return { vivas, previsto, canceladasTarde, perdido, emRisco };
+  return { vivas, previsto, canceladasTarde, perdido };
 }
 
 /** Pacientes com combinado aberto, para o encaixe. */

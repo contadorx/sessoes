@@ -95,7 +95,10 @@ function Cancelar({ id, por, rotulo }: { id: string; por: string; rotulo: string
  * mão — que é quando ela lembra. Registrar aqui é o que permite emitir recibo
  * depois: desde a 0037, recibo só sai sobre dinheiro que entrou.
  */
-function Recebi({ id }: { id: string }) {
+// `hojeSP` desce do servidor (`hoje()` em `lib/tempo-servidor`), e não do
+// relógio do navegador: a lei 3 diz que "dia" se calcula em America/Sao_Paulo,
+// e um `toISOString()` às 21h daria o dia seguinte.
+function Recebi({ id, hojeSP }: { id: string; hojeSP: string }) {
   const [r, despachar] = useActionState(registrarRecebimento, INICIAL_FIN);
   return (
     <div className="mt-3 rounded-cartao border border-cheia-linha bg-cheia-bg px-4 py-3">
@@ -105,10 +108,32 @@ function Recebi({ id }: { id: string }) {
           Sem esse registro o recibo não sai — e o mês fica com uma hora sem entrada.
         </span>
       </p>
-      <form action={despachar} className="mt-2">
+      {/*
+        A data é opcional, e existe para o Pix que caiu três dias depois.
+
+        Vazia, o recebimento entra hoje — o regime de caixa que o resto do
+        produto usa, e a mesma data que o botão do Financeiro grava. Antes esta
+        tela não mandava nada e a outra mandava o dia da **sessão**: o mesmo
+        botão, em duas telas, punha o dinheiro em meses diferentes na virada do
+        mês, e o mês é o que vai para o contador.
+      */}
+      <form action={despachar} className="mt-2 flex flex-wrap items-end gap-2">
         <input type="hidden" name="sessao" value={id} />
+        <label className="text-[11.5px] text-tinta3">
+          <span className="block">quando entrou</span>
+          <input
+            type="date"
+            name="quando"
+            max={hojeSP}
+            defaultValue=""
+            className="mt-0.5 rounded-[5px] border border-linha2 bg-folha px-2 py-1 text-[12.5px] text-tinta"
+          />
+        </label>
         <Acao rotulo="Recebi" destaque="cheia" />
       </form>
+      <p className="mt-1 text-[11px] leading-relaxed text-tinta3">
+        Em branco, entra hoje.
+      </p>
       {r.estado === "ok" && (
         <p className="mt-2 text-[12.5px] leading-relaxed text-cheia">{r.mensagem}</p>
       )}
@@ -338,10 +363,12 @@ export function PainelSessao({
   sessao,
   cobranca,
   aoFechar,
+  hoje,
 }: {
   sessao: SessaoLinha;
   cobranca: CobrancaLinha | null;
   aoFechar: () => void;
+  hoje: string;
 }) {
   const politica = {
     horas: sessao.politica_horas,
@@ -417,7 +444,9 @@ export function PainelSessao({
         )
       )}
 
-      {sessao.estado === "realizada" && !cobranca && <Recebi id={sessao.id} />}
+      {sessao.estado === "realizada" && !cobranca && (
+        <Recebi id={sessao.id} hojeSP={hoje} />
+      )}
 
       {sessao.estado === "cancelada_cedo" && (
         <p className="mt-3 rounded-cartao border border-linha bg-folha2 px-4 py-3 text-[12.5px] leading-relaxed text-tinta2">

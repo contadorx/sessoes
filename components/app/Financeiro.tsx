@@ -197,17 +197,25 @@ export function PainelFinanceiro({
                   <span className="font-mono text-[13px] tabular-nums text-tinta2">
                     {formatar(paraCentavos(s.valor))}
                   </span>
+                  {/*
+                    Sem `quando`: o recebimento entra hoje, que é o regime de
+                    caixa que o resto do produto usa. Esta tela mandava o **dia
+                    da sessão** e o painel da agenda não mandava nada — o mesmo
+                    botão, em duas telas, gravava datas diferentes, e na virada
+                    do mês isso põe dinheiro no mês errado. O mês errado é o que
+                    vai para o contador.
+                  */}
                   <form action={receber} className="ml-auto">
                     <input type="hidden" name="sessao" value={s.sessao_id} />
-                    <input type="hidden" name="quando" value={s.dia <= hoje ? s.dia : hoje} />
                     <Botao rotulo="Recebi" destaque />
                   </form>
                 </li>
               ))}
             </ul>
             <p className="mt-2 text-[11.5px] leading-relaxed text-tinta3">
-              O recebimento é lançado na data da sessão. Se o dinheiro entrou em outro dia,
-              corrija na cobrança — a data do pagamento é a que conta para o caixa.
+              O recebimento é lançado hoje — é a data em que o dinheiro entrou que
+              conta para o caixa. Se ele caiu num outro dia, o painel da sessão, na
+              agenda, deixa você escolher qual.
             </p>
           </>
         )}
