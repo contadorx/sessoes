@@ -161,6 +161,83 @@ export function fraseDoLtv(v: number | null): string {
 }
 
 /**
+ * A medida do P8 — a única pergunta que o painel faz sobre uma *feature*.
+ *
+ * A 0067 escreveu, dentro da própria função que a mediria: *"uma feature que
+ * não carrega consigo o que a mediria é uma feature que ninguém desliga
+ * depois"*. E a medida ficou catorze dias no banco sem chegar a tela nenhuma,
+ * porque nasceu presa a `conta_atual()` — quem precisa do número é quem opera a
+ * plataforma, e ler conta por conta seria impersonação. A 0079 trocou o escopo.
+ *
+ * O que este bloco **não** faz: dar veredito. Ele devolve os números e o
+ * tamanho da amostra. Se o cartão serviu é decisão de produto, e o painel
+ * existe para eu decidir com número em vez de com impressão.
+ */
+export type MedidaDoReceitaSaude = {
+  /** Contas PF com o modo ligado, fora as de teste. É a quem a P8 serve. */
+  contas: number;
+  contas_com_recibo: number;
+  contas_que_marcaram: number;
+  /** Mediana de dias entre o pagamento e a baixa. `null` = ninguém marcou. */
+  dias_ate_a_baixa: number | null;
+  marcados: number;
+  pendentes: number;
+  pendentes_de_anos_anteriores: number;
+};
+
+export const SEM_MEDIDA: MedidaDoReceitaSaude = {
+  contas: 0,
+  contas_com_recibo: 0,
+  contas_que_marcaram: 0,
+  dias_ate_a_baixa: null,
+  marcados: 0,
+  pendentes: 0,
+  pendentes_de_anos_anteriores: 0,
+};
+
+/**
+ * A mediana em português, e o travessão quando ela não existe.
+ *
+ * Meio dia aparece: uma mediana de 2,5 dias sobre quatro recibos é o número
+ * certo, e arredondar para 3 seria inventar precisão que não foi medida na
+ * direção contrária — para cima.
+ */
+export function diasAteABaixa(v: number | null): string {
+  if (v === null) return "—";
+  const arredondado = Math.round(v * 10) / 10;
+  const texto = String(arredondado).replace(".", ",");
+  return `${texto} ${arredondado === 1 ? "dia" : "dias"}`;
+}
+
+/**
+ * De que amostra o número saiu — e **nenhum limiar inventado**.
+ *
+ * A tentação aqui era um "≥ 3 contas = amostra suficiente". Não há pesquisa
+ * que sustente esse três, e um limiar escolhido no teclado vira, um mês
+ * depois, um "passou no portão" que ninguém sabe de onde veio. A frase diz
+ * quantas contas marcaram e deixa o julgamento comigo, que é de quem ele é.
+ */
+export function fraseDaMedida(m: MedidaDoReceitaSaude): string {
+  if (m.contas_que_marcaram === 0) {
+    return m.contas_com_recibo === 0
+      ? "nenhuma conta tem recibo ainda"
+      : `${m.contas_com_recibo} com recibo, nenhuma marcou ainda`;
+  }
+  const n = m.contas_que_marcaram;
+  return `de ${n} ${n === 1 ? "conta que marcou" : "contas que marcaram"}`;
+}
+
+/** Quantos recibos ainda esperam ela, e quantos já atravessaram o ano. */
+export function fraseDaPendencia(m: MedidaDoReceitaSaude): string {
+  if (m.pendentes === 0) return "nada esperando";
+  if (m.pendentes_de_anos_anteriores === 0) return "nenhum atravessou o ano";
+  const n = m.pendentes_de_anos_anteriores;
+  return `${n} de ${m.pendentes} ${n === 1 ? "atravessou" : "atravessaram"} o ano — ${
+    n === 1 ? "é a que vira" : "são as que viram"
+  } multa`;
+}
+
+/**
  * O custo de uma mensagem, em centavos, a partir do preço em milésimos.
  *
  * `precos_canal` guarda milésimos de centavo porque um e-mail custa 0,2

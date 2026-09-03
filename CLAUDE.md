@@ -4,10 +4,9 @@ Este arquivo é lido a cada sessão. Ele não descreve o código: descreve as
 **decisões que o código não pode contrariar**. Quando este arquivo e o código
 discordarem, é o código que está errado — abra um achado, não uma exceção.
 
-> **O `README.md` da raiz está desatualizado.** Ele descreve a tese antiga
-> ("sua agenda não fura mais de graça"), chama o repositório de "landing" e cita
-> um simulador de ROI que foi removido por decisão. Use este arquivo; corrija o
-> README quando passar por ele.
+> **O `README.md` da raiz foi reescrito em 03/09** e voltou a bater com o
+> produto: a tese atual, as oito leis, a estrutura de verdade e a tabela das
+> varreduras. Ele é a porta de entrada; este arquivo continua sendo a lei.
 
 ---
 
@@ -121,6 +120,13 @@ faixa* (quando significa cota de plano). Se você precisar do termo, escreva a
 consequência: "o que aconteceu com cada hora", "o que dá base à cobrança", "ver
 quem está devendo", "montada até 27/10".
 
+> **A regra vale na página pública também, e é lá que ela foi violada por
+> último.** Até a 0078 a página de preços dizia "Sem faixa de sessões" e "Régua
+> de atraso impessoal", porque a varredura de jargão só lia a área logada — o
+> produto usava a linguagem certa depois que ela assinava e a errada enquanto
+> ela decidia se assinava. `testes/o-jargao-nao-vira-rotulo.test.ts` agora lê
+> `app/(site)`, `components/site` e `lib/planos.ts` junto com a área logada.
+
 ---
 
 ## 6 · Tom de voz — normativo, não sugestão
@@ -175,6 +181,10 @@ Cinco vêm das cicatrizes do FinanceiroX; três vieram da auditoria de 02/09.
    era de quando havia doze. Varra o `information_schema`, o `pg_proc`, o
    catálogo — não uma constante. **Na UI o equivalente é a tela que enumera
    tipos e some com o tipo que ninguém previu.**
+   O caso mais caro foi achado em 03/09: `verificar-restauracao.sql`, a prova
+   do backup, conferia **44 tabelas de 56, 147 funções de 285, 38 gatilhos de
+   79 e 12 views de 29** — e a view que ficou de fora era de texto livre
+   escrito por psicóloga. A lei vale com força dobrada onde a falha é muda.
 8. **Adaptador ausente recusa, não finge.** `lib/calendario/adaptadores.ts`
    declara `disponivel: false` e explica; a mensageria fingiu que enviou e virou
    S1. Sem provedor configurado, o caminho é dizer que não saiu.
@@ -204,10 +214,33 @@ Cinco vêm das cicatrizes do FinanceiroX; três vieram da auditoria de 02/09.
 npm run dev          # desenvolvimento
 npm run verificar    # lint + tsc --noEmit + vitest — roda antes de qualquer commit
 npm run test         # só os testes unitários
+
+# As suítes SQL, que precisam de banco e por isso NÃO entram no verificar:
+SUPABASE_DB_URL='postgresql://…' npm run verificar:sql          # todas
+SUPABASE_DB_URL='postgresql://…' npm run verificar:sql -- 0080  # só uma
 ```
 
-Suítes SQL: `supabase/tests/*.sql` (45 hoje). Migrações:
-`supabase/migrations/*.sql` (103 aplicadas). **Próxima migração livre: `0066`.**
+> **O `verificar` não roda as suítes SQL, e isso custou caro.** Elas precisam de
+> conexão, o `verificar` roda sem rede, e o resultado foi que **56 suítes
+> ficaram meses sem rodar**. Quando rodaram, em 03/09, seis defeitos de produto
+> apareceram de uma vez — todos já acusados por verificações que este projeto
+> tinha escrito e ninguém executava. A prova mais dura é a `0053`: morreu na
+> `0067`, que renomeou `recibos_rfb.emitido_em`, e ficou vermelha em silêncio.
+>
+> `verificar:sql` é o alvo separado. Ele lê a pasta (lei 7), então suíte nova
+> entra sozinha, e recusa rodar sem `SUPABASE_DB_URL` — que não mora em arquivo
+> do repositório de propósito: estas suítes **escrevem**, e um arquivo commitado
+> é como se roda no banco errado sem perceber. **Roda antes de commit que toca
+> em migração.**
+
+Suítes SQL: `supabase/tests/*.sql` (61 hoje). Migrações:
+`supabase/migrations/*.sql` (130 no repositório, 135 registradas no banco — a
+diferença está conferida e explicada no `docs/builds/README.md`).
+**Próxima migração livre: `0090`.**
+
+E a prova do restore: `supabase/verificar-restauracao.sql`, com o roteiro em
+`supabase/RESTAURAR.md`. Ela é o único critério de pronto do projeto que não se
+verifica lendo, e desde 03/09 não confere mais por lista — ver a lei 7.
 
 ### Estrutura
 
@@ -277,9 +310,15 @@ palpite.
 
 ## 11 · A conta de demonstração
 
-Existe `demo@sessoes.com.br`, com 8 pacientes fictícios e 5 cobranças.
-**Nunca use a conta real do Leandro** — ela tem pessoa de verdade dentro.
+Existe `demo@sessoes.com.br`. **Nunca use a conta real do Leandro** — ela tem
+pessoa de verdade dentro.
 
-Atenção: a conta demo tem **zero `janelas_atendimento`**, então o cockpit dela
-mostra três travessões. Isso é o comportamento correto (nulo, não zero), e é
-também o motivo de ela ser um mau cartão de visitas — ver B47.
+O que ela tem hoje, conferido no banco em 03/09: **14 pacientes fictícios, 95
+cobranças e 10 `janelas_atendimento`** — a semeadura do dia 03/09 às 02:00
+substituiu os 8 pacientes e as 5 cobranças que este arquivo descrevia, e a
+capacidade declarada deixou de ser vazia. Então o aviso que estava aqui —
+"o cockpit dela mostra três travessões" — **não vale mais**: com janela
+declarada, ele mostra número.
+
+Confira antes de usar o número: este parágrafo é o tipo de linha que envelhece
+sem ninguém perceber, e já envelheceu uma vez.

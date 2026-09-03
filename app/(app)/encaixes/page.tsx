@@ -13,6 +13,8 @@ import { RegrasDaFila } from "@/components/app/RegrasDaFila";
 import { formatar, paraCentavos } from "@/lib/dinheiro";
 import { somarDias } from "@/lib/semana";
 import { hoje } from "@/lib/tempo-servidor";
+import { fraseDaFilaOferece } from "@/lib/canal";
+import { envioAutomaticoLigado } from "@/lib/promessa";
 
 export const metadata = { title: "Encaixes" };
 
@@ -25,7 +27,12 @@ const QUANDO = new Intl.DateTimeFormat("pt-BR", {
   minute: "2-digit",
 });
 
-export default async function Encaixes() {
+export default async function Encaixes({
+  searchParams,
+}: {
+  searchParams: Promise<{ novo?: string }>;
+}) {
+  const { novo } = await searchParams;
   const hojeStr = hoje();
 
   const [fila, candidatos, vagas, regras, metrica, faixa] = await Promise.all([
@@ -59,10 +66,11 @@ export default async function Encaixes() {
   return (
     <div>
       <h1 className="font-serif text-[28px] leading-tight tracking-[-0.015em]">A fila</h1>
+      {/* A frase vem de `fraseDaFilaOferece`, e não do teclado: enquanto não há
+          provedor, "Você não pede nada a ninguém" é falso — a mensagem sai do
+          WhatsApp dela, com um toque. Ver o comentário da função. */}
       <p className="mt-2 max-w-[70ch] text-[14px] leading-relaxed text-tinta2">
-        Quando um horário vaga, a fila oferece para uma pessoa por vez, na ordem
-        que você definiu, e passa para a próxima se ninguém responder. Você não
-        pede nada a ninguém.
+        {fraseDaFilaOferece(envioAutomaticoLigado())}
       </p>
 
       {/* A faixa de sessões substituiu o teto de mensagens aqui na OP8, e o
@@ -169,7 +177,11 @@ export default async function Encaixes() {
       )}
 
       <div className="mt-10">
-        <EditorFila fila={fila} candidatos={candidatos} />
+        <EditorFila
+          fila={fila}
+          candidatos={candidatos}
+          abrirDeInicio={novo === "pedido"}
+        />
       </div>
 
       <div className="mt-10">

@@ -35,8 +35,8 @@ declare
   v_n integer; v_erro text; v_r text;
 begin
 
-delete from auth.users where id = v_auth;
 delete from public.contas where nome = 'Bloco Quatro';
+delete from auth.users where id = v_auth;
 
 insert into auth.users (id, email, raw_user_meta_data)
   values (v_auth, 'bloco4@teste.sessoes.com.br', '{"nome":"Bloco Quatro"}'::jsonb);
@@ -181,8 +181,8 @@ reset role;
 perform set_config('request.jwt.claims', '', true);
 
 set local role postgres;
-delete from auth.users where id = v_auth;
 delete from public.contas where nome = 'Bloco Quatro';
+delete from auth.users where id = v_auth;
 reset role;
 
 raise notice 'OK · 0071 · o encerramento fecha o bloco 4, e a assinatura antiga não volta';

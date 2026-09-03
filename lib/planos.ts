@@ -32,7 +32,17 @@
  * 3. **A faixa não é uma cerca, e nos planos de cima ela nem aparece.** Onde
  *    `fairUse` é verdadeiro, o número é meu e não dela: serve para eu enxergar
  *    a clínica disfarçada de autônoma, e o `lib/faixa.ts` cala. O cartão diz
- *    "sem faixa de sessões", e a tela dela concorda.
+ *    **"sessões sem limite"**, e a tela dela concorda — e a concordância é
+ *    provada por comportamento, não por texto: nos planos que dizem isso,
+ *    `nivelDaFaixa` devolve `"nenhum"` e `fraseDaFaixa` devolve `""` **em
+ *    qualquer uso**, inclusive muito acima do número interno.
+ *
+ *    Até 03/09 o cartão dizia *"sem faixa de sessões"*, e essa era a última
+ *    tela do produto onde "faixa" queria dizer cota de plano — a palavra que o
+ *    `CLAUDE.md` §5 proíbe como rótulo. Ela sobreviveu porque a varredura de
+ *    jargão só lia `app/(app)` e `components/app`, e a página de preços é
+ *    pública: o jargão estava exatamente no primeiro texto que uma psicóloga
+ *    lê. Junto com ela saiu "régua" do cartão do Consultório.
  */
 
 export type CodigoDePlano = "gratis" | "solo" | "pro" | "clinica";
@@ -54,7 +64,7 @@ export type Plano = {
    * número.
    */
   faixa: number | null;
-  /** `true` = o número é meu, e o cartão diz "sem faixa". */
+  /** `true` = o número é meu, e o cartão diz "sessões sem limite". */
   fairUse: boolean;
   /** `manual` = a mensagem espera o dedo dela (OP9). */
   canal: "manual" | "plataforma";
@@ -124,7 +134,7 @@ export const PLANOS: Plano[] = [
       "A fila e a cobrança saem sozinhas, na hora em que a vaga abre",
       "60 sessões por mês",
       "Modo Receita Saúde e pasta do contador",
-      "Régua de atraso impessoal",
+      "Lembrete de atraso impessoal, para você não puxar o assunto",
       "Receita por hora disponível e o que aconteceu com cada horário",
     ],
     // **Vazio, e é decisão de 02/09 (migração 0065).** O `claude/25` desenhava
@@ -146,14 +156,14 @@ export const PLANOS: Plano[] = [
     cta: "Criar conta e pedir o Completo",
     href: "/entrar?criar&plano=pro",
     // **A lista curta é o retrato fiel, e isso é desconfortável de propósito.**
-    // Hoje o Completo é o Consultório com permissões por pessoa e sem faixa. O
-    // problema comercial disso é real e a resposta dele está no `claude/25` (a
-    // taxa menor do gateway, que é configuração e não código). Encher a lista
-    // com promessa seria resolver o problema comercial mentindo — que é
-    // exatamente como ele apareceu.
+    // Hoje o Completo é o Consultório com permissões por pessoa e sem cota de
+    // sessões. O problema comercial disso é real e a resposta dele está no
+    // `claude/25` (a taxa menor do gateway, que é configuração e não código).
+    // Encher a lista com promessa seria resolver o problema comercial mentindo
+    // — que é exatamente como ele apareceu.
     recursos: [
       "Tudo do Consultório",
-      "Sem faixa de sessões",
+      "Sessões sem limite",
       "Permissões por pessoa: quem vê o quê",
     ],
     porVir: [
@@ -182,7 +192,7 @@ export const PLANOS: Plano[] = [
     recursos: [
       "Tudo do Consultório Completo",
       "Vários profissionais, com sigilo entre eles por construção",
-      "Sem faixa de sessões, por profissional que atende",
+      "Sessões sem limite, com quantos profissionais você tiver",
     ],
     porVir: [
       "Repasse e demonstrativo por profissional",

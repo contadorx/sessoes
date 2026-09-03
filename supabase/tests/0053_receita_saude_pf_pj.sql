@@ -24,7 +24,7 @@
 --  10. o gerador recusa PJ, e a recusa diz "NFS-e"
 --  11. voltar a PF não ressuscita o que foi dispensado
 --  12. a janela de dez dias conta da emissão e fecha em zero, nunca negativa
---  13. o que não foi emitido não tem janela
+--  13. o que ela ainda não marcou não tem janela
 --  14. não existe função de transmitir para a Receita — e nunca vai existir
 --  15. o painel diz "ligado" para PF com o interruptor de pé
 --  16. e diz "desligado" para PJ mesmo com o interruptor de pé — é o alarme
@@ -49,8 +49,8 @@ begin
   delete from public.sessoes where conta_id in (select id from public.contas where nome='Fisca Teste');
   delete from public.enquadres where conta_id in (select id from public.contas where nome='Fisca Teste');
   delete from public.pacientes where conta_id in (select id from public.contas where nome='Fisca Teste');
-  delete from auth.users where id=a_auth;
   delete from public.contas where nome='Fisca Teste';
+  delete from auth.users where id=a_auth;
 
   insert into auth.users (id,email,raw_user_meta_data)
     values (a_auth,'fisca@teste.sessoes.com.br','{"nome":"Fisca Teste"}'::jsonb);
@@ -199,7 +199,7 @@ begin
   dias := public.dias_para_desfazer(r_id);
   execute 'reset role';
   if dias is not null then
-    raise exception '13 FUROU: recibo ainda pendente devolveu janela de % dias — nao ha o que desfazer no que nao foi emitido', dias; end if;
+    raise exception '13 FUROU: recibo ainda pendente devolveu janela de % dias — nao ha o que desfazer no que ela ainda nao marcou', dias; end if;
 
   ---------------------------------------------------------------- 12
   execute 'set local role authenticated';
@@ -207,15 +207,21 @@ begin
   dias := public.dias_para_desfazer(r_id);
   execute 'reset role';
   if dias <> 10 then
-    raise exception '12 FUROU: recem emitido devolveu % dias (esperado 10)', dias; end if;
+    raise exception '12 FUROU: recem marcado devolveu % dias (esperado 10)', dias; end if;
 
-  update public.recibos_rfb set emitido_em = public.hoje_sp() - 4 where id=r_id;
+  -- `marcado_por_ela_em`, e não `emitido_em`: a **0067** renomeou a coluna, e a
+  -- renomeação é o produto inteiro daquela migração — *"o produto não emite e
+  -- para de dizer que emitiu"*. Quem emite é ela, no e-CAC; aqui só se registra
+  -- que ela marcou. Esta suíte ficou apontando para a coluna velha e **morreu
+  -- em silêncio na 0067** — `column "emitido_em" does not exist` no primeiro
+  -- `update`. É a evidência mais direta de que ninguém a rodava desde então.
+  update public.recibos_rfb set marcado_por_ela_em = public.hoje_sp() - 4 where id=r_id;
   execute 'set local role authenticated';
   dias := public.dias_para_desfazer(r_id);
   execute 'reset role';
   if dias <> 6 then raise exception '12 FUROU: quatro dias depois devolveu % (esperado 6)', dias; end if;
 
-  update public.recibos_rfb set emitido_em = public.hoje_sp() - 12 where id=r_id;
+  update public.recibos_rfb set marcado_por_ela_em = public.hoje_sp() - 12 where id=r_id;
   execute 'set local role authenticated';
   dias := public.dias_para_desfazer(r_id);
   execute 'reset role';
@@ -254,6 +260,18 @@ begin
   select receita_saude into lig from public.contas where id=a_conta;
   if lig is not true then
     raise exception '16 FUROU: virar PJ apagou o interruptor — voltar a PF teria de remarcar o ajuste'; end if;
+
+  -- ------------------------------------------------------------------- fim
+  -- A 0053 não recolhia o rastro, e foi assim que a conta 'Fisca Teste' ficou
+  -- de pé no banco de produção — com `is_teste = false`, entrando nas medidas
+  -- do painel do operador como se fosse cliente. A conta antes de `auth.users`.
+  delete from public.recibos_rfb where conta_id=a_conta;
+  delete from public.cobrancas   where conta_id=a_conta;
+  delete from public.sessoes     where conta_id=a_conta;
+  delete from public.enquadres   where conta_id=a_conta;
+  delete from public.pacientes   where conta_id=a_conta;
+  delete from public.contas      where id=a_conta;
+  delete from auth.users         where id=a_auth;
 
   raise notice 'SUITE 0053 PASSOU: 17 verificacoes';
 end $do$;

@@ -168,7 +168,17 @@ export function PainelFinanceiro({
       )}
 
       {/* --------------------------------------------------- sem registro */}
-      <section className="mt-8">
+      {/*
+        A âncora é para onde o menu Novo → Recebimento manda. Ela existe porque
+        **não existe recebimento avulso neste produto**: dinheiro que entra
+        entra contra uma sessão realizada — é o que permite emitir recibo
+        depois (0037) —, então "novo recebimento" não é um formulário em branco,
+        é escolher qual hora foi paga. O item de menu apontava para
+        `/recebimentos?novo=entrada`, que é a régua de atraso e não lê parâmetro
+        nenhum: ela clicava em "Recebimento" e chegava numa tela onde não há
+        nada para registrar.
+      */}
+      <section id="o-que-entrou" className="mt-8 scroll-mt-6">
         <h2 className="rotulo">Horas sem recebimento registrado</h2>
         {semRegistro.length === 0 ? (
           <p className="mt-2 rounded-cartao border border-linha bg-folha2 px-5 py-4 text-[13px] leading-relaxed text-tinta2">

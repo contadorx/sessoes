@@ -252,13 +252,16 @@ begin
 
   -- ---------------------------------------------------------------- limpeza
   reset role; perform set_config('request.jwt.claims','',true);
+  -- A conta sai primeiro. `pacientes.profissional_id` e `registros.*` são
+  -- RESTRICT de propósito, e `arquivar_paciente` criou um `registros` aqui na
+  -- verificação 7 — apagar `pacientes` direto esbarra nele. A cascata desce
+  -- pela conta e leva tudo na ordem certa.
   delete from public.trilha_acesso where conta_id in (a_conta,b_conta);
   delete from public.despesas where conta_id in (a_conta,b_conta);
   delete from public.mensagens where conta_id in (a_conta,b_conta);
   delete from public.sessoes where conta_id in (a_conta,b_conta);
-  delete from public.pacientes where conta_id in (a_conta,b_conta);
-  delete from auth.users where id in (a_auth,b_auth);
   delete from public.contas where id in (a_conta,b_conta);
+  delete from auth.users where id in (a_auth,b_auth);
 
   raise notice 'B13 OK — 15 verificações, todas passaram';
 end $$;

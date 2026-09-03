@@ -14,6 +14,7 @@ import {
   type Resultado,
 } from "@/app/(app)/agenda/acoes";
 import { SeloDaConfirmacao } from "@/components/app/Confirmacoes";
+import { Recado } from "@/components/app/campos";
 import { rotuloPolitica, multaDeFalta } from "@/lib/enquadre";
 import { paraCentavos, formatar } from "@/lib/dinheiro";
 import { ROTULO_ESTADO } from "./Semana";
@@ -68,12 +69,13 @@ function Marcar({ id, estado, rotulo, destaque }: {
   rotulo: string;
   destaque?: "vaga" | "cheia";
 }) {
-  const [, despachar] = useActionState(marcarSessao, INICIAL);
+  const [r, despachar] = useActionState(marcarSessao, INICIAL);
   return (
-    <form action={despachar}>
+    <form action={despachar} className="flex flex-col gap-1">
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="estado" value={estado} />
       <Acao rotulo={rotulo} destaque={destaque} />
+      <Recado r={r} />
     </form>
   );
 }
@@ -100,18 +102,24 @@ function Marcar({ id, estado, rotulo, destaque }: {
  * precisa achar a saída mais rápido do que achou a entrada.
  */
 function Cancelar({ id, por, rotulo }: { id: string; por: string; rotulo: string }) {
-  const [, despachar] = useActionState(cancelarSessao, INICIAL);
+  const [r, despachar] = useActionState(cancelarSessao, INICIAL);
   const [confirmando, setConfirmando] = useState(false);
 
+  // A recusa fica visível depois de o formulário se fechar: quem desmarcou e
+  // levou "esta sessão já aconteceu" do banco precisa ler isso, e a segunda
+  // etapa desaparece assim que a ação é despachada.
   if (!confirmando) {
     return (
-      <button
-        type="button"
-        onClick={() => setConfirmando(true)}
-        className="min-h-11 rounded-full border border-vaga-linha px-4 py-2 text-[12.5px] font-medium text-vaga transition-colors hover:bg-vaga-bg"
-      >
-        {rotulo}
-      </button>
+      <div className="flex flex-col gap-1">
+        <button
+          type="button"
+          onClick={() => setConfirmando(true)}
+          className="min-h-11 rounded-full border border-vaga-linha px-4 py-2 text-[12.5px] font-medium text-vaga transition-colors hover:bg-vaga-bg"
+        >
+          {rotulo}
+        </button>
+        <Recado r={r} />
+      </div>
     );
   }
 
@@ -252,8 +260,8 @@ function Pix({ codigo }: { codigo: string }) {
  *    relação com o paciente.
  */
 function Cobranca({ cobranca }: { cobranca: CobrancaLinha }) {
-  const [, perdoar] = useActionState(perdoarCobranca, INICIAL);
-  const [, pagar] = useActionState(marcarCobrancaPaga, INICIAL);
+  const [rPerdoar, perdoar] = useActionState(perdoarCobranca, INICIAL);
+  const [rPagar, pagar] = useActionState(marcarCobrancaPaga, INICIAL);
   const [rPix, gerar] = useActionState(gerarPix, INICIAL);
   const [rDesfazer, desfazer] = useActionState(desfazerRecebimento, INICIAL_FIN);
   const [desfazendo, setDesfazendo] = useState(false);
@@ -357,13 +365,15 @@ function Cobranca({ cobranca }: { cobranca: CobrancaLinha }) {
       )}
 
       <div className="mt-3 flex flex-wrap gap-2">
-        <form action={perdoar}>
+        <form action={perdoar} className="flex flex-col gap-1">
           <input type="hidden" name="cobranca_id" value={cobranca.id} />
           <Acao rotulo="Não vou cobrar" />
+          <Recado r={rPerdoar} />
         </form>
-        <form action={pagar}>
+        <form action={pagar} className="flex flex-col gap-1">
           <input type="hidden" name="cobranca_id" value={cobranca.id} />
           <Acao rotulo="Já recebi" destaque="cheia" />
+          <Recado r={rPagar} />
         </form>
       </div>
 

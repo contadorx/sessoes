@@ -83,8 +83,12 @@ begin
   if n <> 1 then raise exception '1 FUROU: % linhas para a mesma pessoa', n; end if;
 
   -- ---------------------------------------------------------------- 2
-  select public.agendar_regua() into n;
-  if n <> 1 then raise exception '2 FUROU: agendou % mensagens', n; end if;
+  -- `agendar_regua` é do cron e varre o banco: o retorno dela conta as outras
+  -- contas também. O que esta suíte prova é o que chegou nesta conta.
+  perform public.agendar_regua();
+  select count(*) into n from public.mensagens
+   where conta_id = a_conta and template='lembrete_de_pagamento';
+  if n <> 1 then raise exception '2 FUROU: % mensagem(ns) de régua nesta conta', n; end if;
   select count(*) into n from public.mensagens
    where paciente_id=maria and template='lembrete_de_pagamento';
   if n <> 1 then raise exception '2 FUROU: % mensagens de régua', n; end if;
@@ -93,8 +97,10 @@ begin
     raise exception '2 FUROU: o total da mensagem não é a soma'; end if;
 
   -- ---------------------------------------------------------------- 3
-  select public.agendar_regua() into n;
-  if n <> 0 then raise exception '3 FUROU: repetiu %', n; end if;
+  perform public.agendar_regua();
+  select count(*) into n from public.mensagens
+   where conta_id = a_conta and template='lembrete_de_pagamento';
+  if n <> 1 then raise exception '3 FUROU: a segunda passada repetiu — % nesta conta', n; end if;
 
   -- ---------------------------------------------------------------- 4
   select * into r from public.regua_pendente() where paciente_id=maria;
@@ -106,24 +112,28 @@ begin
   if r.passo <> 2 then raise exception '4 FUROU: passo % aos 25 dias', r.passo; end if;
 
   -- ---------------------------------------------------------------- 5
-  select public.agendar_regua() into n;
-  if n <> 1 then raise exception '5 FUROU: agendou % no passo 2', n; end if;
+  perform public.agendar_regua();
+  select count(*) into n from public.mensagens
+   where conta_id = a_conta and template='lembrete_de_pagamento';
+  if n <> 2 then raise exception '5 FUROU: % mensagem(ns) depois do passo 2 (esperado 2)', n; end if;
 
   update public.cobrancas set criado_em = now() - interval '200 days' where paciente_id=maria;
   select * into r from public.regua_pendente() where paciente_id=maria;
   if r.passo is not null then raise exception '5 FUROU: passou do teto'; end if;
   if r.motivo_pausa <> 'a régua terminou; daqui é com você' then
     raise exception '5 FUROU: motivo %', r.motivo_pausa; end if;
-  select public.agendar_regua() into n;
-  if n <> 0 then raise exception '5 FUROU: mandou um terceiro'; end if;
+  perform public.agendar_regua();
+  select count(*) into n from public.mensagens
+   where conta_id = a_conta and template='lembrete_de_pagamento';
+  if n <> 2 then raise exception '5 FUROU: mandou um terceiro (% nesta conta)', n; end if;
 
   reset role; perform set_config('request.jwt.claims','',true);
   delete from public.cobrancas where conta_id=a_conta;
   delete from public.mensagens where conta_id=a_conta;
   delete from public.sessoes where conta_id=a_conta;
   delete from public.pacientes where conta_id=a_conta;
-  delete from auth.users where id=a_auth;
   delete from public.contas where id=a_conta;
+  delete from auth.users where id=a_auth;
 
   raise notice 'B18 · parte 1 ok — 5 verificações';
 end $$;
@@ -181,8 +191,17 @@ begin
   update public.pacientes set regua_ativa=false where id=caio;
 
   reset role; perform set_config('request.jwt.claims','',true);
-  update public.cobrancas set criado_em = now() - interval '9 days';
-  update public.mensagens set estado='cancelada' where estado='pendente';
+  -- **Com `where conta_id`, e é conserto de 03/09.** Estas duas linhas não
+  -- tinham filtro nenhum. A suíte roda como `postgres` — sem RLS no caminho —,
+  -- então num banco com outras contas dentro elas reescreviam a data de
+  -- **toda** cobrança do sistema e cancelavam **toda** mensagem pendente,
+  -- inclusive de conta com gente de verdade. Passava despercebido porque a
+  -- suíte foi escrita para um banco vazio, onde "toda" e "as minhas" são a
+  -- mesma coisa. O §11 é claro sobre a conta que não se toca.
+  update public.cobrancas set criado_em = now() - interval '9 days'
+   where conta_id = a_conta;
+  update public.mensagens set estado='cancelada'
+   where estado='pendente' and conta_id = a_conta;
 
   select * into r from public.regua_pendente() where paciente_id=caio;
   if not r.pausada then raise exception '6 FUROU: não pausou para o Caio'; end if;
@@ -203,8 +222,13 @@ begin
     raise exception '8 FUROU: motivo %', r.motivo_pausa; end if;
 
   -- ---------------------------------------------------------------- 9
-  select public.agendar_regua() into n;
-  if n <> 1 then raise exception '9 FUROU: mandou % (esperado só a Maria)', n; end if;
+  -- `agendar_regua` é do cron e varre o banco. O que esta suíte prova é quem
+  -- recebeu **nesta conta** — e a linha seguinte, que já era por paciente, é
+  -- quem prova que os pausados não receberam.
+  perform public.agendar_regua();
+  select count(*) into n from public.mensagens
+   where conta_id = a_conta and template='lembrete_de_pagamento';
+  if n <> 1 then raise exception '9 FUROU: % mensagem(ns) de régua nesta conta (esperado só a Maria)', n; end if;
   select count(*) into n from public.mensagens
    where template='lembrete_de_pagamento' and paciente_id in (caio,joao,quieta);
   if n <> 0 then raise exception '9 FUROU: mandou para quem estava pausado'; end if;
@@ -221,10 +245,16 @@ begin
 
   -- ---------------------------------------------------------------- 11
   update public.contas set regua_ativa=false where id=a_conta;
-  select count(*) into n from public.regua_pendente() where not pausada;
-  if n <> 0 then raise exception '11 FUROU: % ativos com a régua desligada', n; end if;
-  select public.agendar_regua() into n;
-  if n <> 0 then raise exception '11 FUROU: mandou com a régua desligada'; end if;
+  -- Pelos pacientes desta conta: rodando como `postgres`, `regua_pendente()`
+  -- enxerga o banco inteiro, e o que se quer provar é que a chave da **conta**
+  -- desligou a régua **dela**.
+  select count(*) into n from public.regua_pendente()
+   where not pausada and paciente_id in (maria, caio, joao, quieta);
+  if n <> 0 then raise exception '11 FUROU: % ativos com a régua da conta desligada', n; end if;
+  perform public.agendar_regua();
+  select count(*) into n from public.mensagens
+   where conta_id = a_conta and template='lembrete_de_pagamento';
+  if n <> 1 then raise exception '11 FUROU: mandou com a régua da conta desligada'; end if;
   update public.contas set regua_ativa=true where id=a_conta;
 
   -- ---------------------------------------------------------------- 12
@@ -258,8 +288,8 @@ begin
   delete from public.mensagens where conta_id=a_conta;
   delete from public.sessoes where conta_id=a_conta;
   delete from public.pacientes where conta_id=a_conta;
-  delete from auth.users where id=a_auth;
   delete from public.contas where id=a_conta;
+  delete from auth.users where id=a_auth;
 
   raise notice 'B18 OK — 13 verificações, todas passaram';
 end $$;

@@ -4,6 +4,7 @@ import { useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
+import { Recado } from "@/components/app/campos";
 import {
   oferecerEmCascata,
   responderPorEla,
@@ -44,6 +45,12 @@ const QUANDO = new Intl.DateTimeFormat("pt-BR", {
 
 const TEXTO_EVENTO: Record<string, string> = {
   vaga_aberta: "Vaga aberta. A fila foi consultada.",
+  // Os dois momentos, separados pela 0089. `oferta_preparada` nasce quando a
+  // oferta é criada; `oferta_enviada` só quando a mensagem saiu de verdade — e
+  // quem grava é quem viu sair. Antes disso a trilha dizia "Oferta enviada" no
+  // instante da criação: onze linhas assim no banco, e em nenhuma delas a
+  // mensagem havia saído.
+  oferta_preparada: "Oferta preparada. A mensagem entrou para sair.",
   oferta_enviada: "Oferta enviada",
   oferta_recusada: "Não pôde. Segue na fila para a próxima.",
   oferta_expirada: "Não respondeu a tempo. A fila andou.",
@@ -80,13 +87,17 @@ function Responder({
   resposta: "aceita" | "recusada";
   rotulo: string;
 }) {
-  const [, despachar] = useActionState(responderPorEla, INICIAL);
+  const [r, despachar] = useActionState(responderPorEla, INICIAL);
   return (
-    <form action={despachar} className="inline">
+    <form action={despachar} className="inline-flex flex-col gap-1 align-top">
       <input type="hidden" name="oferta_id" value={ofertaId} />
       <input type="hidden" name="sessao_id" value={sessaoId} />
       <input type="hidden" name="resposta" value={resposta} />
       <Botao rotulo={rotulo} tom="leve" />
+      {/* Responder pela pessoa é escrita em nome de outro — a recusa do banco
+          (oferta que já expirou, vaga que outra pessoa aceitou) tem de aparecer
+          aqui, e não no silêncio de um botão que volta a ficar clicável. */}
+      <Recado r={r} />
     </form>
   );
 }
@@ -118,7 +129,12 @@ export function Cascata({
     return () => clearInterval(t);
   }, [temOfertaViva, router]);
 
-  const jaOfertou = eventos.some((e) => e.tipo === "oferta_enviada");
+  // Preparada conta: a pergunta que este sinal responde é "a fila já foi
+  // acionada para esta vaga?", e ela foi. Só `oferta_enviada` deixaria a tela
+  // oferecer acionar de novo uma cascata que já está de pé esperando as 8h.
+  const jaOfertou = eventos.some(
+    (e) => e.tipo === "oferta_preparada" || e.tipo === "oferta_enviada",
+  );
   const preenchida = eventos.some((e) => e.tipo === "vaga_preenchida");
   const semTakers = eventos.some((e) => e.tipo === "vaga_sem_takers") && !preenchida;
 

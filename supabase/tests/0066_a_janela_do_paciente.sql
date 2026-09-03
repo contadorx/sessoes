@@ -94,7 +94,7 @@
 --   parte 5 · as fronteiras da tabela e da conta
 --    25. a tabela é invisível para o anônimo e não tem porta de escrita
 --    26. a vizinha não lê o link da outra
---    27. exatamente sete funções do schema abrem para o anônimo
+--    27. só as funções declaradas abrem para o anônimo, e nenhuma alcança clínico
 --    28. `exportar_conta` leva o link, e não leva o token
 --
 -- Levanta exceção no primeiro furo. Silêncio = passou.
@@ -147,10 +147,12 @@ declare
   v_proibidas  text[] := array['evolucoes', 'anamneses', 'registros', 'nota'];
   v_pix        text[] := array['pix_chave', 'pix_nome', 'pix_cidade'];
   v_com_anon   text[];
-  v_so_sete    text[] := array['aceitar_contrato', 'confirmar_pelo_link',
+  v_declaradas text[] := array['aceitar_contrato', 'confirmar_pelo_link',
                                'contrato_por_token', 'documento_do_link',
-                               'escolher_remarcacao', 'pagina_do_paciente',
-                               'remarcacao_por_token'];
+                               'escolher_remarcacao', 'ficha_do_paciente',
+                               'pagina_do_paciente', 'remarcacao_por_token',
+                               'salvar_ficha'];
+  v_vazando    text[];
 begin
 
 -- ============================================================ preâmbulo
@@ -1082,12 +1084,14 @@ if v_k < 1 then
 end if;
 raise notice 'ok 26 · cada uma vê os próprios links, e só os próprios';
 
--- 27 · Exatamente sete funções do schema abrem para o anônimo.
+-- 27 · Só as funções declaradas abrem para o anônimo — e nenhuma alcança clínico.
 --
 -- A contagem é o ponto: **toda a segurança do caminho público deste produto
 -- mora dentro de um punhado de funções `security definer`**, e o risco não é
--- uma delas estar errada — é a oitava aparecer. Quatro são da B19 e da B21
--- (contrato e remarcação); três são do P7.
+-- uma delas estar errada — é a próxima aparecer sem ninguém olhar. Quatro são
+-- da B19 e da B21 (contrato e remarcação); três são do P7; e duas são da B34,
+-- a pré-ficha, pelo motivo escrito no cabeçalho da 0074: *"o `anon` precisa
+-- executar, e a tranca é o token — como na 0031 e na 0035"*.
 --
 -- O recorte conta o que roda **com poder de dono** e devolve dado: ajudantes
 -- como `reais()` e `hoje_sp()` carregam `anon` porque o Supabase concede
@@ -1096,7 +1100,15 @@ raise notice 'ok 26 · cada uma vê os próprios links, e só os próprios';
 -- não fez login.
 --
 -- Se esta linha reprovar, a resposta não é aumentar o número: é escrever, no
--- cabeçalho da migração que criou a oitava, por que ela precisa existir.
+-- cabeçalho da migração que criou a função nova, por que ela precisa existir.
+--
+-- **E a lista escrita à mão é metade da verificação, nunca a verificação.** É
+-- a lei 7 aplicada onde ela morde de verdade: quem quisesse ficar verde
+-- acrescentaria o nome aqui em dois segundos, e a lista não sabe recusar. Por
+-- isso a segunda metade, a 27b, não pergunta *quem* abriu — pergunta o que o
+-- corpo de cada uma dessas funções alcança. Foi assim que a pré-ficha passou:
+-- não porque o nome dela está escrito acima, mas porque a lista de campos da
+-- `salvar_ficha` é fechada no banco e nenhuma delas nomeia tabela clínica.
 select array_agg(p.proname order by p.proname) into v_com_anon
   from pg_proc p join pg_namespace ns on ns.oid = p.pronamespace
  where ns.nspname = 'public'
@@ -1105,10 +1117,37 @@ select array_agg(p.proname order by p.proname) into v_com_anon
    and pg_get_function_result(p.oid) <> 'trigger'
    and has_function_privilege('anon', p.oid, 'execute');
 
-if v_com_anon is distinct from v_so_sete then
-  raise exception 'FALHOU 27: o anônimo executa % e o desenho tem exatamente sete: % — a oitava que aparecer sem alguém escrever por quê reprova aqui', v_com_anon, v_so_sete;
+if v_com_anon is distinct from v_declaradas then
+  raise exception 'FALHOU 27: o anônimo executa % e o desenho declara % — a que aparecer sem alguém escrever por quê reprova aqui', v_com_anon, v_declaradas;
 end if;
-raise notice 'ok 27 · sete funções abrem para o anônimo, e são as sete escritas';
+raise notice 'ok 27 · % funções abrem para o anônimo, e são as declaradas', array_length(v_com_anon, 1);
+
+-- 27b · E nenhuma delas nomeia tabela clínica no corpo.
+--
+-- A varredura é sobre o catálogo, então a função que alguém criar amanhã já
+-- nasce dentro dela — e a que alguém acrescentar à lista de cima por pressa
+-- continua tendo que passar por aqui. `evolucoes`, `anamneses`, `registros` e
+-- a coluna `nota` são o que a fronteira 9 chama de dado clínico; nenhuma
+-- delas tem por que aparecer num caminho que roda a mando de quem não fez
+-- login, nem para ler, nem para escrever.
+--
+-- Grep no corpo é grosseiro de propósito: um falso positivo custa a alguém
+-- escrever aqui por que aquela função precisa citar o nome, e um falso
+-- negativo custaria prontuário atrás de um token achado num celular
+-- emprestado. O erro barato é o que se escolhe.
+select array_agg(p.proname order by p.proname) into v_vazando
+  from pg_proc p join pg_namespace ns on ns.oid = p.pronamespace
+ where ns.nspname = 'public'
+   and p.prokind = 'f'
+   and p.prosecdef
+   and pg_get_function_result(p.oid) <> 'trigger'
+   and has_function_privilege('anon', p.oid, 'execute')
+   and pg_get_functiondef(p.oid) ~* '\y(evolucoes|anamneses|registros|nota)\y';
+
+if coalesce(array_length(v_vazando, 1), 0) > 0 then
+  raise exception 'FALHOU 27b: % roda para o anônimo e nomeia tabela clínica no corpo — fronteira 9', v_vazando;
+end if;
+raise notice 'ok 27b · nenhuma função do anônimo alcança evolução, anamnese, registro ou nota';
 
 -- 28 · `exportar_conta` leva o link, e não leva o token.
 --
@@ -1173,6 +1212,6 @@ delete from public.contas where nome in ('Janela Teste', 'Janela Vizinha');
 reset role;
 
 raise notice '';
-raise notice 'SUITE 0066 PASSOU: 28 verificações, e vinte e duas delas provam ausência';
+raise notice 'SUITE 0066 PASSOU: 29 verificações, e vinte e três delas provam ausência';
 
 end $do$;

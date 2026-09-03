@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { supabaseSessao } from "@/lib/supabase/server";
 import { sessaoAtual } from "@/lib/conta";
+import { fraseDaOferta } from "@/lib/canal";
 
 export type Resultado =
   | { estado: "inicial" }
@@ -35,9 +36,13 @@ export async function oferecerVaga(_anterior: Resultado, form: FormData): Promis
     };
   }
 
+  // O mesmo defeito da cascata da vaga, na fila da vaga fixa: dizia
+  // "Oferecida" e "a fila anda sozinha" sem ler se a mensagem saiu. E desde a
+  // 0088 a fila fixa **não** anda enquanto a mensagem não sai — então a frase
+  // antiga estava errada nas duas metades.
   return {
     estado: "ok",
-    mensagem: "Oferecida. A pessoa tem 24 horas para responder; sem resposta, a fila anda sozinha.",
+    mensagem: await fraseDaOfertaFixa(supabase, oferta),
   };
 }
 
@@ -147,4 +152,35 @@ function legivel(e: unknown): string {
   return limpo.length > 3 && limpo.length < 240
     ? limpo.charAt(0).toUpperCase() + limpo.slice(1)
     : "Não consegui. Tente de novo.";
+}
+
+/** A gêmea de `fraseDoQueAconteceu` da fila da vaga, na chave da oferta fixa. */
+async function fraseDaOfertaFixa(
+  supabase: Awaited<ReturnType<typeof supabaseSessao>>,
+  ofertaId: string,
+): Promise<string> {
+  try {
+    const [msgs, ofertas] = await Promise.all([
+      db(
+        "ofertafixa.mensagem",
+        supabase
+          .from("mensagens")
+          .select("estado")
+          .eq("chave_idem", `ofertafixa:${ofertaId}`)
+          .limit(1),
+      ),
+      db(
+        "ofertafixa.relogio",
+        supabase.from("ofertas_fixas").select("enviar_em").eq("id", ofertaId).limit(1),
+      ),
+    ]);
+
+    return fraseDaOferta({
+      mensagem: ((msgs ?? []) as { estado: string }[])[0]?.estado ?? null,
+      enviarEm: ((ofertas ?? []) as { enviar_em: string | null }[])[0]?.enviar_em ?? null,
+    });
+  } catch (e) {
+    console.error("[fila fixa] não consegui conferir se a mensagem saiu", e);
+    return "Oferta preparada. Não consegui conferir se a mensagem já saiu.";
+  }
 }

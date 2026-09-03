@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { sessaoAtual } from "@/lib/conta";
-import { lerPainel, lerContas } from "./dados";
+import { lerPainel, lerContas, lerMedidaDoReceitaSaude } from "./dados";
 import { PainelNegocio } from "@/components/app/Negocio";
 
 export const metadata = { title: "Negócio" };
@@ -31,7 +31,11 @@ export default async function Negocio({
   const params = await searchParams;
   const mes = /^\d{4}-(0[1-9]|1[0-2])-01$/.test(params.mes ?? "") ? params.mes! : undefined;
 
-  const [painel, contas] = await Promise.all([lerPainel(mes), lerContas()]);
+  const [painel, contas, medida] = await Promise.all([
+    lerPainel(mes),
+    lerContas(),
+    lerMedidaDoReceitaSaude(),
+  ]);
 
-  return <PainelNegocio painel={painel} contas={contas} />;
+  return <PainelNegocio painel={painel} contas={contas} medida={medida} />;
 }

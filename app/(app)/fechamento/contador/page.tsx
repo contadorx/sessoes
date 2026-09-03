@@ -3,6 +3,7 @@ import { supabaseSessao } from "@/lib/supabase/server";
 import { hoje } from "@/lib/tempo-servidor";
 import { mesAFechar, type PastaLinha, type RetratoPasta } from "@/lib/contador";
 import { PainelContador } from "@/components/app/Contador";
+import { adaptadorPara } from "@/lib/mensageria/adaptadores";
 
 export const metadata = { title: "Contador" };
 
@@ -80,6 +81,7 @@ export default async function Contador() {
         ativa={Boolean(conta?.pasta_ativa)}
         pastas={pastas}
         mesesFechaveis={mesesFechaveis(hoje())}
+        envioPorEmail={adaptadorPara("email").disponivel}
       />
 
       {/* ---------------------------------------------- o que vai e o que não vai */}

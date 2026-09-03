@@ -72,8 +72,8 @@ begin
 
 -- ============================================================ preâmbulo
 
-delete from auth.users where id = v_auth;
 delete from public.contas where nome = 'Numero Teste';
+delete from auth.users where id = v_auth;
 
 insert into auth.users (id, email, raw_user_meta_data)
   values (v_auth, 'numero@teste.sessoes.com.br', '{"nome":"Numero Teste"}'::jsonb);
@@ -181,10 +181,10 @@ raise notice '--- parte 2 · retorno fala do que a fila recuperou ---';
 
 -- Uma conta de mensalistas, sem cancelamento nenhum no mês.
 set local role postgres;
-insert into public.cobrancas (conta_id, paciente_id, tipo, estado, valor, competencia)
-values (v_conta, v_ana, 'mensalidade', 'paga', 800, v_de),
-       (v_conta, v_bia, 'mensalidade', 'paga', 900, v_de),
-       (v_conta, v_ana, 'pacote',      'paga', 1800, v_de);
+insert into public.cobrancas (conta_id, paciente_id, tipo, motivo, estado, valor, competencia)
+values (v_conta, v_ana, 'mensalidade', 'mensalidade', 'paga', 800, v_de),
+       (v_conta, v_bia, 'mensalidade', 'mensalidade', 'paga', 900, v_de),
+       (v_conta, v_ana, 'pacote',      'pacote',      'paga', 1800, v_de);
 reset role;
 
 perform set_config('request.jwt.claims',
@@ -201,8 +201,8 @@ reset role;
 
 -- 8 · Com uma multa paga, o retorno é exatamente ela.
 set local role postgres;
-insert into public.cobrancas (conta_id, paciente_id, tipo, estado, valor, competencia)
-values (v_conta, v_ana, 'falta', 'paga', 100, v_de);
+insert into public.cobrancas (conta_id, paciente_id, tipo, motivo, estado, valor, competencia)
+values (v_conta, v_ana, 'falta', 'falta', 'paga', 100, v_de);
 reset role;
 
 perform set_config('request.jwt.claims',
@@ -230,8 +230,8 @@ reset role;
 -- ============================================================ limpeza
 
 set local role postgres;
-delete from auth.users where id = v_auth;
 delete from public.contas where nome = 'Numero Teste';
+delete from auth.users where id = v_auth;
 reset role;
 
 raise notice 'OK · 0069 · um mês, um número — as quatro funções concordam';

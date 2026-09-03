@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { FormPaciente } from "@/components/app/FormPaciente";
 import { criarPaciente } from "../acoes";
+import { envioAutomaticoLigado } from "@/lib/promessa";
 
 export const metadata = { title: "Novo paciente" };
 
@@ -20,7 +21,12 @@ export default function NovoPaciente() {
       </p>
 
       <div className="mt-6">
-        <FormPaciente acao={criarPaciente} comEnquadre rotuloBotao="Cadastrar" />
+        <FormPaciente
+          acao={criarPaciente}
+          comEnquadre
+          rotuloBotao="Cadastrar"
+          envioAutomatico={envioAutomaticoLigado()}
+        />
       </div>
     </div>
   );

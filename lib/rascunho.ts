@@ -135,3 +135,62 @@ export function limparRascunhos(storage: Storage | null | undefined): number {
     return 0;
   }
 }
+
+/**
+ * Apaga os rascunhos **vencidos**, varrendo o prefixo.
+ *
+ * A promessa nº 3 do cabeçalho deste arquivo — *"rascunho que ninguém retomou
+ * em `DIAS_DE_VALIDADE` é descartado"* — **não estava acontecendo**, e a falha
+ * tinha a forma mais desagradável possível: a expiração só era avaliada dentro
+ * de `lerRascunho`, que só roda para a sessão que ela **reabre**.
+ *
+ * Ou seja: o rascunho abandonado, que é exatamente o caso que a promessa
+ * descreve — *"uma evolução que ela começou e abandonou em março"* —, é o único
+ * que nunca é lido de novo, e portanto o único cuja expiração nunca rodava. Ele
+ * ficava no `localStorage` sem prazo.
+ *
+ * O único sweep que existia era `limparRascunhos`, e ele tinha **um** chamador:
+ * o botão Sair. Quem fecha a aba, ou cuja sessão expira sozinha e volta para
+ * `/entrar`, nunca passava por lá — e no computador da recepção quem senta
+ * depois é a secretária, que a RLS impede de ler evolução no banco e nada
+ * impedia de ler no `localStorage`.
+ *
+ * Roda ao entrar na área logada, varrendo por prefixo. Nunca lança: rascunho é
+ * conveniência, e conveniência não derruba tela.
+ */
+export function expirarRascunhos(
+  storage: Storage | null | undefined,
+  agora: number = Date.now(),
+): number {
+  if (!storage) return 0;
+  try {
+    const vencidos: string[] = [];
+
+    for (let i = 0; i < storage.length; i++) {
+      const chave = storage.key(i);
+      if (!chave || !chave.startsWith(PREFIXO)) continue;
+
+      const cru = storage.getItem(chave);
+      if (cru === null) continue;
+
+      // Ilegível conta como vencido. Guardar um JSON que ninguém consegue ler
+      // é guardar texto clínico que nem serve para retomar o trabalho.
+      let vence = true;
+      try {
+        const r = JSON.parse(cru) as { em?: unknown };
+        vence =
+          typeof r?.em !== "number" ||
+          agora - r.em > DIAS_DE_VALIDADE * 24 * 60 * 60 * 1000;
+      } catch {
+        vence = true;
+      }
+
+      if (vence) vencidos.push(chave);
+    }
+
+    for (const chave of vencidos) storage.removeItem(chave);
+    return vencidos.length;
+  } catch {
+    return 0;
+  }
+}

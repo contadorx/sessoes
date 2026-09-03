@@ -96,7 +96,20 @@ const PASSOS: Passo[] = [
   },
 ];
 
-export function Cascata() {
+/**
+ * A demonstração da cascata na página pública.
+ *
+ * O rótulo do passo do meio dizia "oferta enviada…", e enquanto não há provedor
+ * nada sai sozinho: a mensagem nasce escrita e sai do WhatsApp dela, com um
+ * toque. Quem assiste a esta animação antes de assinar conclui o contrário — e
+ * "a promessa que o software não cumpre" é antipadrão nomeado deste projeto,
+ * que já apareceu quatro vezes, a última na página de preços (0078).
+ *
+ * O booleano desce por prop porque `lib/promessa.ts` é `server-only` e isto é
+ * componente de cliente. A landing o passa; no dia em que o provedor entrar, a
+ * animação volta a dizer "enviada" sem ninguém reescrever nada.
+ */
+export function Cascata({ envioAutomatico }: { envioAutomatico: boolean }) {
   const [passo, setPasso] = useState(-1);
   const [rodando, setRodando] = useState(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -181,7 +194,9 @@ export function Cascata() {
               e === "fora"
                 ? `✕ ${p.motivo}`
                 : e === "ofertando"
-                  ? "oferta enviada…"
+                  ? envioAutomatico
+                    ? "oferta enviada…"
+                    : "oferta pronta, esperando um toque seu…"
                   : e === "recusou"
                     ? "não pôde hoje"
                     : e === "aceitou"

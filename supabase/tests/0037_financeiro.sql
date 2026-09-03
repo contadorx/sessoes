@@ -676,6 +676,26 @@ begin
   if n <> 0 then raise exception '31 FUROU: o anônimo lê despesas'; end if;
 
   reset role;
+  -- ------------------------------------------------------------------- fim
+  -- A 0037 não recolhia o rastro: 'Ana Solo' e 'Bia Solo' ficavam de pé depois
+  -- dela. A conta antes de `auth.users`, que `pacientes.profissional_id` e
+  -- `registros.*` são RESTRICT.
+  perform set_config('request.jwt.claims','',true);
+  delete from public.documentos      where conta_id in (a_conta, b_conta);
+  delete from public.recibos_rfb     where conta_id in (a_conta, b_conta);
+  delete from public.despesas        where conta_id in (a_conta, b_conta);
+  delete from public.pacote_consumos where conta_id in (a_conta, b_conta);
+  delete from public.pacotes         where conta_id in (a_conta, b_conta);
+  delete from public.propostas_de_cobranca where conta_id in (a_conta, b_conta);
+  delete from public.cobrancas       where conta_id in (a_conta, b_conta);
+  delete from public.mensagens       where conta_id in (a_conta, b_conta);
+  delete from public.trilha_acesso   where conta_id in (a_conta, b_conta);
+  delete from public.sessoes         where conta_id in (a_conta, b_conta);
+  delete from public.enquadres       where conta_id in (a_conta, b_conta);
+  delete from public.pacientes       where conta_id in (a_conta, b_conta);
+  delete from public.contas          where id in (a_conta, b_conta);
+  delete from auth.users             where id in (a_auth, b_auth);
+
   raise notice 'parte 5 · isolamento e visitante: ok';
 end $do$;
 

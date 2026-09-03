@@ -2,14 +2,18 @@
 
 import Link from "next/link";
 import { cpfBr } from "@/lib/formato";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import {
   marcarEmitido,
   desmarcar,
   dispensar,
   mudarModo,
+  lerCartao,
+  dispensarPorPagadorPj,
+  mudarRitmo,
   type Resultado,
+  type ResultadoCartao,
 } from "@/app/(app)/fechamento/receita-saude/acoes";
 import {
   fraseDoPrazo,
@@ -20,7 +24,9 @@ import {
   diasParaDesfazer,
   fraseDaJanela,
   LIMITE_LINHAS,
+  camposDoCartao,
   type Painel,
+  type CampoDoCartao,
 } from "@/lib/receitasaude";
 import { formatar, paraCentavos } from "@/lib/dinheiro";
 
@@ -47,6 +53,199 @@ export type Registrado = {
   dispensa_motivo: string | null;
   divergente_em: string | null;
 };
+
+/**
+ * O download do lote, e por que ele deixou de ser um `<a href>`.
+ *
+ * A rota devolve **409 com um JSON** quando a função do banco recusa — conta
+ * PJ, que não tem Receita Saúde, e CPF faltando. A recusa está certa e a frase
+ * é boa. O problema era o `<a>`: o navegador **navega**, e a tela dela some,
+ * substituída por `{"erro":"..."}` cru na barra de endereço. Ela perde a
+ * página, a lista de pendências e o passo a passo do e-CAC, e volta pelo botão
+ * de voltar sem ligar uma coisa à outra.
+ *
+ * Buscar em vez de navegar resolve os dois lados: o arquivo baixa igual, e a
+ * recusa aparece **onde ela está**, com a frase que o banco escreveu. E não há
+ * lista de recusas aqui — qualquer 409 novo que a função passe a devolver chega
+ * à tela sozinho, o que é o oposto de enumerar os casos conhecidos.
+ */
+/**
+ * Um campo do cartão, com o botão que o copia.
+ *
+ * O padrão é o do Pix em `PainelSessao.tsx`: botão para o celular, valor à
+ * vista para quando a área de transferência não estiver disponível. Aqui o
+ * valor à vista importa mais ainda — ela está com o app da Receita na outra
+ * mão, e se o `clipboard` falhar em silêncio ela precisa poder ler e digitar,
+ * que é exatamente o que fazia antes desta build.
+ */
+function CampoCopiavel({ campo }: { campo: CampoDoCartao }) {
+  const [copiado, setCopiado] = useState(false);
+  const vazio = campo.copia === "";
+
+  async function copiar() {
+    if (vazio) return;
+    try {
+      await navigator.clipboard.writeText(campo.copia);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 1600);
+    } catch {
+      // Sem permissão: o valor está logo ao lado, dá para selecionar à mão.
+    }
+  }
+
+  return (
+    <li className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-t border-linha py-2.5 first:border-t-0">
+      <span className="w-40 shrink-0 text-[12px] text-tinta3">{campo.rotulo}</span>
+      <span
+        className={`font-mono text-[13.5px] tabular-nums ${vazio ? "text-tinta3" : "text-tinta"}`}
+      >
+        {campo.mostra}
+      </span>
+
+      {!vazio && (
+        <button
+          type="button"
+          onClick={copiar}
+          className={`ml-auto min-h-11 rounded-full border px-4 py-2 text-[12px] font-medium transition-colors ${
+            copiado
+              ? "border-cheia-linha text-cheia"
+              : "border-linha2 text-tinta2 hover:bg-folha2"
+          }`}
+        >
+          {copiado ? "copiado" : "copiar"}
+        </button>
+      )}
+
+      {campo.nota && (
+        <span className="w-full text-[11.5px] leading-relaxed text-tinta3">{campo.nota}</span>
+      )}
+    </li>
+  );
+}
+
+/**
+ * O cartão de emissão (P8).
+ *
+ * A tela intermediária já existia e já estava **na ordem em que o app da
+ * Receita pede** — e parava um toque antes de tirar o trabalho: quatro dados
+ * para ler e redigitar no outro aplicativo, no mesmo telefone, sem área de
+ * transferência. Em ~35 pagamentos por mês são ~875 caracteres digitados à
+ * mão, e o dígito errado não aparece em lugar nenhum: aparece na multa.
+ *
+ * **Seis campos, um botão cada**, porque o app da Receita é campo a campo. Um
+ * botão só, copiando o bloco inteiro, obrigaria ela a recortar pedaço por
+ * pedaço com o dedo — a digitação de volta com outro nome.
+ *
+ * O conteúdo vem do banco (`cartao_de_emissao`), não desta tela, apesar de
+ * quatro dos seis já estarem carregados aqui. Dois lugares montando o mesmo
+ * cartão discordariam no dia em que a ocupação mudasse, e o número colado no
+ * app da Receita Federal seria o do lugar errado.
+ */
+function CartaoDeEmissao({ recibo }: { recibo: string }) {
+  const [estado, setEstado] = useState<ResultadoCartao>({ estado: "inicial" });
+  // Nasce buscando: o cartão só é montado quando ela abre um, e monta já
+  // pedindo. Ligar isso dentro do efeito seria `setState` síncrono num efeito —
+  // um render a mais e um aviso do lint, para chegar ao mesmo estado inicial.
+  const [buscando, setBuscando] = useState(true);
+
+  useEffect(() => {
+    let vivo = true;
+    lerCartao(recibo)
+      .then((r) => {
+        if (vivo) setEstado(r);
+      })
+      .finally(() => {
+        if (vivo) setBuscando(false);
+      });
+    return () => {
+      vivo = false;
+    };
+  }, [recibo]);
+
+  if (buscando) {
+    return <p className="mt-3 text-[12.5px] text-tinta3">Montando o cartão…</p>;
+  }
+
+  if (estado.estado === "erro") {
+    return <p className="mt-3 text-[12.5px] leading-relaxed text-vaga">{estado.erros[0]}</p>;
+  }
+
+  if (estado.estado !== "ok") return null;
+
+  const campos = camposDoCartao(estado.cartao);
+
+  return (
+    <div className="mt-3 rounded-cartao border border-linha bg-folha2 px-4 py-3">
+      <p className="text-[12.5px] leading-relaxed text-tinta2">
+        Abra o app da Receita Saúde e cole campo a campo, nesta ordem. O Sessões
+        não emite nada — quem emite é você, e é por isso que o número do recibo
+        só existe depois.
+      </p>
+
+      <ul className="mt-2">
+        {campos.map((c) => (
+          <CampoCopiavel key={c.chave} campo={c} />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function BaixarLote({ ano }: { ano: number }) {
+  const [ocupado, setOcupado] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function baixar() {
+    setOcupado(true);
+    setErro(null);
+    try {
+      const r = await fetch(`/fechamento/receita-saude/csv?ano=${ano}`);
+
+      if (!r.ok) {
+        const corpo = await r.json().catch(() => null);
+        setErro(corpo?.erro ?? "Não consegui montar o arquivo agora.");
+        return;
+      }
+
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      // O nome vem do `content-disposition`, e o navegador o respeita no
+      // download programático — mas nem todos, então há um nome de reserva.
+      a.download =
+        /filename="([^"]+)"/.exec(r.headers.get("content-disposition") ?? "")?.[1] ??
+        `carne-leao-${ano}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      setErro("Não consegui baixar agora. Tente de novo em instantes.");
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  return (
+    <div className="mt-3">
+      <button
+        type="button"
+        onClick={baixar}
+        disabled={ocupado}
+        className="min-h-11 rounded-full bg-cheia px-5 py-2 text-[12.5px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-45"
+      >
+        {ocupado ? "Montando…" : `Baixar o arquivo de ${ano}`}
+      </button>
+
+      {erro && (
+        <p role="alert" className="mt-2 max-w-[62ch] text-[12.5px] leading-relaxed text-vaga">
+          {erro}
+        </p>
+      )}
+    </div>
+  );
+}
 
 function Botao({ rotulo, destaque }: { rotulo: string; destaque?: boolean }) {
   const { pending } = useFormStatus();
@@ -96,18 +295,23 @@ export function PainelReceitaSaude({
   registrados,
   hoje,
   ano,
+  ritmo,
 }: {
   painel: Painel;
   aEmitir: AEmitir[];
   registrados: Registrado[];
   hoje: string;
+  ritmo: string;
   ano: number;
 }) {
   const [rMarcar, marcar] = useActionState(marcarEmitido, INICIAL);
   const [rDesmarcar, desfazer] = useActionState(desmarcar, INICIAL);
   const [rDispensar, dispensarAcao] = useActionState(dispensar, INICIAL);
+  const [rPj, pagadorPj] = useActionState(dispensarPorPagadorPj, INICIAL);
+  const [rRitmo, ritmoAcao] = useActionState(mudarRitmo, INICIAL);
   const [rModo, modo] = useActionState(mudarModo, INICIAL);
   const [dispensando, setDispensando] = useState<string | null>(null);
+  const [cartao, setCartao] = useState<string | null>(null);
 
   const pendentes = painel.pendentes.n + painel.vencidos.n;
   const cor =
@@ -152,8 +356,11 @@ export function PainelReceitaSaude({
             a emitir <b className="font-semibold text-tinta">{painel.pendentes.n}</b> ·{" "}
             {formatar(painel.pendentes.centavos)}
           </span>
+          {/* "emitidos N" afirmava que alguma coisa emitiu. Quem emitiu foi ela,
+              no app da Receita — e o contador é o único lugar desta tela que
+              tinha escapado da regra. */}
           <span>
-            emitidos <b className="font-semibold text-tinta">{painel.emitidos.n}</b>
+            você marcou <b className="font-semibold text-tinta">{painel.emitidos.n}</b>
           </span>
           {painel.dispensados.n > 0 && <span>dispensados {painel.dispensados.n}</span>}
           {painel.vencidos.n > 0 && (
@@ -229,6 +436,19 @@ export function PainelReceitaSaude({
                   </div>
 
                   <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCartao(cartao === r.id ? null : r.id)}
+                      aria-expanded={cartao === r.id}
+                      className={`min-h-11 rounded-full border px-4 py-2 text-[12.5px] font-medium transition-colors ${
+                        cartao === r.id
+                          ? "border-vaga text-vaga"
+                          : "border-linha2 text-tinta2 hover:bg-folha2"
+                      }`}
+                    >
+                      {cartao === r.id ? "fechar" : "Copiar para a Receita"}
+                    </button>
+
                     <form action={marcar} className="flex flex-wrap items-center gap-2">
                       <input type="hidden" name="recibo" value={r.id} />
                       {/* Ela está com o app da Receita na outra mão: o teclado
@@ -262,15 +482,30 @@ export function PainelReceitaSaude({
                         </button>
                       </form>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => setDispensando(r.id)}
-                        className="text-[12px] text-tinta3 underline underline-offset-2 hover:text-tinta2"
-                      >
-                        não precisa de recibo
-                      </button>
+                      <>
+                        {/* O caso que ninguém no mercado resolve: quando quem
+                            paga é uma empresa, o app da Receita não tem campo
+                            de CNPJ. Virava dispensa escrita à mão, diferente
+                            toda vez — e daqui a dois anos ninguém sabe por que
+                            aquele mês tem um buraco. O motivo agora é
+                            pré-escrito, continua obrigatório e continua
+                            gravado. */}
+                        <form action={pagadorPj}>
+                          <input type="hidden" name="recibo" value={r.id} />
+                          <Botao rotulo="Quem pagou é empresa" />
+                        </form>
+                        <button
+                          type="button"
+                          onClick={() => setDispensando(r.id)}
+                          className="px-2 text-[12.5px] text-tinta3 underline underline-offset-2 hover:text-tinta2"
+                        >
+                          outro motivo para não emitir
+                        </button>
+                      </>
                     )}
                   </div>
+
+                  {cartao === r.id && <CartaoDeEmissao recibo={r.id} />}
                 </li>
               ))}
             </ul>
@@ -278,6 +513,7 @@ export function PainelReceitaSaude({
         )}
         <Recado r={rMarcar} />
         <Recado r={rDispensar} />
+        <Recado r={rPj} />
       </section>
 
       {/* -------------------------------------------------- o arquivo em lote
@@ -304,12 +540,7 @@ export function PainelReceitaSaude({
               .
             </p>
 
-            <a
-              href={`/fechamento/receita-saude/csv?ano=${ano}`}
-              className="mt-3 inline-block rounded-full bg-cheia px-4 py-1.5 text-[12.5px] font-semibold text-white transition-opacity hover:opacity-90"
-            >
-              Baixar o arquivo de {ano}
-            </a>
+            <BaixarLote ano={ano} />
 
             <ol className="mt-4 space-y-1.5 text-[12.5px] leading-relaxed text-tinta2">
               <li>
@@ -393,6 +624,47 @@ export function PainelReceitaSaude({
           {fraseDasFaltas(painel)}
         </p>
       )}
+
+      {/* ------------------------------------------------------------ o ritmo
+
+          **A tela diz que o padrão é palpite, e isso é decisão.**
+
+          O default `mensal` não saiu de medição nenhuma: ele sai da pergunta V3
+          da conversa com a psicóloga, que ainda não aconteceu. Um número que
+          não se apresenta como palpite vira regra por hábito antes de alguém
+          opinar sobre ele — é a manobra do "3" da anamnese, que este projeto já
+          registrou como antipadrão e consertou uma vez.
+
+          E mudar aqui **não reenvia nada do passado**: o ritmo decide quando o
+          próximo lembrete sai, e não recalcula pendência nenhuma. A frase está
+          na tela porque é a primeira dúvida de quem vai mexer. */}
+      <section className="mt-10 border-t border-linha pt-6">
+        <h2 className="rotulo">De quanto em quanto tempo eu te lembro</h2>
+        <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-tinta2">
+          Lançar no app da Receita é trabalho seu, e o Sessões só lembra. Mudar
+          agora vale daqui para a frente — nada do que já passou é reenviado.
+        </p>
+
+        <form action={ritmoAcao} className="mt-3 flex flex-wrap items-center gap-2">
+          <label htmlFor="ritmo" className="sr-only">
+            Ritmo do lembrete
+          </label>
+          <select id="ritmo" name="ritmo" defaultValue={ritmo} className={`${CAMPO} w-56`}>
+            <option value="sessao">a cada pagamento</option>
+            <option value="semanal">uma vez por semana</option>
+            <option value="mensal">uma vez por mês</option>
+            <option value="fevereiro">só o alarme de fevereiro</option>
+          </select>
+          <Botao rotulo="Mudar" />
+        </form>
+
+        <p className="mt-2 max-w-2xl text-[11.5px] leading-relaxed text-tinta3">
+          O padrão é uma vez por mês, e ele é <b className="font-medium">chute</b>:
+          ninguém mediu ainda com que frequência isso incomoda menos. Se o seu
+          ritmo é outro, mude — é essa mudança que vai dizer qual era o certo.
+        </p>
+        <Recado r={rRitmo} />
+      </section>
 
       <div className="mt-8">
         <form action={modo}>

@@ -31,8 +31,8 @@ do $do$
 declare
   v_auth  uuid := '11111111-1111-4111-8111-111111111173';
   v_conta uuid; v_prof uuid;
-  v_ana uuid; v_bia uuid;
-  v_enq_ana uuid; v_enq_bia uuid; v_novo uuid;
+  v_ana uuid; v_bia uuid; v_carol uuid;
+  v_enq_ana uuid; v_enq_bia uuid; v_enq_carol uuid; v_novo uuid;
   v_cob uuid;
   v_r jsonb; v_n numeric; v_i integer; v_erro text;
   v_cap jsonb; v_livro jsonb;
@@ -40,8 +40,8 @@ declare
   v_comp date := date '2026-10-01';
 begin
 
-delete from auth.users where id = v_auth;
 delete from public.contas where nome = 'Reajuste e Pausa';
+delete from auth.users where id = v_auth;
 
 insert into auth.users (id, email, raw_user_meta_data)
   values (v_auth, 'b36@teste.sessoes.com.br', '{"nome":"Reajuste e Pausa"}'::jsonb);
@@ -65,6 +65,18 @@ insert into public.enquadres (paciente_id, dia_semana, hora, duracao_min, valor,
 insert into public.enquadres (paciente_id, dia_semana, hora, duracao_min, valor,
                               politica_horas, politica_percentual, vigencia_inicio)
   values (v_bia, 3, '16:00', 50, 200.00, 24, 50, date '2026-01-07') returning id into v_enq_bia;
+
+-- A terceira existe por causa das verificações 10 e 11, e a razão é uma lição
+-- de ordem: elas perguntam "a cobrança aberta diverge da conta do mês?", e a
+-- Ana já teve o combinado reajustado lá em cima. Depois do reajuste a conta de
+-- outubro dela mudou por motivo legítimo, então a cobrança de 800 divergia
+-- **antes** de qualquer férias e a verificação reprovava a si mesma. A Carol
+-- chega intacta na hora de responder essa pergunta.
+insert into public.pacientes (conta_id, profissional_id, nome, telefone, estado)
+  values (v_conta, v_prof, 'Carol Mensalista', '5511900000733', 'em_atendimento') returning id into v_carol;
+insert into public.enquadres (paciente_id, dia_semana, hora, duracao_min, valor, mensalidade_valor,
+                              politica_horas, politica_percentual, vigencia_inicio)
+  values (v_carol, 3, '17:00', 50, 200.00, 800.00, 24, 50, date '2026-01-07') returning id into v_enq_carol;
 
 -- 3 · sem exceção nenhuma, o mês é cheio.
 v_n := public.valor_da_mensalidade(v_enq_ana, v_comp);
@@ -94,8 +106,24 @@ end if;
 -- capacidade não declarada, não uma sequência de cancelamentos. Se os minutos
 -- caíssem no vendável, o livro-razão encheria de "hora não ocupada" no mês em
 -- que ela descansou.
-insert into public.janelas_atendimento (profissional_id, dia_semana, inicio, fim, destino, vigencia_de)
-  values (v_prof, 3, '14:00', '18:00', 'atendimento', date '2026-01-01');
+-- **A capacidade se declara por função, não por `insert`.** Esta linha era um
+-- `insert into janelas_atendimento` com `vigencia_de` cravado em janeiro, e
+-- errava duas vezes:
+--
+--   1. `janelas_nao_retroagem` recusa janela que começa no passado — *"a
+--      capacidade de um mês fechado é a que foi declarada na época"*. Com a
+--      data cravada, a suíte só passaria se rodasse em janeiro de 2026;
+--   2. `janelas_atendimento` tem **uma policy só, de SELECT**. Escrever é
+--      privilégio de `definir_semana()`, que é `security definer` e confere a
+--      conta por dentro. O `insert` cru de quem é dona da conta é recusado, e
+--      está certo que seja.
+--
+-- Nada disso apareceu antes porque a suíte nunca tinha sido executada.
+perform public.definir_semana(
+  v_prof,
+  jsonb_build_array(jsonb_build_object(
+    'dia', 3, 'inicio', '14:00', 'fim', '18:00', 'destino', 'atendimento')),
+  public.hoje_sp());
 
 v_cap := public.capacidade_vendavel(v_prof, date '2026-10-01', date '2026-10-31');
 
@@ -184,12 +212,28 @@ end;
 -- É a promessa que a tela faz antes de ela confirmar, e o produto inteiro
 -- depende dela: o valor viaja **congelado na sessão**, não é lido do combinado
 -- na hora de cobrar.
+-- **A sessão que já aconteceu tem de estar mesmo no passado**, e a suíte
+-- usava 30/09 — que é futuro em relação a hoje, 03/09. O gatilho
+-- `checa_transicao_sessao` recusou com *"a sessao ainda nao comecou"*, e estava
+-- certo. Uma data cravada como cenário de passado tem prazo de validade; esta
+-- usa a quarta anterior a hoje, calculada.
+--
+-- Entra como `postgres` porque `sessoes` não tem policy de insert para
+-- `authenticated`: quem cria sessão é a materialização, não a tela. E não
+-- colide com `sessao_recorrente_unica` porque a materialização só monta do dia
+-- da criação em diante — quarta passada não existe.
+reset role;
+
 insert into public.sessoes (conta_id, profissional_id, paciente_id, enquadre_id,
                             inicio, fim, origem, estado, valor, politica_horas, politica_percentual)
   values (v_conta, v_prof, v_bia, v_enq_bia,
-          (date '2026-09-30' + time '16:00') at time zone 'America/Sao_Paulo',
-          (date '2026-09-30' + time '16:50') at time zone 'America/Sao_Paulo',
+          ((public.hoje_sp() - 7) + time '16:00') at time zone 'America/Sao_Paulo',
+          ((public.hoje_sp() - 7) + time '16:50') at time zone 'America/Sao_Paulo',
           'recorrencia', 'realizada', 200.00, 24, 50);
+
+perform set_config('request.jwt.claims',
+  json_build_object('sub', v_auth::text, 'role', 'authenticated')::text, true);
+set local role authenticated;
 
 perform public.reajustar_enquadre(v_enq_bia, 260.00, null, public.hoje_sp() + 30);
 
@@ -201,7 +245,7 @@ end if;
 
 -- 10 e 11 · a conferência das mensalidades.
 insert into public.cobrancas (conta_id, paciente_id, enquadre_id, tipo, motivo, valor, competencia, estado)
-  values (v_conta, v_ana, v_enq_ana, 'mensalidade', 'mensalidade', 800.00, v_comp, 'aberta')
+  values (v_conta, v_carol, v_enq_carol, 'mensalidade', 'mensalidade', 800.00, v_comp, 'aberta')
   returning id into v_cob;
 
 -- Sem exceção, a conta bate e ela não aparece.
@@ -216,9 +260,10 @@ if not exists (select 1 from public.mensalidades_a_rever(v_comp, v_comp) x where
   raise exception 'FALHOU 10: a pausa mudou a conta do mês e a cobrança aberta não apareceu para rever';
 end if;
 
+-- Outubro tem quatro quartas; as férias de 12 a 25 comem duas. Metade de 800.
 v_n := public.rever_mensalidade(v_cob);
-if v_n <> 200.00 then
-  raise exception 'FALHOU 10: rever devolveu % — 07/10 é a única quarta do combinado antigo fora das férias', v_n;
+if v_n <> 400.00 then
+  raise exception 'FALHOU 10: rever devolveu % — duas das quatro quartas de outubro caem nas férias', v_n;
 end if;
 
 -- 11 · o que já foi pago não se mexe.
@@ -239,8 +284,8 @@ reset role;
 perform set_config('request.jwt.claims', '', true);
 
 set local role postgres;
-delete from auth.users where id = v_auth;
 delete from public.contas where nome = 'Reajuste e Pausa';
+delete from auth.users where id = v_auth;
 reset role;
 
 raise notice 'OK · 0073 · o reajuste tem data e não reescreve o passado; o mês de férias sai proporcional e não vira perda';

@@ -310,12 +310,27 @@ begin
   if rec is null then raise exception 'PREPARO: sem pendência para marcar'; end if;
 
   -- ---------------------------------------------------------------- 15
-  if public.marcar_recibo_rfb(rec, ' RS-2026-000123 ') <> 'emitido' then
+  -- **Três nomes mudaram na 0067, e todos aparecem aqui.** O estado deixou de
+  -- ser `emitido`, a coluna `numero_rfb` virou `numero_informado` e a
+  -- `emitido_em` virou `marcado_por_ela_em`.
+  --
+  -- Não é troca de rótulo: é a decisão inteira da fronteira 11. O produto não
+  -- emite nada na Receita — ela emite, no app do gov.br, e vem aqui dizer que
+  -- emitiu. `numero_informado` é o número que **ela informou**, e o sistema não
+  -- tem como conferir. A 0067 se chama "o produto não emite e para de dizer
+  -- que emitiu".
+  --
+  -- **Esta suíte ficou vermelha em silêncio desde a 0067**, exatamente como a
+  -- 0053: `column "emitido_em" does not exist` no primeiro `select *` que
+  -- chegasse aqui. É a segunda vez que o mesmo rename derruba uma suíte sem
+  -- ninguém saber, e é a razão de o `verificar:sql` existir.
+  if public.marcar_recibo_rfb(rec, ' RS-2026-000123 ') <> 'marcado_por_ela' then
     raise exception '15 FUROU: não marcou'; end if;
   select * into r from public.recibos_rfb where id=rec;
-  if r.numero_rfb <> 'RS-2026-000123' then
-    raise exception '15 FUROU: número guardado como "%"', r.numero_rfb; end if;
-  if r.emitido_em <> public.hoje_sp() then raise exception '15 FUROU: data de emissão %', r.emitido_em; end if;
+  if r.numero_informado <> 'RS-2026-000123' then
+    raise exception '15 FUROU: número guardado como "%"', r.numero_informado; end if;
+  if r.marcado_por_ela_em <> public.hoje_sp() then
+    raise exception '15 FUROU: a data em que ela disse ter emitido saiu como %', r.marcado_por_ela_em; end if;
 
   -- ---------------------------------------------------------------- 16
   falhou := false;
@@ -326,7 +341,7 @@ begin
   -- ---------------------------------------------------------------- 17
   if public.desmarcar_recibo_rfb(rec) <> 'pendente' then raise exception '17 FUROU: não desmarcou'; end if;
   select * into r from public.recibos_rfb where id=rec;
-  if r.numero_rfb is not null or r.emitido_em is not null then
+  if r.numero_informado is not null or r.marcado_por_ela_em is not null then
     raise exception '17 FUROU: desmarcou e deixou o número de um recibo que não existe'; end if;
 
   -- ---------------------------------------------------------------- 18
@@ -390,7 +405,7 @@ begin
   perform public.desfazer_recebimento(s);
 
   select * into r from public.recibos_rfb where id=rec2;
-  if r.estado <> 'emitido' then
+  if r.estado <> 'marcado_por_ela' then
     raise exception '22 FUROU: apagou o rastro de um recibo que existe na Receita (virou %)', r.estado; end if;
   if r.divergente_em is null then
     raise exception '22 FUROU: não marcou a divergência — ela nunca saberia que precisa cancelar na Receita'; end if;
@@ -573,3 +588,27 @@ begin
 end $do$;
 
 do $do$ begin raise notice '0038 · receita saúde: todas as verificações passaram'; end $do$;
+
+-- ==================== o desmonte
+--
+-- O preâmbulo limpa o rastro da rodada passada; este bloco limpa o da rodada
+-- de agora. Só o segundo devolve o banco como o encontrou — e sem ele a conta
+-- fica de pé com `is_teste = false`, porque quem nasce pelo gatilho de
+-- `auth.users` nasce como conta de verdade e vira linha em toda métrica de
+-- operação do painel do negócio.
+--
+-- A conta leva o resto por cascata; o `auth.users` sai depois dela, porque
+-- `pacientes.profissional_id` e `registros.profissional_id` são RESTRICT e a
+-- ordem inversa trava.
+do $do$
+declare c uuid;
+begin
+  for c in select id from public.contas where nome in ('Ana Solo','Bia Solo') loop
+    delete from public.contas where id = c;
+  end loop;
+  delete from auth.users where id in ('11111111-1111-4111-8111-111111111111',
+                                      '22222222-2222-4222-8222-222222222222');
+  if exists (select 1 from public.contas where nome in ('Ana Solo','Bia Solo')) then
+    raise exception 'DESMONTE FUROU: sobrou conta de teste no banco'; end if;
+  raise notice 'desmonte: ok';
+end $do$;

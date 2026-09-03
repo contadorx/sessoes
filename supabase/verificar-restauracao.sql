@@ -9,182 +9,186 @@
 -- continua respondendo a todas as telas — e para de classificar cancelamento,
 -- de recalcular destino de mensagem e de gerar cobrança. Ninguém percebe até o
 -- primeiro cancelamento tardio não ser cobrado.
+--
+-- ---------------------------------------------------------------------------
+-- POR QUE ESTE ARQUIVO FOI REESCRITO EM 03/09
+-- ---------------------------------------------------------------------------
+--
+-- Ele conferia por **lista escrita à mão** — a lei 7 do `CLAUDE.md`, no arquivo
+-- que carrega o único critério de pronto do projeto que não se verifica lendo.
+-- E as listas tinham envelhecido exatamente como a lei prevê. Medido contra o
+-- catálogo do banco em 03/09/2026:
+--
+--     tabelas .......... conferia  44 de  56   (12 fora)
+--     funções .......... conferia 147 de 285  (138 fora)
+--     gatilhos ......... conferia  38 de  79   (41 fora)
+--     views ............ conferia  12 de  29   (17 fora)
+--     contagens ........ conferia  36 de  56   (20 fora)
+--
+-- Entre as doze tabelas que ninguém conferia: `janelas_atendimento` (a
+-- capacidade declarada, um dos quatro núcleos do produto), `objetivos` (o
+-- plano terapêutico, que é prontuário), `links_do_paciente`, `avaliacoes`.
+--
+-- E entre as dezessete views: **`v_nao_se_aplica_textos`** — uma view de texto
+-- livre escrito por psicóloga, a mesma família de `v_residual_textos`, cujo
+-- risco este arquivo já descrevia em nove linhas antes de deixar a irmã dela
+-- de fora. Um restore que trouxesse essa view sem `security_invoker` passava
+-- calado por aqui.
+--
+-- A reescrita tem uma regra só: **onde o catálogo consegue responder, não há
+-- lista.** Sobra uma lista só, a das tabelas com RLS e sem política, porque
+-- isso é *decisão* e não fato — e ela reprova nos dois sentidos: tabela nova
+-- sem política e não declarada reprova; tabela declarada que ganhou política
+-- também reprova.
+--
+-- O que o catálogo sozinho não sabe é o que **existia antes**. Uma tabela que
+-- sumiu no restore não deixa rastro na base restaurada. Isso não vira lista
+-- escrita à mão: vira a **impressão digital** da parte 2 deste arquivo, que se
+-- gera do próprio catálogo, se roda nas duas bases e se compara. O passo 1 do
+-- `RESTAURAR.md` manda tirá-la da produção antes do ensaio.
+
+-- ===========================================================================
+-- PARTE 1 · o que se prova sem saber o que havia antes
+-- ===========================================================================
 
 do $$
 declare
   faltando text;
   n int;
 begin
-  -- ------------------------------------------------- 1. as tabelas existem
-  select string_agg(t, ', ') into faltando
-    from unnest(array[
-      'contas','usuarios','profissionais','pacientes','enquadres','sessoes',
-      'excecoes_agenda','fila_encaixe','ofertas','eventos_fila','mensagens',
-      'mensagens_recebidas','cobrancas','trilha_acesso','interessados',
-      'documentos','contratos','aceites','pacotes','pacote_consumos','remarcacoes',
-      'fila_entrada','vagas_fixas','ofertas_fixas','despesas','recibos_rfb',
-      'pastas_contador','calendarios','calendarios_segredo','ocupacoes_externas',
-      'espelhos_calendario','registros','evolucoes','anamneses','anamnese_adendos',
-      -- O Panorama. Não é do produto (não tem conta_id), mas mora no mesmo
-      -- banco e some no mesmo restore.
-      'pesquisa_abertas','pesquisa_respostas','pesquisa_contatos',
-      -- O painel do negócio (OP1). Não é dado dela, e some no mesmo restore.
-      'planos','assinaturas','faturas','precos_canal','custos_fixos',
-      -- O teto (OP2). `templates` carrega a classificação de qual mensagem
-      -- pode ser barrada — sem ela, a FK de `mensagens.template` cai e o
-      -- outbox inteiro para de aceitar linha.
-      'templates'
-    ]) as t
-   where to_regclass('public.' || t) is null;
-
-  if faltando is not null then
-    raise exception 'RESTORE INCOMPLETO — faltam tabelas: %', faltando;
-  end if;
-
-  -- --------------------------------------- 2. RLS ligada em todas elas
+  -- ------------------------------------------- 1. RLS ligada em toda tabela
   -- Uma tabela restaurada com RLS desligada não dá erro em lugar nenhum: ela
   -- só devolve os dados de todo mundo para qualquer um.
-  select string_agg(c.relname, ', ') into faltando
-    from pg_class c join pg_namespace n on n.oid = c.relnamespace
-   where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity;
+  select string_agg(c.relname, ', ' order by c.relname) into faltando
+    from pg_class c join pg_namespace n2 on n2.oid = c.relnamespace
+   where n2.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity;
 
   if faltando is not null then
     raise exception 'SEM RLS — tabelas abertas: %', faltando;
   end if;
 
-  -- ------------------------------------------ 3. as políticas voltaram
-  -- RLS ligada e zero política é uma tabela fechada; RLS ligada com política
-  -- errada é pior. Aqui se confere a presença; as suítes de teste conferem o
-  -- comportamento.
+  -- ------------------------------------------ 2. toda tabela tem política…
+  -- …menos as cinco que **não devem ter**, e cada uma foi decidida assim na
+  -- migração que a criou:
+  --
+  --   calendarios_segredo (0040c) · o token do calendário. Se um dia aparecer
+  --     política nela, é sinal de que alguém abriu o segredo.
+  --   precos_canal, custos_fixos (0045) · painel do negócio: é meu, não é dela.
+  --   avisos_assinatura (0052) · a régua da MINHA assinatura.
+  --   limites_tecnicos (0060) · freio meu, não é produto.
+  --
+  -- Zero política com RLS ligada = zero linha para `anon` e `authenticated`,
+  -- e quem precisa chega por função `security definer`. A conferência é nos
+  -- dois sentidos de propósito: a tabela nova que nasce sem política tem de
+  -- ser **decidida aqui** antes de existir em silêncio, e a tabela declarada
+  -- que ganhou política é um vazamento com a mesma cara de manutenção.
+  select string_agg(c.relname, ', ' order by c.relname) into faltando
+    from pg_class c join pg_namespace n2 on n2.oid = c.relnamespace
+   where n2.nspname = 'public' and c.relkind = 'r' and c.relrowsecurity
+     and not exists (select 1 from pg_policies p
+                      where p.schemaname = 'public' and p.tablename = c.relname)
+     and c.relname <> all (array['calendarios_segredo','precos_canal',
+                                 'custos_fixos','avisos_assinatura',
+                                 'limites_tecnicos']);
+
+  if faltando is not null then
+    raise exception 'RLS LIGADA E SEM REGRA em: % — pode ser o desenho, mas decida e escreva aqui antes de existir em silêncio', faltando;
+  end if;
+
   select string_agg(t, ', ') into faltando
-    from unnest(array[
-      'pacientes','enquadres','sessoes','fila_encaixe','ofertas',
-      'eventos_fila','mensagens','cobrancas','trilha_acesso',
-      'documentos','contratos','aceites','pacotes','pacote_consumos','remarcacoes',
-      'fila_entrada','vagas_fixas','ofertas_fixas','despesas','recibos_rfb',
-      'pastas_contador','calendarios','ocupacoes_externas','espelhos_calendario',
-      'registros','evolucoes'
-      -- `calendarios_segredo` fica DE FORA desta lista de propósito: ela tem
-      -- RLS ligada e **nenhuma** política, e é assim que tem de voltar. Se um
-      -- dia aparecer política nela, é sinal de que alguém abriu o token.
-    ]) as t
-   where not exists (
-     select 1 from pg_policies p
-      where p.schemaname = 'public' and p.tablename = t
-   );
+    from unnest(array['calendarios_segredo','precos_canal','custos_fixos',
+                      'avisos_assinatura','limites_tecnicos']) as t
+   where exists (select 1 from pg_policies p
+                  where p.schemaname = 'public' and p.tablename = t);
 
   if faltando is not null then
-    raise exception 'SEM POLÍTICA — RLS ligada sem regra em: %', faltando;
+    raise exception 'TABELA FECHADA GANHOU POLÍTICA: % — estas cinco existem para não ter nenhuma', faltando;
   end if;
 
-  -- ------------------------------------------ 4. as funções voltaram
-  select string_agg(f, ', ') into faltando
-    from unnest(array[
-      'conta_atual','papel_atual','hoje_sp','proximo_envio',
-      'materializar_conta','materializar_enquadre','cancelar_sessao',
-      'abrir_vaga','avancar_fila','responder_oferta','expirar_ofertas',
-      'elegiveis_para_vaga','vaga_esta_livre','taxa_de_preenchimento',
-      'enfileirar_mensagem','reservar_mensagens','marcar_enviada',
-      'marcar_falha','desistir_mensagem','destravar_mensagens',
-      'responder_do_whatsapp','interpretar_resposta','marcar_entregue',
-      'multa_da_politica','perdoar_cobranca','marcar_cobranca_paga',
-      'registrar_acesso','arquivar_paciente','esquecer_contato',
-      'exportar_paciente','exportar_conta','expurgar_mensagens',
-      'emitir_documento','cancelar_documento','conciliar_pagamento',
-      'agendar_lembretes','agendar_regua','regua_pendente',
-      'publicar_contrato','preparar_aceite','montar_contrato',
-      'contrato_por_token','aceitar_contrato','registrar_aceite_presencial',
-      'revogar_aceite','reais','rotulo_horario','rotulo_politica',
-      'ocorrencias_do_dia_no_mes','sessoes_do_mes','valor_da_mensalidade',
-      'agendar_mensalidades','vender_pacote','cancelar_pacote',
-      'saldo_do_pacote','pacote_para_sessao',
-      'opcoes_de_remarcacao','abrir_remarcacao','cancelar_remarcacao',
-      'remarcacao_por_token','escolher_remarcacao','remarcar_presencial',
-      'custo_da_remarcacao',
-      'abrir_vaga_fixa','fechar_vaga_fixa','elegiveis_para_vaga_fixa',
-      'avancar_fila_fixa','responder_oferta_fixa','expirar_ofertas_fixas',
-      'ao_encerrar_enquadre',
-      'registrar_recebimento','desfazer_recebimento','sessoes_sem_registro',
-      'financeiro_do_mes','despesa_nao_e_do_futuro',
-      'prazo_do_ano','ao_pagar_gera_recibo_rfb','vencer_recibos_rfb',
-      'marcar_recibo_rfb','dispensar_recibo_rfb','desmarcar_recibo_rfb',
-      'recibos_rfb_a_emitir','receita_saude_do_ano','recibo_rfb_nao_reescreve',
-      'csv_campo','csv_valor','fechar_mes_da_conta','fechar_mes_do_contador',
-      'contas_para_fechar','gerar_pastas_do_dia','pastas_a_enviar',
-      'marcar_pasta_enviada','marcar_pasta_falhou','pasta_nao_muda',
-      'iniciais_do_nome','titulo_do_evento','ligar_calendario','ajustar_calendario',
-      'pausar_calendario','desligar_calendario','guardar_segredo_do_calendario',
-      'registrar_ocupacoes','calendario_falhou','sessao_espelha',
-      'sessao_apagada_espelha','modo_reescreve_o_futuro','espelhos_a_enviar',
-      'marcar_espelho_feito','marcar_espelho_falhou','calendario_do_profissional',
-      'calendarios_a_ler','importar_historico','importada_nao_vira_dinheiro',
-      'nota_so_na_ausencia','anotar_ausencia','linha_do_tempo','ausencias_do_paciente',
-      'salvar_demanda','escrever_evolucao','registro_do_paciente','evolucao_nao_se_reescreve',
-      'roteiro_padrao','abrir_anamnese','salvar_anamnese','fechar_anamnese',
-      'acrescentar_adendo','aviso_de_anamnese','anamnese_do_paciente',
-      'sessoes_ate_fechar_anamnese','anamnese_fechada_nao_muda',
-      'pesquisa_contato_existe','esquecer_contato_da_pesquisa',
-      'e_operador','painel_do_negocio','contas_do_painel','valor_da_conta',
-      'custo_da_conta','churn_do_mes','operador_nao_se_promove',
-      'fatura_paga_nao_regride','assinatura_carimba',
-      'teto_da_conta','cabe_no_teto','mensagem_carimba_saida',
-      'pacientes_da_conta','paciente_cabe_no_plano','desarquivar_cabe_no_plano'
-    ]) as f
-   where not exists (
-     select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-      where n.nspname = 'public' and p.proname = f
-   );
+  -- --------------------------------------------- 3. nenhuma view aberta
+  --
+  -- Esta é a verificação mais barata de esquecer e a mais cara de errar.
+  --
+  -- As views da pesquisa leem tabelas cujo material é o texto que uma
+  -- psicóloga escreveu sobre o dia dela. Elas só não vazam por duas travas
+  -- postas à mão no fim da 0044b: `security_invoker = on`, que faz a view
+  -- respeitar a RLS de baixo em vez de rodar como dona, e o revoke, que
+  -- esconde a view do PostgREST. As duas são *opções de relação* e *grants* —
+  -- exatamente o tipo de coisa que um restore parcial, um dump com flag
+  -- diferente ou um `create or replace view` de manutenção deixa cair sem
+  -- avisar. E o modo de falha é mudo: a view volta funcionando, as consultas
+  -- do painel continuam certas, e a única diferença é que agora qualquer
+  -- pessoa com a chave que está publicada no formulário faz
+  -- `GET /rest/v1/v_residual_textos` e lê tudo.
+  --
+  -- A regra vale para **toda** view de `public`, sem lista: hoje as 29 são do
+  -- Panorama e nenhuma é servida ao app. Se um dia existir view que precise
+  -- ser lida por `authenticated`, é aqui que a decisão aparece — e é bom que
+  -- apareça reprovando.
+  select string_agg(c.relname, ', ' order by c.relname) into faltando
+    from pg_class c join pg_namespace n2 on n2.oid = c.relnamespace
+   where n2.nspname = 'public' and c.relkind = 'v'
+     and (coalesce((select option_value from pg_options_to_table(c.reloptions)
+                     where option_name = 'security_invoker'), 'off') <> 'on'
+       or has_table_privilege('anon', c.oid, 'select')
+       or has_table_privilege('authenticated', c.oid, 'select'));
 
   if faltando is not null then
-    raise exception 'FALTAM FUNÇÕES: %', faltando;
+    raise exception 'VIEWS ABERTAS: % — sem security_invoker ou com SELECT para anon/authenticated, o que está embaixo delas está legível com a chave que está no formulário. Reaplique o bloco final da 0044b.', faltando;
   end if;
 
-  -- ------------------------------------------ 5. os gatilhos voltaram
-  -- São eles que carregam as invariantes que não podem ser burladas. Sem eles a
-  -- base funciona e mente.
-  select string_agg(g, ', ') into faltando
-    from unnest(array[
-      'sessoes_transicao','sessoes_retrato','sessoes_geram_cobranca',
-      'mensagens_retrato','trilha_carimbada','pacientes_arquivados',
-      'pacientes_conta','enquadres_conta','enquadres_materializa',
-      'excecoes_materializa','fila_conta_derivada',
-      'documentos_imutaveis','contratos_imutaveis','contratos_carimbo',
-      'aceites_montagem','aceites_congelamento',
-      'remarcacoes_montagem','remarcacoes_congelamento',
-      'enquadres_abrem_vaga_fixa','fila_entrada_conta_derivada',
-      'despesa_no_passado',
-      'cobrancas_geram_recibo_rfb','recibos_rfb_imutaveis','pastas_imutaveis',
-      'sessao_espelha','sessao_apagada_espelha','modo_reescreve_o_futuro',
-      'cobranca_nao_e_de_importada','consumo_nao_e_de_importada',
-      'nota_so_na_ausencia','evolucao_nao_se_reescreve','anamnese_fechada_nao_muda',
-      'operador_nao_se_promove','fatura_paga_nao_regride','assinatura_carimba',
-      'mensagem_carimba_saida','paciente_cabe_no_plano','desarquivar_cabe_no_plano'
-    ]) as g
-   where not exists (
-     select 1 from pg_trigger t
-      where not t.tgisinternal and t.tgname = g
-   );
+  -- ------------------------------- 4. todo `security definer` com search_path
+  -- Lei 2. Sem `search_path` fixado, quem controla o schema de busca escolhe
+  -- qual `contas` a função vai ler — de dentro de uma função que roda como
+  -- dona. Um restore não costuma perder isso; um `create or replace` de
+  -- manutenção perde.
+  select string_agg(p.proname, ', ' order by p.proname) into faltando
+    from pg_proc p join pg_namespace n2 on n2.oid = p.pronamespace
+   where n2.nspname = 'public' and p.prosecdef
+     and not exists (select 1 from unnest(coalesce(p.proconfig, '{}')) cfg
+                      where cfg like 'search_path=%');
 
   if faltando is not null then
-    raise exception 'FALTAM GATILHOS: % — a base responde, mas não aplica as regras', faltando;
+    raise exception 'SECURITY DEFINER SEM search_path: %', faltando;
   end if;
 
-  -- ------------------------------------------ 6. os índices das invariantes
-  select string_agg(i, ', ') into faltando
-    from unnest(array[
-      'enquadre_aberto_unico','mensagens_idem','cobranca_viva_por_sessao',
-      'recebidas_do_provedor','documentos_numero','contratos_versao',
-      'contrato_rascunho_unico','aceite_vivo_do_enquadre',
-      'mensalidade_por_competencia','consumo_unico_por_sessao',
-      'remarcacao_viva_por_sessao',
-      'vaga_fixa_viva','oferta_fixa_viva','oferta_fixa_por_pessoa',
-      'recibo_rfb_por_cobranca','pasta_por_competencia',
-      'assinatura_viva_por_conta','fatura_do_provedor'
-    ]) as i
-   where to_regclass('public.' || i) is null;
+  -- ------------------------------------------- 5. toda FK com índice (lei 2)
+  -- Uma FK sem índice do lado que referencia varre a tabela inteira a cada
+  -- delete do lado referenciado — e apagar paciente e encerrar conta são
+  -- justamente operações de delete em cascata. A 0077 fechou as vinte que
+  -- estavam abertas; esta verificação existe para não haver a vigésima
+  -- primeira.
+  select string_agg(x.rotulo, ', ' order by x.rotulo) into faltando
+    from (
+      select cl.relname || '.' || con.conname as rotulo
+        from pg_constraint con
+        join pg_class cl on cl.oid = con.conrelid
+        join pg_namespace n2 on n2.oid = cl.relnamespace
+       where n2.nspname = 'public' and con.contype = 'f'
+         and not exists (
+           select 1 from pg_index i
+            where i.indrelid = con.conrelid
+              and (i.indkey::smallint[])[0:array_length(con.conkey, 1) - 1] = con.conkey)
+    ) x;
 
   if faltando is not null then
-    raise exception 'FALTAM ÍNDICES DE INVARIANTE: %', faltando;
+    raise exception 'FK SEM ÍNDICE: %', faltando;
+  end if;
+
+  -- --------------------------------- 6. todo gatilho com a função no lugar
+  -- Um gatilho órfão não existe no Postgres, mas uma função de gatilho que
+  -- voltou vazia, sim. Aqui se confere o que o catálogo consegue: que a
+  -- função de cada gatilho ainda é `trigger`.
+  select string_agg(t.tgname, ', ' order by t.tgname) into faltando
+    from pg_trigger t
+    join pg_class c on c.oid = t.tgrelid
+    join pg_namespace n2 on n2.oid = c.relnamespace
+    join pg_proc p on p.oid = t.tgfoid
+   where n2.nspname = 'public' and not t.tgisinternal
+     and p.prorettype <> 'trigger'::regtype;
+
+  if faltando is not null then
+    raise exception 'GATILHO COM FUNÇÃO ERRADA: %', faltando;
   end if;
 
   -- ------------------------------------------ 7. a extensão da exclusão
@@ -201,84 +205,59 @@ begin
     raise exception 'FALTA a restrição de exclusão em sessoes';
   end if;
 
-  -- ------------------------------------------ 8. as views do Panorama
+  -- --------------------------------------------- 8. os tetos que existem hoje
   --
-  -- Esta é a verificação mais barata de esquecer e a mais cara de errar.
+  -- A versão anterior deste arquivo exigia `planos.limite_mensagens_mes` no
+  -- Grátis e teria **reprovado uma base saudável**: a 0060 tirou o teto mensal
+  -- de todos os planos de propósito — *"a unidade cobrada passou a ser a
+  -- sessão"* — e moveu o freio para `limites_tecnicos`, medido por hora e por
+  -- dia. O arquivo tinha ficado com a decisão de 0047b, revogada por 0060, e
+  -- o ensaio de restore ia parar num alarme falso no pior momento possível.
   --
-  -- As 12 views da pesquisa leem tabelas cujo material é o texto que uma
-  -- psicóloga escreveu sobre o dia dela. Elas só não vazam por duas travas
-  -- postas à mão no fim da 0044b: `security_invoker = on`, que faz a view
-  -- respeitar a RLS de baixo em vez de rodar como dona, e o revoke, que
-  -- esconde a view do PostgREST. As duas são *opções de relação* e *grants* —
-  -- exatamente o tipo de coisa que um restore parcial, um dump com flag
-  -- diferente ou um `create or replace view` de manutenção deixa cair sem
-  -- avisar. E o modo de falha é mudo: a view volta funcionando, as consultas
-  -- do painel continuam certas, e a única diferença é que agora qualquer
-  -- pessoa com a chave que está publicada no formulário faz
-  -- `GET /rest/v1/v_residual_textos` e lê tudo.
-  select string_agg(v, ', ') into faltando
-    from unnest(array[
-      'v_leitura1_fila','v_leitura3_cobranca','v_leitura4_agenda',
-      'v_rendimento_canal','v_leitura5_canal','v_ranking_ponderado',
-      'v_nao_e_problema','v_residual','v_residual_textos',
-      'v_itens_novos','v_qualidade','v_funil'
-    ]) as v
-   where to_regclass('public.' || v) is null;
-
-  if faltando is not null then
-    raise exception 'FALTAM VIEWS DO PANORAMA: %', faltando;
-  end if;
-
-  select string_agg(v, ', ') into faltando
-    from unnest(array[
-      'v_leitura1_fila','v_leitura3_cobranca','v_leitura4_agenda',
-      'v_rendimento_canal','v_leitura5_canal','v_ranking_ponderado',
-      'v_nao_e_problema','v_residual','v_residual_textos',
-      'v_itens_novos','v_qualidade','v_funil'
-    ]) as v
-   where coalesce((select option_value
-                     from pg_class c
-                          join pg_namespace n on n.oid = c.relnamespace,
-                          pg_options_to_table(c.reloptions)
-                    where n.nspname = 'public' and c.relname = v
-                      and option_name = 'security_invoker'), 'off') <> 'on'
-      or has_table_privilege('anon', 'public.' || v, 'select')
-      or has_table_privilege('authenticated', 'public.' || v, 'select');
-
-  if faltando is not null then
-    raise exception 'VIEWS DO PANORAMA ABERTAS: % — sem security_invoker ou com SELECT para anon, a pesquisa inteira está legível com a chave que está no formulário. Reaplique o bloco final da 0044b.', faltando;
-  end if;
-
-  -- ------------------------------------------ 8b. o limite do plano Grátis
-  --
-  -- Desde a 0048 o limite é um só: **mensagens**. O Grátis dá tudo o que é
-  -- registro — agenda, prontuário, livro-razão, pacientes sem limite — e cobra
-  -- o que economiza tempo.
-  --
-  -- Se `limite_mensagens_mes` voltar nulo no Grátis, o plano fica **aberto**:
-  -- ninguém recebe erro, ninguém percebe, e o único sinal seria o custo subindo
-  -- meses depois. Um limite que some é sempre pior que um limite que reclama.
-  select coalesce(limite_mensagens_mes, 0) into n
-    from public.planos where codigo = 'gratis';
-  if n = 0 then
-    raise exception 'O PLANO GRÁTIS VOLTOU SEM TETO DE MENSAGENS — ele fica aberto, e o primeiro sinal seria a fatura';
-  end if;
-
-  -- E o inverso também é defeito: um restore que trouxesse limite de pacientes
-  -- de volta cobraria pela parte que devia ser livre.
-  select count(*) into n from public.planos where limite_pacientes_ativos is not null;
-  if n > 0 then
-    raise exception '% plano(s) voltaram limitando PACIENTES — o registro é a parte que não se cobra (0048)', n;
-  end if;
-
-  -- ------------------------------------------ 9. os três essenciais
-  --
-  -- `templates.essencial` decide quem fica sem aviso quando o teto estoura.
-  -- Um restore que trouxesse a tabela vazia, ou com os três essenciais
-  -- rebaixados, faria o lembrete de véspera parar de sair numa conta gratuita
-  -- — e o sintoma seria um paciente faltando, não um erro.
+  -- Os dois tetos técnicos existem **contra o laço, não contra a cliente**: um
+  -- bug que reenfileira a mesma oferta mil vezes gasta dinheiro de verdade e
+  -- queima o número no WhatsApp. Um restore que os perdesse deixaria a base
+  -- respondendo tudo e sem freio nenhum.
   select string_agg(t, ', ') into faltando
-    from unnest(array['lembrete_de_sessao','aviso_de_desmarque','encaixe_confirmado']) as t
+    from unnest(array['mensagens_por_conta_hora','mensagens_por_paciente_dia']) as t
+   where not exists (select 1 from public.limites_tecnicos l
+                      where l.codigo = t and l.valor > 0);
+
+  if faltando is not null then
+    raise exception 'TETO TÉCNICO AUSENTE: % — sem ele um laço reenfileira sem parar, gasta dinheiro de verdade e queima o número no WhatsApp (0060)', faltando;
+  end if;
+
+  -- E o inverso é defeito do mesmo tamanho: um restore que trouxesse os dois
+  -- tetos de plano de volta cobraria pela parte que não se cobra (0048) e
+  -- barraria mensagem em silêncio (0060).
+  select count(*) into n from public.planos
+   where limite_pacientes_ativos is not null or limite_mensagens_mes is not null;
+  if n > 0 then
+    raise exception '% plano(s) voltaram com teto de PACIENTES ou de MENSAGENS — o registro é a parte que não se cobra (0048) e a unidade cobrada é a sessão (0060)', n;
+  end if;
+
+  -- O Gratuito, especificamente, é o que a vitrine promete: sessões sem
+  -- limite, e o canal na mão dela.
+  if exists (select 1 from public.planos
+              where codigo = 'gratis'
+                and (limite_sessoes_mes is not null or canal_saida <> 'manual')) then
+    raise exception 'O GRATUITO VOLTOU DIFERENTE DO QUE A VITRINE PROMETE — "Sessões sem limite" e canal manual (0061)';
+  end if;
+
+  -- ------------------------------------------ 9. os essenciais do teto
+  --
+  -- `templates.essencial` decide quem continua recebendo quando o teto
+  -- estoura. Um restore que rebaixasse um deles faria a mensagem parar de sair
+  -- — e o sintoma seria um paciente faltando, não um erro.
+  --
+  -- A lista era de três e ficou de três quando a 0057 acrescentou o quarto,
+  -- `confirmacao_de_sessao`, cujo motivo está escrito na própria linha: *"a
+  -- hora aparece como 'não respondeu' sem nunca ter sido perguntada"*. Por
+  -- isso a conferência é nos dois sentidos: essencial que sumiu reprova, e
+  -- essencial novo que ninguém declarou aqui também.
+  select string_agg(t, ', ') into faltando
+    from unnest(array['lembrete_de_sessao','aviso_de_desmarque',
+                      'encaixe_confirmado','confirmacao_de_sessao']) as t
    where not exists (
      select 1 from public.templates x where x.codigo = t and x.essencial
    );
@@ -287,49 +266,116 @@ begin
     raise exception 'TEMPLATES ESSENCIAIS AUSENTES OU REBAIXADOS: % — sem isto o teto do plano passa a barrar mensagem que o paciente precisa receber', faltando;
   end if;
 
-  raise notice 'ESTRUTURA OK — tabelas, RLS, políticas, funções, gatilhos, índices, extensões e as views fechadas do Panorama voltaram.';
+  select string_agg(x.codigo, ', ' order by x.codigo) into faltando
+    from public.templates x
+   where x.essencial
+     and x.codigo <> all (array['lembrete_de_sessao','aviso_de_desmarque',
+                                'encaixe_confirmado','confirmacao_de_sessao']);
+
+  if faltando is not null then
+    raise exception 'ESSENCIAL NÃO DECLARADO: % — essencial é a mensagem que passa por cima do teto do plano; decida e escreva aqui antes de existir em silêncio', faltando;
+  end if;
+
+  raise notice 'DEFESAS OK — RLS, políticas, views fechadas, search_path, FKs indexadas, gatilhos, extensões, tetos técnicos e templates essenciais. Falta comparar a impressão digital (parte 2).';
 end $$;
+
+-- ===========================================================================
+-- PARTE 2 · a impressão digital
+-- ===========================================================================
+--
+-- O que a parte 1 não consegue: dizer que **não sumiu nada**. Uma tabela que
+-- não voltou não deixa rastro na base restaurada — ela só não está lá.
+--
+-- Em vez de uma lista escrita à mão do que deveria existir (era assim que este
+-- arquivo errava), a expectativa se **gera do catálogo da produção**, antes do
+-- ensaio. Rode este mesmo bloco nas duas bases e compare linha a linha:
+--
+--     · `n` igual e `digital` igual  → a classe voltou inteira
+--     · `n` menor                    → sumiu coisa; use o detalhe abaixo
+--     · `n` igual e `digital` difere → trocou de nome ou de assinatura
+--
+-- `digital` é o md5 dos nomes ordenados. Ele muda com qualquer diferença, e é
+-- curto o bastante para caber num print de celular no meio de um incidente.
+
+with catalogo as (
+  select 'tabelas' as classe, c.relname as nome
+    from pg_class c join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public' and c.relkind = 'r'
+  union all
+  select 'colunas', c.relname || '.' || a.attname
+    from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    join pg_attribute a on a.attrelid = c.oid
+   where n.nspname = 'public' and c.relkind = 'r'
+     and a.attnum > 0 and not a.attisdropped
+  union all
+  select 'views', c.relname
+    from pg_class c join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public' and c.relkind = 'v'
+  union all
+  select 'funcoes', p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')'
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public'
+  union all
+  select 'gatilhos', c.relname || '.' || t.tgname
+    from pg_trigger t join pg_class c on c.oid = t.tgrelid
+    join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public' and not t.tgisinternal
+  union all
+  select 'politicas', p.tablename || '.' || p.policyname
+    from pg_policies p where p.schemaname = 'public'
+  union all
+  select 'indices', c.relname
+    from pg_class c join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public' and c.relkind = 'i'
+  union all
+  select 'restricoes', cl.relname || '.' || con.conname
+    from pg_constraint con
+    join pg_class cl on cl.oid = con.conrelid
+    join pg_namespace n on n.oid = cl.relnamespace
+   where n.nspname = 'public'
+  union all
+  -- A superfície do link mágico: o que o visitante sem sessão alcança. Um
+  -- restore que devolvesse `EXECUTE` para `public` numa função nova entra aqui
+  -- como diferença, e é a mesma classe de defeito da 0075.
+  select 'anon_executa', p.proname
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and has_function_privilege('anon', p.oid, 'execute')
+  union all
+  select 'authenticated_executa', p.proname
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and has_function_privilege('authenticated', p.oid, 'execute')
+  union all
+  select 'extensoes', e.extname from pg_extension e
+)
+select classe,
+       count(*) as n,
+       md5(string_agg(nome, E'\n' order by nome)) as digital
+  from catalogo
+ group by classe
+ order by classe;
+
+-- O detalhe, quando uma classe difere. Troque a classe e rode nas duas bases;
+-- o `except` responde o que falta de um lado.
+--
+--   select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+--    where n.nspname = 'public' and c.relkind = 'r' order by 1;
 
 -- ---------------------------------------------------------------- as contagens
 --
 -- Compare com o que você anotou antes do restore. Diferença aqui não é
 -- necessariamente erro (o backup é de um instante anterior), mas **zero onde
 -- havia dado é sempre erro**.
+--
+-- Sem lista: a contagem se faz sobre o catálogo, então a tabela que nascer
+-- amanhã já entra. `query_to_xml` é o jeito de contar linha de tabela cujo
+-- nome só se sabe em tempo de consulta sem precisar de função nova.
 
-select 'contas' as tabela, count(*) from public.contas
-union all select 'profissionais', count(*) from public.profissionais
-union all select 'pacientes', count(*) from public.pacientes
-union all select 'enquadres', count(*) from public.enquadres
-union all select 'sessoes', count(*) from public.sessoes
-union all select 'ofertas', count(*) from public.ofertas
-union all select 'eventos_fila', count(*) from public.eventos_fila
-union all select 'mensagens', count(*) from public.mensagens
-union all select 'cobrancas', count(*) from public.cobrancas
-union all select 'contratos', count(*) from public.contratos
-union all select 'aceites', count(*) from public.aceites
-union all select 'pacotes', count(*) from public.pacotes
-union all select 'pacote_consumos', count(*) from public.pacote_consumos
-union all select 'remarcacoes', count(*) from public.remarcacoes
-union all select 'fila_entrada', count(*) from public.fila_entrada
-union all select 'vagas_fixas', count(*) from public.vagas_fixas
-union all select 'despesas', count(*) from public.despesas
-union all select 'recibos_rfb', count(*) from public.recibos_rfb
-union all select 'pastas_contador', count(*) from public.pastas_contador
-union all select 'calendarios', count(*) from public.calendarios
-union all select 'calendarios_segredo', count(*) from public.calendarios_segredo
-union all select 'ocupacoes_externas', count(*) from public.ocupacoes_externas
-union all select 'espelhos_calendario', count(*) from public.espelhos_calendario
-union all select 'registros', count(*) from public.registros
-union all select 'evolucoes', count(*) from public.evolucoes
-union all select 'anamneses', count(*) from public.anamneses
-union all select 'anamnese_adendos', count(*) from public.anamnese_adendos
-union all select 'pesquisa_abertas', count(*) from public.pesquisa_abertas
-union all select 'pesquisa_respostas', count(*) from public.pesquisa_respostas
-union all select 'pesquisa_contatos', count(*) from public.pesquisa_contatos
-union all select 'planos', count(*) from public.planos
-union all select 'assinaturas', count(*) from public.assinaturas
-union all select 'faturas', count(*) from public.faturas
-union all select 'templates', count(*) from public.templates
-union all select 'trilha_acesso', count(*) from public.trilha_acesso
-union all select 'auth.users', count(*) from auth.users
-order by 1;
+select c.relname as tabela,
+       (xpath('/row/c/text()',
+              query_to_xml(format('select count(*) as c from public.%I', c.relname),
+                           false, true, '')))[1]::text::bigint as linhas
+  from pg_class c join pg_namespace n on n.oid = c.relnamespace
+ where n.nspname = 'public' and c.relkind = 'r'
+union all
+select 'auth.users', count(*) from auth.users
+ order by 1;

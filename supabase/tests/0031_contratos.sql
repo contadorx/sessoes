@@ -318,9 +318,23 @@ begin
     values (a_conta,a_prof,maria,now()-interval '2 hours',now()-interval '70 minutes','avulsa','prevista',1400.00,24,50)
     returning id into s;
   update public.sessoes set estado='falta' where id=s;
+  -- **Reescrita em 03/09, e é a suíte provando o contrário porque a decisão
+  -- mudou.** O que esta verificação defende é a fronteira: *o contrato não é
+  -- porteiro da relação* — a ausência de aceite vivo não pode travar o que
+  -- vem depois da falta. Isso continua valendo inteiro.
+  --
+  -- O que mudou foi o que vem depois da falta. O **P4** tirou a cobrança
+  -- automática do software: a falta gera a **pergunta**, e quem decide é ela.
+  -- A 0022 foi reescrita na época e esta ficou para trás, exigindo o
+  -- comportamento revogado. É o mesmo caso que o `CLAUDE.md` §8 descreve pelo
+  -- nome, e a resposta dele é esta: a suíte passa a provar o oposto.
   select count(*) into n from public.cobrancas where sessao_id=s;
+  if n <> 0 then
+    raise exception '20 · a cobrança da falta nasceu sozinha (%) — o P4 tirou essa decisão do software', n;
+  end if;
+  select count(*) into n from public.propostas_de_cobranca where sessao_id=s;
   if n <> 1 then
-    raise exception '20 · a cobrança da falta deixou de nascer por causa do contrato — o sistema virou porteiro da relação (%)', n;
+    raise exception '20 · a falta não virou pergunta por causa do contrato — o sistema virou porteiro da relação (%)', n;
   end if;
 
   -- ---------------------------------------------------------------- 19
@@ -381,6 +395,22 @@ begin
   if not ok then raise exception '22 · anon montou contrato'; end if;
 
   reset role; perform set_config('request.jwt.claims','',true);
+  -- ------------------------------------------------------------------- fim
+  -- A 0031 não recolhia o próprio rastro: 'Ana Solo' e 'Bia Solo' ficavam de pé
+  -- depois dela, e foi assim que uma 'Bia Solo' órfã apareceu no banco. A conta
+  -- primeiro, que `pacientes.profissional_id` e `registros.*` são RESTRICT.
+  delete from public.aceites       where conta_id in (a_conta, b_conta);
+  delete from public.contratos     where conta_id in (a_conta, b_conta);
+  delete from public.propostas_de_cobranca where conta_id in (a_conta, b_conta);
+  delete from public.cobrancas     where conta_id in (a_conta, b_conta);
+  delete from public.mensagens     where conta_id in (a_conta, b_conta);
+  delete from public.trilha_acesso where conta_id in (a_conta, b_conta);
+  delete from public.sessoes       where conta_id in (a_conta, b_conta);
+  delete from public.enquadres     where conta_id in (a_conta, b_conta);
+  delete from public.pacientes     where conta_id in (a_conta, b_conta);
+  delete from public.contas        where id in (a_conta, b_conta);
+  delete from auth.users           where id in (a_auth, b_auth);
+
   raise notice 'parte 3 · fronteiras e vizinhas: ok';
   raise notice '0031 · 22 verificações passaram.';
 end $do$;

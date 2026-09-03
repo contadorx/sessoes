@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db, ErroDeBanco } from "@/lib/db";
+import { fraseDaOferta } from "@/lib/canal";
 import { caixaMarcada } from "@/lib/formato";
 import { supabaseSessao } from "@/lib/supabase/server";
 import { sessaoAtual } from "@/lib/conta";
@@ -108,6 +109,11 @@ export async function sairDaFila(_anterior: Resultado, form: FormData): Promise<
 /**
  * Abre a vaga e dispara a cascata. Quem escolhe para quem vai a oferta é o
  * motor, pela regra de prioridade dela — não esta tela.
+ *
+ * A frase do fim **lê o estado real da mensagem** antes de falar no passado.
+ * Ver `fraseDaOferta`: dizer "enviada" sobre uma oferta que a janela de
+ * silêncio só vai soltar às 8h é uma afirmação sobre uma pessoa que não
+ * recebeu nada, e é a partir dela que ela decide não avisar ninguém.
  */
 export async function oferecerEmCascata(_anterior: Resultado, form: FormData): Promise<Resultado> {
   const sessaoId = String(form.get("sessao_id") ?? "");
@@ -116,9 +122,12 @@ export async function oferecerEmCascata(_anterior: Resultado, form: FormData): P
   const supabase = await supabaseSessao();
 
   try {
-    const oferta = await db("vaga.abrir", supabase.rpc("abrir_vaga", { p_sessao: sessaoId }));
+    const oferta = await db<string | null>(
+      "vaga.abrir",
+      supabase.rpc("abrir_vaga", { p_sessao: sessaoId }),
+    );
 
-    // A oferta já está no banco e a mensagem já está na fila de envio. Isto só
+    // A oferta já está no banco e a mensagem já está enfileirada. Isto só
     // tenta fazê-la sair agora em vez de esperar o cron; falhar aqui não
     // desfaz nada.
     await cutucarDespacho();
@@ -126,11 +135,42 @@ export async function oferecerEmCascata(_anterior: Resultado, form: FormData): P
     revalidatePath(`/encaixes/${sessaoId}`);
     revalidatePath("/encaixes");
 
-    return oferta
-      ? { estado: "ok", mensagem: "Oferta enviada. A fila anda sozinha a partir daqui." }
-      : { estado: "ok", mensagem: "Ninguém da fila cabe nesta vaga agora." };
+    if (!oferta) return { estado: "ok", mensagem: "Ninguém da fila cabe nesta vaga agora." };
+
+    // Depois do `cutucarDespacho`, de propósito: se a mensagem saiu no empurrão,
+    // é isso que a leitura encontra, e a frase pode falar no passado com razão.
+    return { estado: "ok", mensagem: await fraseDoQueAconteceu(supabase, oferta) };
   } catch (e) {
     return { estado: "erro", erros: [traduzir(e)] };
+  }
+}
+
+/** Lê a mensagem da oferta e o relógio dela; degrada para o presente, nunca para o passado. */
+async function fraseDoQueAconteceu(
+  supabase: Awaited<ReturnType<typeof supabaseSessao>>,
+  ofertaId: string,
+): Promise<string> {
+  try {
+    const [msgs, ofertas] = await Promise.all([
+      db(
+        "oferta.mensagem",
+        supabase.from("mensagens").select("estado").eq("chave_idem", `oferta:${ofertaId}`).limit(1),
+      ),
+      db(
+        "oferta.relogio",
+        supabase.from("ofertas").select("enviar_em").eq("id", ofertaId).limit(1),
+      ),
+    ]);
+
+    return fraseDaOferta({
+      mensagem: ((msgs ?? []) as { estado: string }[])[0]?.estado ?? null,
+      enviarEm: ((ofertas ?? []) as { enviar_em: string | null }[])[0]?.enviar_em ?? null,
+    });
+  } catch (e) {
+    // A leitura da confirmação falhou; a oferta existe. Afirmar envio aqui
+    // seria exatamente o defeito que esta build fecha.
+    console.error("[fila] não consegui conferir se a mensagem saiu", e);
+    return "Oferta preparada. Não consegui conferir se a mensagem já saiu.";
   }
 }
 

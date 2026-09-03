@@ -166,6 +166,55 @@ export function Erros({ erros }: { erros: string[] }) {
   );
 }
 
+/**
+ * O recado de uma ação — ao lado do controle que a disparou.
+ *
+ * O DEFEITO QUE ELE FECHA
+ *
+ * Oito controles da agenda descartavam o retorno de `useActionState`
+ * (`const [, despachar] = …`). Confirmar, Aconteceu, Não veio, os dois
+ * desmarques, perdoar, marcar paga e o Aceitou/Não pôde da cascata: se a ação
+ * falhasse — RLS, sessão que já começou, cancelamento que não vira presença —
+ * **nada aparecia** e o botão voltava a ficar clicável. Ela toca de novo. Numa
+ * ação como "Não veio", que é cobrável, tocar de novo por falta de resposta é
+ * como se cobra alguém duas vezes por um erro nosso.
+ *
+ * POR QUE NÃO É UM TOAST
+ *
+ * Em 375 px o topo da tela está a duas telas de rolagem do botão que ela
+ * apertou. Um aviso no topo é um aviso que ela não vê — e o que ela faz quando
+ * não vê resposta é justamente tocar de novo. O recado nasce onde o dedo está.
+ *
+ * O tipo é estrutural de propósito: cada `acoes.ts` declara o próprio
+ * `Resultado` com as mesmas três formas, e todos entram aqui sem conversão.
+ */
+export type ResultadoDeAcao =
+  | { estado: "inicial" }
+  | { estado: "ok"; mensagem: string }
+  | { estado: "erro"; erros: string[]; porCampo?: Record<string, string> };
+
+export function Recado({ r }: { r: ResultadoDeAcao }) {
+  if (r.estado === "ok") {
+    return (
+      <p role="status" className="text-[12px] leading-relaxed text-cheia">
+        {r.mensagem}
+      </p>
+    );
+  }
+  if (r.estado === "erro") {
+    return (
+      <ul role="alert" className="space-y-0.5">
+        {r.erros.map((e) => (
+          <li key={e} className="text-[12px] leading-relaxed text-vaga">
+            {e}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  return null;
+}
+
 export function Secao({ titulo, nota, children }: { titulo: string; nota?: string; children: React.ReactNode }) {
   return (
     <fieldset className="mt-6 border-t border-linha pt-5 first:mt-0 first:border-0 first:pt-0">

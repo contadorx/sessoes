@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { supabaseSessao } from "@/lib/supabase/server";
-import type { Painel, ContaNoPainel } from "@/lib/negocio";
+import { SEM_MEDIDA, type Painel, type ContaNoPainel, type MedidaDoReceitaSaude } from "@/lib/negocio";
 
 /**
  * As duas leituras do painel do negócio.
@@ -31,6 +31,29 @@ export async function lerContas(): Promise<ContaNoPainel[]> {
   return (
     (await db<ContaNoPainel[]>("negocio.contas", supabase.rpc("contas_do_painel"))) ?? []
   );
+}
+
+/**
+ * A medida do P8 (0079).
+ *
+ * Mesma disciplina das duas de cima: sem `conta_id`, `e_operador()` conferido
+ * dentro da função, e nada de paciente. O `catch` devolve `SEM_MEDIDA` em vez
+ * de derrubar o painel inteiro — este bloco é o menos importante da tela, e
+ * uma leitura que falha não pode levar o MRR junto.
+ */
+export async function lerMedidaDoReceitaSaude(): Promise<MedidaDoReceitaSaude> {
+  const supabase = await supabaseSessao();
+  try {
+    return (
+      ((await db<MedidaDoReceitaSaude>(
+        "negocio.receita_saude",
+        supabase.rpc("receita_saude_do_painel"),
+      )) as MedidaDoReceitaSaude | null) ?? SEM_MEDIDA
+    );
+  } catch (e) {
+    console.error("[negocio] falhou a medida do Receita Saúde", e);
+    return SEM_MEDIDA;
+  }
 }
 
 // ============================================ a operação (OP5)

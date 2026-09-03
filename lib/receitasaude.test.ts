@@ -18,6 +18,7 @@ import {
   fraseDoRegime,
   valorParaCsv,
   soDigitos,
+  camposDoCartao,
   cpfValidoParaArquivo,
   linhaCsv,
   montarArquivo,
@@ -496,6 +497,86 @@ describe("o produto não emite, e não escreve que emitiu", () => {
       for (const morto of ['"emitido"', "'emitido'", "numero_rfb", "emitido_em"]) {
         expect(texto, `${alvo} ainda cita ${morto} — o banco não tem mais`).not.toContain(morto);
       }
+    }
+  });
+});
+
+/**
+ * O cartão de emissão (P8) — e o que ele copia não é o que ele mostra.
+ *
+ * O produto não emite: ela digita no app da Receita, com o Sessões na outra
+ * mão. Cada campo colado errado é um recibo errado com o CPF **dela** em cima,
+ * e dez dias para cancelar no e-CAC.
+ */
+describe("os seis campos do app da Receita", () => {
+  const base = {
+    cpf: "529.982.247-25",
+    nome: "Maria Fernanda Reis",
+    pago_em: "2026-09-03",
+    valor: "200.00",
+    ocupacao: "255",
+  };
+
+  it("são seis, na ordem em que o app pede", () => {
+    expect(camposDoCartao(base).map((c) => c.chave)).toEqual([
+      "cpf",
+      "nome",
+      "pago_em",
+      "valor",
+      "ocupacao",
+      "descricao",
+    ]);
+  });
+
+  /**
+   * Os dois que ela mais erra, e os dois em que o formato de colar é diferente
+   * do formato de ler. Campo com máscara recusa pontuação; campo de moeda
+   * recusa o cifrão.
+   */
+  it("o CPF vai só em dígitos", () => {
+    const cpf = camposDoCartao(base).find((c) => c.chave === "cpf")!;
+    expect(cpf.copia).toBe("52998224725");
+    expect(cpf.copia).not.toMatch(/[.\-]/);
+  });
+
+  it("o valor vai com vírgula e sem R$", () => {
+    const v = camposDoCartao(base).find((c) => c.chave === "valor")!;
+    expect(v.copia).toBe("200,00");
+    expect(v.copia).not.toContain("R$");
+    // E o que ela lê continua sendo o dinheiro formatado do produto inteiro.
+    expect(v.mostra).toBe(formatar(20000));
+  });
+
+  it("o valor com milhar não perde o separador decimal", () => {
+    const v = camposDoCartao({ ...base, valor: "1200.50" }).find((c) => c.chave === "valor")!;
+    expect(v.copia).toBe("1200,50");
+  });
+
+  it("a data vai com barras", () => {
+    expect(camposDoCartao(base).find((c) => c.chave === "pago_em")!.copia).toBe("03/09/2026");
+  });
+
+  /**
+   * A descrição sai vazia, e é a mesma decisão da coluna 6 do CSV: campo livre
+   * que viaja daqui para a Receita Federal não carrega nome de paciente.
+   */
+  it("a descrição copia vazio, e diz por quê", () => {
+    const d = camposDoCartao(base).find((c) => c.chave === "descricao")!;
+    expect(d.copia).toBe("");
+    expect(d.nota).toMatch(/lista de pacientes/i);
+  });
+
+  it("sem CPF, o campo diz o que fazer em vez de copiar lixo", () => {
+    const c = camposDoCartao({ ...base, cpf: null }).find((x) => x.chave === "cpf")!;
+    expect(c.copia).toBe("");
+    expect(c.nota).toMatch(/peça o número|link do cadastro/i);
+  });
+
+  /** Nenhum campo copia "undefined", "null" ou "NaN" — é o que colaria lá. */
+  it("nada do que se copia é lixo de JavaScript", () => {
+    for (const c of camposDoCartao({ ...base, cpf: null, ocupacao: "" })) {
+      expect(c.copia).not.toMatch(/undefined|null|NaN/);
+      expect(c.mostra).not.toMatch(/undefined|null|NaN/);
     }
   });
 });

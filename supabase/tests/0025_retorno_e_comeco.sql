@@ -119,9 +119,10 @@ begin
   delete from public.fila_encaixe where conta_id=a_conta;
   delete from public.sessoes where conta_id=a_conta;
   delete from public.enquadres where conta_id=a_conta;
-  delete from public.pacientes where conta_id=a_conta;
-  delete from auth.users where id=a_auth;
+  -- A conta primeiro, pela mesma razão da 0024: `pacientes.profissional_id` é
+  -- RESTRICT, e apagar `auth.users` antes esbarra na cascata pelo outro lado.
   delete from public.contas where id=a_conta;
+  delete from auth.users where id=a_auth;
 
   raise notice 'B14 OK — 7 verificações, todas passaram';
 end $$;

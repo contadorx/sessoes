@@ -349,3 +349,32 @@ export async function linkDoPaciente(pacienteId: string): Promise<LinkDoPaciente
 
   return (linhas ?? [])[0] ?? null;
 }
+
+/**
+ * A primeira sessão que o combinado acabou de gerar.
+ *
+ * Serve à frase que o cadastro passou a mostrar. O gatilho
+ * `enquadres_materializa` roda no mesmo insert do combinado (lido do
+ * `pg_trigger`, não da migração), então no instante do redirecionamento a
+ * sessão já existe — e é por isso que a frase pode ser factual em vez de
+ * promessa: ela diz o que está no banco, não o que vai acontecer.
+ */
+export async function proximaSessaoDo(
+  pacienteId: string,
+): Promise<{ id: string; inicio: string } | null> {
+  const supabase = await supabaseSessao();
+
+  const linhas = await db(
+    "sessoes.proximaDoPaciente",
+    supabase
+      .from("sessoes")
+      .select("id, inicio")
+      .eq("paciente_id", pacienteId)
+      .in("estado", ["prevista", "confirmada"])
+      .gte("inicio", new Date().toISOString())
+      .order("inicio")
+      .limit(1),
+  );
+
+  return ((linhas ?? []) as { id: string; inicio: string }[])[0] ?? null;
+}

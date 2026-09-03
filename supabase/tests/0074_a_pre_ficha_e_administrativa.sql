@@ -26,13 +26,12 @@ declare
   v_auth  uuid := '11111111-1111-4111-8111-111111111174';
   v_conta uuid; v_prof uuid;
   v_pac uuid; v_menor uuid;
-  v_tok text := 'aaaaaaaabbbbbbbbccccccccdddddddd';
-  v_tok2 text := 'eeeeeeeeffffffff0000000011111111';
+  v_tok text; v_tok2 text;
   v_r jsonb; v_erro text; v_txt text; v_n integer;
 begin
 
-delete from auth.users where id = v_auth;
 delete from public.contas where nome = 'Pre Ficha';
+delete from auth.users where id = v_auth;
 
 insert into auth.users (id, email, raw_user_meta_data)
   values (v_auth, 'preficha@teste.sessoes.com.br', '{"nome":"Pre Ficha"}'::jsonb);
@@ -51,10 +50,22 @@ insert into public.pacientes (conta_id, profissional_id, nome, telefone, estado)
   values (v_conta, v_prof, 'Beto Menor', '5511900000742', 'interessado')
   returning id into v_menor;
 
-insert into public.links_do_paciente (conta_id, paciente_id, token, expira_em)
-  values (v_conta, v_pac, v_tok, now() + interval '30 days');
-
 reset role;
+
+-- **O token não se escolhe, e é isso que esta linha aprendeu correndo.** A
+-- suíte plantava `'aaaa…dddd'` e conferia os quatro estados com ele; o gatilho
+-- `links_do_paciente_montagem` sobrescreve `token`, `conta_id` e `expira_em`
+-- em todo insert, então o token plantado nunca existiu e `ficha_do_paciente`
+-- respondia "inexistente" — a suíte reprovava a si mesma, não o produto.
+--
+-- Um token que o chamador escolhe é um token fraco, e o gatilho está certo. O
+-- teste é que precisava ler de volta o que o banco gerou.
+--
+-- A policy de insert também recusa `insert` cru de quem é dona da conta, então
+-- a linha nasce como `postgres`.
+insert into public.links_do_paciente (paciente_id)
+  values (v_pac) returning token into v_tok;
+
 perform set_config('request.jwt.claims', '', true);
 
 -- 7 · daqui para baixo é o PACIENTE: sem sessão, sem conta, com o token.
@@ -148,8 +159,8 @@ set local role anon;
 
 -- 5 · menor de 18 sem responsável.  ← decide
 set local role postgres;
-insert into public.links_do_paciente (conta_id, paciente_id, token, expira_em)
-  values (v_conta, v_menor, v_tok2, now() + interval '30 days');
+insert into public.links_do_paciente (paciente_id)
+  values (v_menor) returning token into v_tok2;
 set local role anon;
 
 begin
@@ -236,8 +247,38 @@ if v_n > 0 then
   raise exception 'FALHOU 7: % função(ões) security definer fora das páginas por link estão ao alcance do anon — definer ignora a RLS', v_n;
 end if;
 
-delete from auth.users where id = v_auth;
+-- E o conjunto **inteiro** que o anon alcança, `invoker` incluído.
+--
+-- Esta metade nasceu de um achado: `arquivar_paciente(uuid, text, text)` ficou
+-- com `EXECUTE` para `PUBLIC` porque a 0071 criou uma assinatura nova (função
+-- nova é objeto novo, e nasce concedida a PUBLIC), e a 0075 não a pegou porque
+-- a lista dela era escrita à mão — o antipadrão da lei 7 no arquivo cujo
+-- assunto era o antipadrão.
+--
+-- A varredura **detecta**; quem decide é quem lê. Revogar por varredura seria
+-- pior: `posts_do_sitemap` precisa do anon, e um revoke cego derrubaria o
+-- sitemap. As nove primeiras são as páginas por link; as seis últimas não tocam
+-- em dado de ninguém (calendário, rótulo, gatilho, e o sitemap público).
+select coalesce(string_agg(x.proname, ', ' order by x.proname), '') into v_txt
+  from (
+    select p.proname
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.prokind = 'f'
+       and has_function_privilege('anon', p.oid, 'execute')
+       and p.proname <> all (array[
+         'aceitar_contrato', 'confirmar_pelo_link', 'contrato_por_token',
+         'documento_do_link', 'escolher_remarcacao', 'ficha_do_paciente',
+         'pagina_do_paciente', 'remarcacao_por_token', 'salvar_ficha',
+         'hoje_sp', 'janela_semanas', 'reais', 'rotulo_horario',
+         'rotulo_politica', 'posts_do_sitemap', 'importada_nao_vira_dinheiro',
+         'tocar_atualizado_em'])
+  ) x;
+if v_txt <> '' then
+  raise exception 'FALHOU 7: o anon alcança função não declarada: %. Pode ser legítima — mas decida e escreva aqui antes de existir em silêncio', v_txt;
+end if;
+
 delete from public.contas where nome = 'Pre Ficha';
+delete from auth.users where id = v_auth;
 reset role;
 
 raise notice 'OK · 0074 · a pré-ficha é administrativa, e o banco recusa a chamada inteira quando não é';

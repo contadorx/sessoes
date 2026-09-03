@@ -49,9 +49,11 @@ export default async function ReceitaSaude({
   // consultas para desenhar uma tela que não é essa.
   const contas = (await db(
     "rfb.regime",
-    supabase.from("contas").select("regime").limit(1),
-  )) as unknown as { regime: Regime }[];
+    supabase.from("contas").select("regime, ritmo_recibo").limit(1),
+  )) as unknown as { regime: Regime; ritmo_recibo: string }[];
   const regime: Regime = contas[0]?.regime ?? "pf";
+  // O default é `mensal`, e ele é palpite — a tela diz isso. Ver `mudarRitmo`.
+  const ritmo = contas[0]?.ritmo_recibo ?? "mensal";
 
   if (regime === "pj") return <ContaPj ano={seguro} hoje={hoje()} />;
 
@@ -118,6 +120,7 @@ export default async function ReceitaSaude({
         registrados={registrados}
         hoje={hoje()}
         ano={seguro}
+        ritmo={ritmo}
       />
 
       {/* ------------------------------------------- o que este modo não faz */}

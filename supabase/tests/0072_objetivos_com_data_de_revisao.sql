@@ -47,8 +47,8 @@ declare
   v_hoje date;
 begin
 
-delete from auth.users where id in (v_a_auth, v_b_auth, v_sec_auth);
 delete from public.contas where nome in ('Objetivo Teste', 'Objetivo Vizinha');
+delete from auth.users where id in (v_a_auth, v_b_auth, v_sec_auth);
 
 insert into auth.users (id, email, raw_user_meta_data)
   values (v_a_auth, 'obj@teste.sessoes.com.br', '{"nome":"Objetivo Teste"}'::jsonb);
@@ -191,8 +191,8 @@ if v_n > 0 then
 end if;
 
 set local role postgres;
-delete from auth.users where id in (v_a_auth, v_b_auth, v_sec_auth);
 delete from public.contas where nome in ('Objetivo Teste', 'Objetivo Vizinha');
+delete from auth.users where id in (v_a_auth, v_b_auth, v_sec_auth);
 reset role;
 
 raise notice 'OK · 0072 · o plano leve é clínico, não julga a data, e concluir não apaga';

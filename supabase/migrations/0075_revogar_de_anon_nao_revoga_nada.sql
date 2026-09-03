@@ -31,7 +31,14 @@
 -- link — `aceitar_contrato`, `confirmar_pelo_link`, `contrato_por_token`,
 -- `documento_do_link`, `escolher_remarcacao`, `ficha_do_paciente`,
 -- `pagina_do_paciente`, `remarcacao_por_token`, `salvar_ficha`. Quem abre um
--- link não tem conta aqui, e a tranca delas é o token. Nenhuma sobra.
+-- link não tem conta aqui, e a tranca delas é o token.
+--
+-- ⚠️ **A frase que estava aqui era "nenhuma sobra", e era falsa.** Sobrava
+-- `arquivar_paciente(uuid, text, text)` — a assinatura nova que a 0071 criou, e
+-- que nasceu com `EXECUTE` para `PUBLIC` como toda função nova. A lista de
+-- `revoke` abaixo é **escrita à mão**, o antipadrão da lei 7, num arquivo cujo
+-- assunto era exatamente esse antipadrão. A 0076 revoga a que faltou, e a
+-- detecção passou a ser por catálogo na suíte 0074.
 --
 -- A verificação 7 da suíte 0074 nasceu errada pelo mesmo motivo: ela lia
 -- `information_schema.role_routine_grants`, que **não enxerga concessão a

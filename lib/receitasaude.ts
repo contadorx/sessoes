@@ -1,4 +1,4 @@
-import { paraCentavos, formatar } from "@/lib/dinheiro";
+import { paraCentavos, formatar, deCentavos } from "@/lib/dinheiro";
 import { cpfValido } from "@/lib/paciente";
 
 /**
@@ -481,4 +481,86 @@ export function fraseNfse(hoje: string): string {
   if (dias < 0) return `A NFS-e no padrão IBS/CBS é exigível desde ${quando}.`;
   if (dias === 0) return `A NFS-e no padrão IBS/CBS passa a ser exigível hoje, ${quando}.`;
   return `A NFS-e no padrão IBS/CBS passa a ser exigível em ${quando} — faltam ${dias} dias.`;
+}
+
+
+// ====================================================== o cartão de emissão (P8)
+
+/**
+ * Os seis campos do app da Receita, na ordem em que ele os pede, prontos para
+ * colar **um a um**.
+ *
+ * Um a um, e não num bloco só, porque o app da Receita é campo a campo: um
+ * bloco obrigaria ela a selecionar pedaço por pedaço com o dedo, que é a
+ * digitação de volta com outro nome.
+ *
+ * O que cada `copia` carrega é o formato que o campo do outro lado espera, e
+ * não o que fica bonito aqui:
+ *
+ *  · **CPF sem pontuação.** Campo com máscara aceita dígito e recusa ponto —
+ *    colar "529.982.247-25" num campo mascarado costuma render "52998224".
+ *  · **Valor sem "R$" e com vírgula.** É campo de moeda; o cifrão colado junto
+ *    vira zero ou erro de formato.
+ *  · **Data com barras**, que é como o campo do e-CAC a mostra.
+ *
+ * Os dois que ela mais erra são o CPF e o valor — são os dois mais longos e os
+ * dois em que o erro não aparece na revisão. O que aparece é a multa.
+ */
+export type CampoDoCartao = {
+  chave: string;
+  rotulo: string;
+  /** O que vai para a área de transferência. */
+  copia: string;
+  /** O que a tela mostra. Igual ao `copia`, menos quando ele é vazio. */
+  mostra: string;
+  /** A frase de apoio, quando o campo precisa de uma. */
+  nota?: string;
+};
+
+export function camposDoCartao(c: {
+  cpf: string | null;
+  nome: string;
+  pago_em: string;
+  valor: string;
+  ocupacao: string;
+}): CampoDoCartao[] {
+  const cpf = (c.cpf ?? "").replace(/\D/g, "");
+  const centavos = paraCentavos(c.valor);
+
+  return [
+    {
+      chave: "cpf",
+      rotulo: "CPF de quem pagou",
+      copia: cpf,
+      mostra: cpf === "" ? "—" : cpf,
+      nota:
+        cpf === ""
+          ? "Sem CPF não dá para emitir. Peça o número — ou mande o link do cadastro para ele preencher."
+          : "sem pontos nem traço, que é o que o campo com máscara aceita",
+    },
+    { chave: "nome", rotulo: "Nome de quem pagou", copia: c.nome, mostra: c.nome },
+    {
+      chave: "pago_em",
+      rotulo: "Data do pagamento",
+      copia: diaBr(c.pago_em),
+      mostra: diaBr(c.pago_em),
+    },
+    {
+      chave: "valor",
+      rotulo: "Valor",
+      copia: deCentavos(centavos).replace(".", ","),
+      mostra: formatar(centavos),
+      nota: "sem o R$, que o campo de moeda recusa",
+    },
+    { chave: "ocupacao", rotulo: "Ocupação", copia: c.ocupacao, mostra: c.ocupacao },
+    {
+      chave: "descricao",
+      rotulo: "Descrição",
+      copia: "",
+      mostra: "deixe em branco",
+      // Não é campo esquecido: é decisão, e a mesma da coluna 6 do CSV.
+      nota:
+        "Campo livre que vai daqui para a Receita Federal. Escrever ali o nome de quem se trata seria entregar a lista de pacientes por conveniência de preenchimento.",
+    },
+  ];
 }

@@ -5,6 +5,9 @@ import {
   classificarCancelamento,
   multaDeFalta,
   resumoDoEnquadre,
+  combinadoTocado,
+  PADRAO_ENQUADRE,
+  type CamposDoCombinado,
 } from "./enquadre";
 import { paraCentavos } from "./dinheiro";
 
@@ -113,5 +116,71 @@ describe("D2 — quanto o sistema cobra sem ela precisar falar", () => {
     const classe = classificarCancelamento(inicio, aviso, politica);
     expect(classe).toBe("cancelada_tarde");
     expect(multaDeFalta(sessao, classe, politica)).toBe(10000);
+  });
+});
+
+// ============================================ a seção do combinado foi tocada?
+
+describe("combinadoTocado", () => {
+  const intocado: CamposDoCombinado = {
+    hora: "",
+    valor: "",
+    dia_semana: String(PADRAO_ENQUADRE.dia_semana),
+    duracao_min: String(PADRAO_ENQUADRE.duracao_min),
+    modelo_cobranca: PADRAO_ENQUADRE.modelo_cobranca,
+    mensalidade_valor: "",
+    social: false,
+    falta_cobra_a_parte: false,
+    politica_horas: String(PADRAO_ENQUADRE.politica_horas),
+    politica_percentual: String(PADRAO_ENQUADRE.politica_percentual),
+    confirmacao_horas_antes: "",
+  };
+
+  it("a seção como o formulário a desenha é intocada", () => {
+    expect(combinadoTocado(intocado)).toBe(false);
+  });
+
+  it("campo em branco também é intocado — vazio não é zero", () => {
+    expect(
+      combinadoTocado({
+        ...intocado,
+        dia_semana: "",
+        duracao_min: "",
+        politica_horas: "",
+        politica_percentual: "",
+        modelo_cobranca: "",
+      }),
+    ).toBe(false);
+  });
+
+  it("hora ou valor sozinhos já contam", () => {
+    expect(combinadoTocado({ ...intocado, hora: "15:00" })).toBe(true);
+    expect(combinadoTocado({ ...intocado, valor: "200" })).toBe(true);
+  });
+
+  /*
+    O caso que dava o defeito: ela mexe em tudo, menos em hora e valor. Antes
+    isto devolvia "sem combinado" e a paciente era criada com o combinado
+    inteiro jogado fora, sem aviso nenhum na tela.
+  */
+  it("cada campo da seção, sozinho, é suficiente", () => {
+    const mexidas: Partial<CamposDoCombinado>[] = [
+      { dia_semana: "4" },
+      { duracao_min: "60" },
+      { modelo_cobranca: "mensal" },
+      { mensalidade_valor: "800" },
+      { social: true },
+      { falta_cobra_a_parte: true },
+      { politica_horas: "48" },
+      { politica_percentual: "100" },
+      { confirmacao_horas_antes: "24" },
+    ];
+    for (const mexida of mexidas) {
+      expect(combinadoTocado({ ...intocado, ...mexida }), JSON.stringify(mexida)).toBe(true);
+    }
+  });
+
+  it("número que não é número conta como mexida, e cai na validação", () => {
+    expect(combinadoTocado({ ...intocado, politica_percentual: "abc" })).toBe(true);
   });
 });

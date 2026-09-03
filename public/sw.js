@@ -50,7 +50,22 @@ self.addEventListener("install", (evento) => {
     (async () => {
       try {
         const cache = await caches.open(CACHE);
-        await cache.add(new Request(SEM_CONEXAO, { cache: "reload" }));
+        // Busca e **reconstrói** a resposta antes de guardar.
+        //
+        // `cache.add` guardaria a resposta inteira, cabeçalhos inclusive — e
+        // esta requisição sai de dentro da área logada, com cookie, passando
+        // pelo proxy que renova a sessão. Um `Set-Cookie` guardado no cache
+        // seria reaplicado no dia em que esta página fosse servida, meses
+        // depois. O corpo é uma página estática sem dado nenhum; é só ele que
+        // precisa ficar.
+        const r = await fetch(SEM_CONEXAO, { cache: "reload" });
+        if (!r.ok) throw new Error("offline indisponível");
+        await cache.put(
+          SEM_CONEXAO,
+          new Response(await r.blob(), {
+            headers: { "content-type": "text/html; charset=utf-8" },
+          }),
+        );
       } catch {
         // Falhou o pré-carregamento: o service worker instala do mesmo jeito.
         // Sem a página, a navegação offline volta a ser a tela do navegador —

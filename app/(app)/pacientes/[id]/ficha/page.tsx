@@ -4,6 +4,7 @@ import { atualizarPaciente } from "../../acoes";
 import { FormPaciente } from "@/components/app/FormPaciente";
 import { Privacidade } from "@/components/app/Privacidade";
 import { rotuloHorario } from "@/lib/enquadre";
+import { envioAutomaticoLigado } from "@/lib/promessa";
 
 export const metadata = { title: "Cadastro" };
 
@@ -41,6 +42,7 @@ export default async function Ficha({ params }: { params: Promise<{ id: string }
               acao={atualizarPaciente}
               paciente={paciente}
               rotuloBotao="Salvar cadastro"
+              envioAutomatico={envioAutomaticoLigado()}
             />
           </div>
         )}

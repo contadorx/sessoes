@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import {
   obterPaciente,
   enquadreAberto,
@@ -6,6 +7,7 @@ import {
   pacotesDoPaciente,
   filaDeEntradaDoPaciente,
   linkDoPaciente,
+  proximaSessaoDo,
 } from "../dados";
 import { NovoEnquadre } from "@/components/app/NovoEnquadre";
 import { Reajuste } from "@/components/app/Reajuste";
@@ -17,6 +19,7 @@ import { FilaEntrada } from "@/components/app/FilaEntrada";
 import { envioAutomaticoLigado } from "@/lib/promessa";
 import { rotuloModelo } from "@/lib/cobranca";
 import { hoje } from "@/lib/tempo-servidor";
+import { quando } from "@/lib/remarcacao";
 
 const brl = (v: string) =>
   Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -39,10 +42,24 @@ const MOTIVO: Record<string, string> = {
  * contrato aceito, e o histórico dos combinados anteriores — que é o que faz
  * um reajuste não apagar março.
  */
-export default async function Combinado({ params }: { params: Promise<{ id: string }> }) {
+export default async function Combinado({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ criada?: string }>;
+}) {
   const { id } = await params;
+  const { criada } = await searchParams;
   const paciente = await obterPaciente(id);
   if (!paciente) notFound();
+
+  // Acabou de sair do cadastro com um combinado preenchido. A frase vem do
+  // banco — a sessão existe, materializada pelo gatilho do combinado —, e o
+  // parâmetro é só o sinal de que ela chegou por ali. Nenhum id vem no
+  // endereço de propósito: o que a tela mostra é sempre a próxima sessão desta
+  // ficha, então um parâmetro colado à mão não faz a tela falar de outra.
+  const recemCriada = criada === "1" ? await proximaSessaoDo(paciente.id) : null;
 
   const aberto = enquadreAberto(paciente);
   const historico = paciente.enquadres.filter((e) => e.vigencia_fim !== null);
@@ -53,6 +70,21 @@ export default async function Combinado({ params }: { params: Promise<{ id: stri
 
   return (
     <>
+      {recemCriada && (
+        <p className="mb-6 flex flex-wrap items-baseline gap-x-2 rounded-cartao border border-linha bg-folha2 px-5 py-3 text-[13px] leading-relaxed text-tinta2">
+          <span>
+            Cadastro salvo. A próxima sessão está em{" "}
+            <b className="font-medium text-tinta">{quando(recemCriada.inicio)}</b>.
+          </span>
+          <Link
+            href={`/agenda?sessao=${recemCriada.id}`}
+            className="font-medium text-vaga hover:underline"
+          >
+            ver na agenda →
+          </Link>
+        </p>
+      )}
+
       <section>
         <h2 className="rotulo">O combinado</h2>
         {aberto ? (

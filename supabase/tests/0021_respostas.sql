@@ -222,9 +222,16 @@ begin
   if (select msg_canal from public.pacientes where id=caio) <> 'nao_avisar' then raise exception '12 FUROU: conta A'; end if;
   if (select msg_canal from public.pacientes where id=b_caio) <> 'nao_avisar' then raise exception '12 FUROU: conta B'; end if;
 
+  -- A pergunta é "sobrou alguma que ainda vai sair?", e ela tem duas respostas
+  -- desde a 0061: `pendente` é a que o motor pega, `na_sua_mao` é a que espera
+  -- o dedo dela no Gratuito. Esta verificação contava só a primeira, e passava
+  -- **pelo motivo errado** — na conta do Gratuito nenhuma mensagem chega a
+  -- `pendente`, então o zero vinha de não haver o que contar. A 0080 pôs a
+  -- pergunta num lugar só; aqui ela se faz por lá.
   select count(*) into n from public.mensagens m join public.pacientes p on p.id=m.paciente_id
-   where public.so_digitos(p.telefone)='5511900000002' and m.estado='pendente';
-  if n <> 0 then raise exception '13 FUROU: % mensagens ainda pendentes depois do parar', n; end if;
+   where public.so_digitos(p.telefone)='5511900000002'
+     and m.estado = any(public.estados_de_mensagem_por_sair());
+  if n <> 0 then raise exception '13 FUROU: % mensagens ainda vão sair depois do parar', n; end if;
 
   if public.enfileirar_mensagem(caio,'lembrete_de_sessao','p1') is not null then
     raise exception '14 FUROU: enfileirou depois do opt-out'; end if;

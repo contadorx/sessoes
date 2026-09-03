@@ -37,11 +37,19 @@ export function Semana({
   cobrancas,
   hoje,
   acessos,
+  selecionada = null,
 }: {
   semana: TSemana;
   sessoes: SessaoLinha[];
   cobrancas: Record<string, CobrancaLinha>;
   hoje: string;
+  /**
+   * A sessão que o endereço pediu (`/agenda?sessao={id}`), já conferida pelo
+   * servidor: a página só manda o id quando a sessão existe e a RLS a mostra.
+   * Abre o painel dela no primeiro desenho, e o `useEffect` de baixo a traz ao
+   * campo de visão pelo mesmo caminho de um toque.
+   */
+  selecionada?: string | null;
   /**
    * Quem está olhando. Desce até o painel porque é lá que a tela oferece
    * escrita clínica e registro de dinheiro — e a RLS recusa as duas para quem
@@ -49,7 +57,7 @@ export function Semana({
    */
   acessos: Acessos;
 }) {
-  const [escolhida, setEscolhida] = useState<string | null>(null);
+  const [escolhida, setEscolhida] = useState<string | null>(selecionada);
   const painel = useRef<HTMLDivElement>(null);
 
   /*

@@ -2,6 +2,8 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { supabaseSessao } from "@/lib/supabase/server";
 import { formatar, paraCentavos, somar } from "@/lib/dinheiro";
+import { fraseDaReguaVazia, fraseDaReguaAndando } from "@/lib/canal";
+import { envioAutomaticoLigado } from "@/lib/promessa";
 import { PausarRegua } from "@/components/app/PausarRegua";
 
 export const metadata = { title: "A receber" };
@@ -40,6 +42,10 @@ export default async function AReceber() {
   const total = regua.reduce((soma, l) => somar(soma, paraCentavos(l.total)), 0);
   const emAndamento = regua.filter((l) => !l.pausada).length;
 
+  // O mesmo estado que a caixa "Na sua mão" já consultava. Enquanto ele for
+  // falso, nada é lembrado sozinho — em plano nenhum.
+  const automatico = envioAutomaticoLigado();
+
   return (
     <div className="mx-auto max-w-3xl">
       <h1 className="font-serif text-[28px] leading-tight tracking-[-0.015em]">
@@ -48,17 +54,14 @@ export default async function AReceber() {
 
       {regua.length === 0 ? (
         <p className="mt-4 rounded-cartao border border-linha bg-folha2 px-5 py-4 text-[13px] leading-relaxed text-tinta2">
-          Nada a receber. Quando houver, é aqui que você vê — e o sistema lembra
-          por você, no texto neutro, sem você precisar puxar o assunto.
+          {fraseDaReguaVazia(automatico)}
         </p>
       ) : (
         <>
           <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-tinta2">
             <b className="font-semibold text-tinta">{formatar(total)}</b> de{" "}
             {regua.length} pessoa{regua.length > 1 ? "s" : ""}.{" "}
-            {emAndamento === 0
-              ? "Nenhum lembrete vai sair — os motivos estão abaixo."
-              : `O sistema está lembrando ${emAndamento} delas.`}
+            {fraseDaReguaAndando(automatico, emAndamento)}
           </p>
 
           <div className="mt-6 space-y-3">

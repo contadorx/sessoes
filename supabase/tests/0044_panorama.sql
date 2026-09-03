@@ -162,15 +162,31 @@ begin
   raise notice '4 · anon não atualiza nem apaga: ok';
 
   -- 5 · o CHECK barra lixo
+  -- **Reescrita em 03/09: a suíte provava a decisão revogada.** Ela exigia que
+  -- `dia = 'curto'` fosse recusado, porque a 0044 e a 0044c escrevem
+  -- `length(dia) between 20 and …`. No banco o piso é **1**, e sempre foi
+  -- desde algum ponto que nenhuma migração registra — foi a 0086 que o
+  -- documentou, depois de a decisão ser confirmada: numa pesquisa pública,
+  -- resposta curta e honesta vale mais que campo vazio.
+  --
+  -- Então o que se prova aqui mudou de lado. Resposta curta **passa**:
+  set local role anon;
+  insert into public.pesquisa_abertas (sessao, canal, dia, irritante, preocupacao)
+  values (gen_random_uuid(), 'teste-suite', 'curto', 'x', 'y');
+  reset role;
+
+  -- E o piso que sobrou continua sendo piso: string vazia não entra. É o que
+  -- separa "aceitar pouco" de "aceitar nada", e sem isto a policy não teria
+  -- limite inferior nenhum.
   falhou := false;
   begin
     set local role anon;
     insert into public.pesquisa_abertas (sessao, canal, dia, irritante, preocupacao)
-    values (gen_random_uuid(), 'teste-suite', 'curto', 'x', 'y');
+    values (gen_random_uuid(), 'teste-suite', '', 'x', 'y');
     reset role;
   exception when others then falhou := true; reset role;
   end;
-  if not falhou then raise exception '5 · o CHECK aceitou texto curto demais'; end if;
+  if not falhou then raise exception '5 · a policy aceitou resposta vazia — o piso de 1 caractere sumiu'; end if;
 
   falhou := false;
   begin
@@ -226,42 +242,60 @@ end $do$;
 
 do $do$
 declare
-  esperadas text[] := array[
-    'v_leitura1_fila','v_leitura3_cobranca','v_leitura4_agenda',
-    'v_rendimento_canal','v_leitura5_canal','v_ranking_ponderado',
-    'v_nao_e_problema','v_residual','v_residual_textos',
-    'v_itens_novos','v_qualidade','v_funil'
-  ];
-  v text; n int; falhou boolean; sobrando text;
+  v text; n int; falhou boolean; ruins text;
 begin
-  -- 9 · security_invoker = on nas doze. Sem isto a view roda como o dono e
-  -- ignora a RLS de baixo — a RLS insert-only não protege nada por trás dela.
-  foreach v in array esperadas loop
-    select count(*) into n
-      from pg_class c join pg_namespace ns on ns.oid = c.relnamespace
-     where ns.nspname = 'public' and c.relname = v and c.relkind = 'v'
-       and coalesce((select option_value from pg_options_to_table(c.reloptions)
-                      where option_name = 'security_invoker'), 'off') = 'on';
-    if n <> 1 then
-      raise exception '9 · a view % não existe ou está com security_invoker desligado — ela passa por cima da RLS', v;
-    end if;
-  end loop;
-  raise notice '9 · as 12 views com security_invoker = on: ok';
+  -- **As cinco verificações desta suíte que enumeravam views foram reescritas
+  -- em 03/09, e a lei 7 é o motivo.** Elas conferiam uma lista à mão de doze
+  -- nomes. O banco tem **29 views** sobre as tabelas da pesquisa: as outras
+  -- dezessete nasceram depois e nenhuma verificação as alcançava.
+  --
+  -- A verificação 12 existia justamente para acusar view nova fora da lista —
+  -- e acusava, com dezenove nomes, o que fazia a suíte inteira reprovar por
+  -- **desatualização** e não por vulnerabilidade. O estado real estava certo o
+  -- tempo todo: as 29 com `security_invoker = on`, `anon` sem SELECT em
+  -- nenhuma, nenhuma tocando em `pesquisa_contatos`.
+  --
+  -- Uma lista que precisa ser editada a cada view nova é a doença que o
+  -- `CLAUDE.md` lei 7 nomeia. O conjunto agora sai do catálogo: **toda view que
+  -- lê as tabelas da pesquisa** entra por construção, no instante em que é
+  -- criada.
+  create temporary table _views_da_pesquisa on commit drop as
+  select distinct c.oid, c.relname::text as nome
+    from pg_class c
+    join pg_namespace ns on ns.oid = c.relnamespace and ns.nspname = 'public'
+    join pg_rewrite rw on rw.ev_class = c.oid
+    join pg_depend d on d.objid = rw.oid and d.classid = 'pg_rewrite'::regclass
+    join pg_class t on t.oid = d.refobjid
+   where c.relkind = 'v'
+     and t.relname in ('pesquisa_abertas','pesquisa_respostas','pesquisa_contatos');
 
-  -- 10 · e revogadas. Trava redundante de propósito: com o revoke, anon nem
-  -- enxerga a view no PostgREST.
-  foreach v in array esperadas loop
-    if has_table_privilege('anon', 'public.' || v, 'select') then
-      raise exception '10 · anon tem SELECT em public.% — GET /rest/v1/% lê a pesquisa inteira', v, v;
-    end if;
-    if has_table_privilege('authenticated', 'public.' || v, 'select') then
-      raise exception '10 · authenticated tem SELECT em public.% — qualquer assinante do produto lê a pesquisa', v;
-    end if;
-  end loop;
-  raise notice '10 · anon e authenticated sem privilégio em nenhuma view: ok';
+  select count(*) into n from _views_da_pesquisa;
+  if n < 12 then
+    raise exception '9 · só % view(s) sobre a pesquisa — o Panorama tinha doze na 0044b, e uma varredura que não acha nada passa por engano', n;
+  end if;
 
-  -- 11 · e na prática, com dado real embaixo. As duas travas anteriores são
-  -- de catálogo; esta tenta de verdade.
+  -- 9 · toda view passa a RLS adiante, em vez de passar por cima dela.
+  select string_agg(vp.nome, ', ' order by vp.nome) into ruins
+    from _views_da_pesquisa vp
+    join pg_class c on c.oid = vp.oid
+   where coalesce((select option_value from pg_options_to_table(c.reloptions)
+                    where option_name = 'security_invoker'), 'off') <> 'on';
+  if ruins is not null then
+    raise exception '9 · view com security_invoker desligado, passando por cima da RLS: %', ruins;
+  end if;
+  raise notice '9 · as % views da pesquisa com security_invoker = on: ok', n;
+
+  -- 10 · e ninguém de fora as alcança pelo PostgREST.
+  select string_agg(nome, ', ' order by nome) into ruins
+    from _views_da_pesquisa
+   where has_table_privilege('anon', oid, 'select')
+      or has_table_privilege('authenticated', oid, 'select');
+  if ruins is not null then
+    raise exception '10 · anon ou authenticated tem SELECT em: % — GET /rest/v1/<view> lê a pesquisa inteira', ruins;
+  end if;
+  raise notice '10 · anon e authenticated sem privilégio em nenhuma: ok';
+
+  -- 11 · e a que guarda os textos abertos recusa na prática, não só no papel.
   falhou := false;
   begin
     set local role anon;
@@ -274,22 +308,15 @@ begin
   end if;
   raise notice '11 · anon falha ao ler a view dos textos: ok';
 
-  -- 12 · nenhuma view nova fora da lista. Esta é a verificação que ainda não
-  -- tinha razão de existir e vai ter: a próxima view sobre estas tabelas
-  -- nasce aberta, e quem a escrever não vai receber aviso nenhum. Aqui recebe.
-  select string_agg(c.relname, ', ') into sobrando
-    from pg_class c
-         join pg_namespace ns on ns.oid = c.relnamespace
-         join pg_rewrite rw on rw.ev_class = c.oid
-         join pg_depend d on d.objid = rw.oid and d.classid = 'pg_rewrite'::regclass
-         join pg_class t on t.oid = d.refobjid
-   where ns.nspname = 'public' and c.relkind = 'v'
-     and t.relname in ('pesquisa_abertas','pesquisa_respostas','pesquisa_contatos')
-     and c.relname <> all (esperadas);
-  if sobrando is not null then
-    raise exception '12 · view nova sobre as tabelas da pesquisa fora da lista: % — toda view nasce com security_invoker off e aberta para anon; repita as duas linhas do fim da 0044b', sobrando;
+  -- 12 · nenhuma delas junta e-mail a resposta. Era a verificação 20, e subiu
+  --      para cá porque agora é sobre o mesmo conjunto varrido.
+  select string_agg(nome, ', ' order by nome) into ruins
+    from _views_da_pesquisa
+   where pg_get_viewdef(oid) ~ 'pesquisa_contatos';
+  if ruins is not null then
+    raise exception '12 · a(s) view(s) % leem pesquisa_contatos — nenhuma leitura pode juntar e-mail a resposta', ruins;
   end if;
-  raise notice '12 · nenhuma view nova fora da lista fechada: ok';
+  raise notice '12 · nenhuma view toca no e-mail: ok';
 end $do$;
 
 -- ==================== parte 3 · a separação que sustenta o "não identificados"
@@ -360,12 +387,6 @@ end $do$;
 
 do $do$
 declare
-  esperadas text[] := array[
-    'v_leitura1_fila','v_leitura3_cobranca','v_leitura4_agenda',
-    'v_rendimento_canal','v_leitura5_canal','v_ranking_ponderado',
-    'v_nao_e_problema','v_residual','v_residual_textos',
-    'v_itens_novos','v_qualidade','v_funil'
-  ];
   v text; n int;
 begin
   -- 17 · a eliminação de conta não alcança a pesquisa (contraparte de dado da 16)
@@ -382,26 +403,31 @@ begin
   reset role;
   raise notice '18 · service_role lê tabelas e views: ok';
 
-  -- 19 · as doze views respondem sem estourar. Todas dividem por count(*) e
-  -- todas usam nullif — mas "usa nullif" é leitura, e isto é execução.
-  foreach v in array esperadas loop
+  -- 19 · as views respondem sem estourar. Todas dividem por count(*) e todas
+  -- usam nullif — mas "usa nullif" é leitura, e isto é execução. Varrido, e não
+  -- enumerado: era uma lista de doze num banco que tem vinte e nove.
+  --
+  -- (A conferência do e-mail era a verificação 20 e subiu para a 12, que varre
+  -- este mesmo conjunto. Varrer duas vezes o mesmo catálogo não prova mais.)
+  n := 0;
+  for v in
+    select distinct c.relname
+      from pg_class c
+      join pg_namespace ns on ns.oid = c.relnamespace and ns.nspname = 'public'
+      join pg_rewrite rw on rw.ev_class = c.oid
+      join pg_depend d on d.objid = rw.oid and d.classid = 'pg_rewrite'::regclass
+      join pg_class t on t.oid = d.refobjid
+     where c.relkind = 'v'
+       and t.relname in ('pesquisa_abertas','pesquisa_respostas','pesquisa_contatos')
+  loop
     begin
-      execute format('select count(*) from public.%I', v) into n;
+      execute format('select count(*) from public.%I', v);
+      n := n + 1;
     exception when others then
       raise exception '19 · a view % estourou: %', v, sqlerrm;
     end;
   end loop;
-  raise notice '19 · as 12 views respondem sem estourar: ok';
-
-  -- 20 · e o e-mail não sai por nenhum caminho que anon alcance. Nenhuma das
-  -- doze views toca em pesquisa_contatos, e é bom que continue assim: uma view
-  -- que juntasse contato a resposta seria a única maneira de a promessa cair.
-  foreach v in array esperadas loop
-    if pg_get_viewdef(('public.' || v)::regclass) ~ 'pesquisa_contatos' then
-      raise exception '20 · a view % lê pesquisa_contatos — nenhuma leitura pode juntar e-mail a resposta', v;
-    end if;
-  end loop;
-  raise notice '20 · nenhuma view toca no e-mail: ok';
+  raise notice '19 · as % views da pesquisa respondem sem estourar: ok', n;
 
   -- 21 · as duas funções da 0044d não são rota. `create function` concede
   -- EXECUTE ao PUBLIC — tropeço da 0018, e aqui ele daria a qualquer pessoa

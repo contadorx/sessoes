@@ -54,13 +54,13 @@ begin
     union
     select id from public.contas where nome in ('Ana Limite', 'Bia Limite')
   loop
-    delete from public.mensagens     where conta_id = a_conta;
-    delete from public.sessoes       where conta_id = a_conta;
-    delete from public.enquadres     where conta_id = a_conta;
-    delete from public.pacientes     where conta_id = a_conta;
-    delete from public.profissionais where conta_id = a_conta;
-    delete from public.usuarios      where conta_id = a_conta;
-    delete from public.contas        where id = a_conta;
+    -- **A conta primeiro, e a cascata faz o resto.** A lista à mão esbarrava em
+    -- `registros_paciente_id_fkey`: a verificação 3 chama `arquivar_paciente`,
+    -- que cria um `registros`, e `registros.paciente_id` é RESTRICT de
+    -- propósito — a guarda de cinco anos do Conselho não deixa o prontuário
+    -- sair por baixo do paciente. `pacientes.profissional_id` é RESTRICT pela
+    -- mesma razão. Descer pela conta passa por cima das duas na ordem certa.
+    delete from public.contas where id = a_conta;
   end loop;
   delete from auth.users where email like '%@teste.limite.com.br';
   raise notice 'parte 0 · preâmbulo: ok';
@@ -320,13 +320,13 @@ begin
     union
     select id from public.contas where nome in ('Ana Limite', 'Bia Limite')
   loop
-    delete from public.mensagens     where conta_id = a_conta;
-    delete from public.sessoes       where conta_id = a_conta;
-    delete from public.enquadres     where conta_id = a_conta;
-    delete from public.pacientes     where conta_id = a_conta;
-    delete from public.profissionais where conta_id = a_conta;
-    delete from public.usuarios      where conta_id = a_conta;
-    delete from public.contas        where id = a_conta;
+    -- **A conta primeiro, e a cascata faz o resto.** A lista à mão esbarrava em
+    -- `registros_paciente_id_fkey`: a verificação 3 chama `arquivar_paciente`,
+    -- que cria um `registros`, e `registros.paciente_id` é RESTRICT de
+    -- propósito — a guarda de cinco anos do Conselho não deixa o prontuário
+    -- sair por baixo do paciente. `pacientes.profissional_id` é RESTRICT pela
+    -- mesma razão. Descer pela conta passa por cima das duas na ordem certa.
+    delete from public.contas where id = a_conta;
   end loop;
   delete from auth.users where email like '%@teste.limite.com.br';
 

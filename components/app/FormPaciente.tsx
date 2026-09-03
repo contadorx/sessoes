@@ -3,7 +3,8 @@
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ESTADOS, ROTULO_ESTADO, CANAIS, ROTULO_CANAL } from "@/lib/paciente";
-import { DIAS } from "@/lib/enquadre";
+import { DIAS, PADRAO_ENQUADRE } from "@/lib/enquadre";
+import { notaDoComoAvisar } from "@/lib/canal";
 import {
   MODELOS,
   previsaoDoMes,
@@ -37,11 +38,18 @@ export function FormPaciente({
   paciente,
   comEnquadre,
   rotuloBotao,
+  envioAutomatico,
 }: {
   acao: (anterior: Resultado, form: FormData) => Promise<Resultado>;
   paciente?: PacienteLinha;
   comEnquadre?: boolean;
   rotuloBotao: string;
+  /**
+   * Há provedor de mensageria ligado? Desce por prop porque `lib/promessa.ts`
+   * é `server-only` e este é componente de cliente — o mesmo caminho que
+   * `NaSuaMao` já usava.
+   */
+  envioAutomatico: boolean;
 }) {
   const [estado, despachar] = useActionState(acao, INICIAL);
   const [canal, setCanal] = useState(paciente?.msg_canal ?? "whatsapp");
@@ -132,10 +140,10 @@ export function FormPaciente({
         </div>
       </Secao>
 
-      <Secao
-        titulo="Como avisar"
-        nota="O modo discreto é o padrão: remetente neutro, sem o seu nome profissional e sem a palavra terapia na tela bloqueada."
-      >
+      {/* "Remetente neutro" só é verdade quando a plataforma manda. No manual o
+          remetente é o número dela, e é isso que a nota passa a dizer — ver
+          `notaDoComoAvisar`. */}
+      <Secao titulo="Como avisar" nota={notaDoComoAvisar(envioAutomatico)}>
         <div className="grid gap-3 sm:grid-cols-2">
           <Campo rotulo="Canal">
             <select
@@ -193,9 +201,9 @@ export function CamposEnquadre({
   porCampo?: Record<string, string>;
 }) {
   const [modelo, setModelo] = useState<Modelo>(
-    (base?.modelo_cobranca as Modelo) ?? "avulso",
+    (base?.modelo_cobranca as Modelo) ?? PADRAO_ENQUADRE.modelo_cobranca,
   );
-  const [dia, setDia] = useState<number>(base?.dia_semana ?? 2);
+  const [dia, setDia] = useState<number>(base?.dia_semana ?? PADRAO_ENQUADRE.dia_semana);
   const [valor, setValor] = useState(base?.valor ?? "");
   const [mensal, setMensal] = useState(base?.mensalidade_valor ?? "");
 
@@ -206,13 +214,13 @@ export function CamposEnquadre({
     return opcoes.includes(atual) ? atual : "outro";
   };
   const [horas, setHoras] = useState(() =>
-    guardado(base?.politica_horas, 24, ["12", "24", "48"]),
+    guardado(base?.politica_horas, PADRAO_ENQUADRE.politica_horas, ["12", "24", "48"]),
   );
-  const [horasLivre, setHorasLivre] = useState(String(base?.politica_horas ?? 24));
+  const [horasLivre, setHorasLivre] = useState(String(base?.politica_horas ?? PADRAO_ENQUADRE.politica_horas));
   const [pct, setPct] = useState(() =>
-    guardado(base?.politica_percentual, 50, ["0", "50", "100"]),
+    guardado(base?.politica_percentual, PADRAO_ENQUADRE.politica_percentual, ["0", "50", "100"]),
   );
-  const [pctLivre, setPctLivre] = useState(String(base?.politica_percentual ?? 50));
+  const [pctLivre, setPctLivre] = useState(String(base?.politica_percentual ?? PADRAO_ENQUADRE.politica_percentual));
   const [confirma, setConfirma] = useState(
     base?.confirmacao_horas_antes == null ? "" : String(base.confirmacao_horas_antes),
   );
@@ -254,7 +262,7 @@ export function CamposEnquadre({
             min={15}
             max={240}
             step={5}
-            defaultValue={base?.duracao_min ?? 50}
+            defaultValue={base?.duracao_min ?? PADRAO_ENQUADRE.duracao_min}
             className={ENTRADA}
           />
         </Campo>

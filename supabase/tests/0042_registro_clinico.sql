@@ -535,6 +535,20 @@ begin
   delete from public.recibos_rfb where conta_id = a_conta;
   delete from public.pastas_contador where conta_id = a_conta;
 
+  -- E agora as contas. Recolher só o registro clínico deixava 'Ana Solo' e
+  -- 'Bia Outra' de pé — as duas com `is_teste = false`, porque quem nasce pelo
+  -- gatilho de `auth.users` nasce como conta de verdade, e conta de teste que
+  -- fica vira linha em toda métrica de operação do painel do negócio.
+  --
+  -- A conta leva o resto por cascata; o `auth.users` sai depois dela, porque
+  -- `pacientes.profissional_id` e `registros.profissional_id` são RESTRICT.
+  delete from public.contas where id = a_conta;
+  delete from public.contas where nome = 'Bia Outra';
+  delete from auth.users where id in ('11111111-1111-4111-8111-111111111111',
+                                      '22222222-2222-4222-8222-222222222222');
+  if exists (select 1 from public.contas where nome in ('Ana Solo','Bia Outra')) then
+    raise exception 'DESMONTE FUROU: sobrou conta de teste no banco'; end if;
+
   raise notice 'parte 5 · rastro recolhido: ok';
   raise notice '=== 0042 · o registro que o CFP pede: 24 verificações, todas passaram ===';
 end $do$;

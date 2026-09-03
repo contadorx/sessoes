@@ -218,8 +218,9 @@ begin
   delete from public.cobrancas where conta_id in (a_conta,b_conta);
   delete from public.sessoes where conta_id in (a_conta,b_conta);
   delete from public.pacientes where conta_id in (a_conta,b_conta);
-  delete from auth.users where id in (a_auth,b_auth);
+  -- A conta primeiro: `pacientes.profissional_id` e `registros.*` são RESTRICT.
   delete from public.contas where id in (a_conta,b_conta);
+  delete from auth.users where id in (a_auth,b_auth);
 
   raise notice 'B17 OK — 12 verificações, todas passaram';
 end $$;

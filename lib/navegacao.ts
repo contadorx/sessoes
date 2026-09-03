@@ -230,7 +230,10 @@ export function acoesNovas(a: Acessos): AcaoNova[] {
     { href: "/encaixes?novo=pedido", rotulo: "Pedido de encaixe" },
   ];
   if (podeFinanceiro(a)) {
-    fora.push({ href: "/recebimentos?novo=entrada", rotulo: "Recebimento" });
+    // `/recebimentos?novo=entrada` levava para a régua de atraso, que não lê
+    // parâmetro e não tem o que registrar. Recebimento entra contra a hora que
+    // aconteceu, e a lista dessas horas é a seção ancorada aqui.
+    fora.push({ href: "/recebimentos/movimentacoes#o-que-entrou", rotulo: "Recebimento" });
   }
   return fora;
 }

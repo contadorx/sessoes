@@ -179,7 +179,25 @@ export async function marcarSessao(_anterior: Resultado, form: FormData): Promis
 }
 
 /** Encaixe manual num horário livre. A fila (B7) vai fazer isso sozinha. */
-export async function criarEncaixe(_anterior: Resultado, form: FormData): Promise<Resultado> {
+/**
+ * Marcar uma sessão que não vem da recorrência — e a origem dela.
+ *
+ * **`origem` aqui é `avulsa`, e não `encaixe`.** Isto era um defeito de número,
+ * não de nome. A `financeiro_do_mes` (0037:465-472) soma "o que voltou" por
+ * `origem = 'encaixe'` **sem casar com vaga nenhuma**, e `fraseDoRecuperado`
+ * escreve na tela dela *"N horas que a fila preencheu"*. Como esta função
+ * cravava `'encaixe'` em toda sessão marcada à mão — e a lista de quem aparece
+ * no formulário é `pacientesParaEncaixe()`, que é todo paciente ativo, sem vaga
+ * envolvida —, cada sessão marcada de propósito num horário livre virava
+ * dinheiro recuperado de um buraco que nunca existiu, com a fila levando o
+ * crédito.
+ *
+ * Quem preenche vaga é a fila, e é o banco que registra isso: `responder_oferta`
+ * insere a sessão com `'encaixe'` quando alguém aceita a oferta (lido do
+ * `pg_get_functiondef`, não da migração). Marcar à mão é `'avulsa'` — a RLS da
+ * 0035:640 aceita as duas, e é a única escrita de origem que a tela faz.
+ */
+export async function criarSessao(_anterior: Resultado, form: FormData): Promise<Resultado> {
   const sessao = await sessaoAtual();
   if (!sessao.profissionalId) {
     return { estado: "erro", erros: ["Sua conta está sem profissional cadastrado."] };
@@ -208,25 +226,25 @@ export async function criarEncaixe(_anterior: Resultado, form: FormData): Promis
 
   try {
     await db(
-      "sessoes.encaixe",
+      "sessoes.marcar",
       supabase.from("sessoes").insert({
         conta_id: sessao.contaId,
         profissional_id: sessao.profissionalId,
         paciente_id: pacienteId,
         inicio: inicio.toISOString(),
         fim: fim.toISOString(),
-        origem: "encaixe",
+        origem: "avulsa",
         estado: "prevista",
         valor: deCentavos(valorCentavos ?? 0),
       }),
     );
   } catch (e) {
-    console.error("[sessoes] falhou encaixe", e);
+    console.error("[sessoes] falhou marcar sessão", e);
     return { estado: "erro", erros: [traduzir(e)] };
   }
 
   revalidatePath("/agenda");
-  return { estado: "ok", mensagem: "Encaixe marcado." };
+  return { estado: "ok", mensagem: "Sessão marcada." };
 }
 
 function traduzir(e: unknown): string {

@@ -3,6 +3,7 @@ import { Marca } from "@/components/site/Marca";
 import { sessaoAtual, acessosDa } from "@/lib/conta";
 import { Sair } from "@/components/app/Sair";
 import { Instalar } from "@/components/app/Instalar";
+import { Rascunhos } from "@/components/app/Rascunhos";
 import {
   MenuPrincipal,
   SubNavegacao,
@@ -77,6 +78,10 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
 
       <BarraDoCelular acessos={acessos} />
       <Instalar />
+      {/* Não desenha nada: apaga rascunho de evolução vencido ao entrar. Ver
+          `lib/rascunho.ts` — a validade não estava sendo cumprida para o
+          rascunho abandonado, que é o caso que ela existe para cobrir. */}
+      <Rascunhos />
     </div>
   );
 }

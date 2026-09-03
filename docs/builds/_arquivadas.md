@@ -38,9 +38,9 @@ dentro do nosso produto. O que ficou está no **P8**.
 **O simulador de ROI.** Calculava R$ 800/mês de hora recuperada em aritmética de
 padaria, e era o argumento mais forte que a landing tinha. Também era a hipótese
 não demonstrada transformada em número na tela — e número é promessa mais forte
-que qualquer frase. *O arquivo `components/site/Simulador.tsx` ainda existe no
-repositório, compilando, e não é importado por nenhuma página. Apagar, ou pôr um
-teste que reprove o import.*
+que qualquer frase. *Feito em 03/09, e as duas metades: o arquivo foi apagado, e
+`testes/o-que-esta-morto-nao-volta.test.ts` reprova o import, o nome e qualquer
+componente órfão — que é o esconderijo onde ele sobreviveu à própria morte.*
 
 **A B15** (piloto assistido) foi deixada para trás por decisão de 31/08: seguir
 construindo em vez de parar no portão 1→2.

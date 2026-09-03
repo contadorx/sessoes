@@ -64,8 +64,8 @@ begin
 
 -- ============================================================ preâmbulo
 
-delete from auth.users where id = v_a_auth;
 delete from public.contas where nome = 'Mao Teste';
+delete from auth.users where id = v_a_auth;
 
 insert into auth.users (id, email, raw_user_meta_data)
   values (v_a_auth, 'mao@teste.sessoes.com.br', '{"nome":"Mao Teste"}'::jsonb);
@@ -107,9 +107,9 @@ end if;
 
 -- Uma mensagem pendente, do jeito que o produto a cria.
 set local role postgres;
-insert into public.mensagens (conta_id, paciente_id, template, canal, destino, params, estado)
+insert into public.mensagens (conta_id, paciente_id, template, canal, destino, params, estado, chave_idem)
   values (v_a_conta, v_ana, 'lembrete_de_sessao', 'whatsapp', '5511900000671',
-          '{"nome":"Ana","modo":"discreto"}'::jsonb, 'pendente')
+          '{"nome":"Ana","modo":"discreto"}'::jsonb, 'pendente', 'mao:1')
   returning id into v_msg;
 
 -- 2 · Pendente vai para a mão dela.
@@ -133,10 +133,19 @@ end if;
 
 -- 4 · Reservada (`enviando`) também vai. É o caso real: o worker reserva o lote
 --     antes de perguntar ao adaptador.
-insert into public.mensagens (conta_id, paciente_id, template, canal, destino, params, estado)
+insert into public.mensagens (conta_id, paciente_id, template, canal, destino, params, estado, chave_idem)
   values (v_a_conta, v_ana, 'lembrete_de_sessao', 'whatsapp', '5511900000671',
-          '{"nome":"Ana","modo":"discreto"}'::jsonb, 'enviando')
+          '{"nome":"Ana","modo":"discreto"}'::jsonb, 'pendente', 'mao:2')
   returning id into v_msg2;
+
+-- **Mensagem não nasce entregue, e o estado do `insert` é ignorado.**
+-- `mensagem_confere_retrato` é `before insert` e termina com
+-- `new.estado := 'pendente'`, de propósito. A suíte plantava `'enviando'` e
+-- `'enviada'` direto no insert: a de `'enviando'` virava pendente e a
+-- verificação 4 passava **pelo motivo errado** (testava de novo o caso da 2), e
+-- a de `'enviada'` também virava pendente, então a verificação 5 reprovava um
+-- produto que estava certo. O estado se muda depois, por `update`.
+update public.mensagens set estado = 'enviando' where id = v_msg2;
 
 select public.passar_para_a_sua_mao(v_msg2, 'sem provedor de mensagem configurado') into v_ok;
 select estado into v_situacao from public.mensagens where id = v_msg2;
@@ -145,10 +154,12 @@ if v_ok is not true or v_situacao <> 'na_sua_mao' then
 end if;
 
 -- 5 · O que já saiu NÃO volta.  ← decide
-insert into public.mensagens (conta_id, paciente_id, template, canal, destino, params, estado)
+insert into public.mensagens (conta_id, paciente_id, template, canal, destino, params, estado, chave_idem)
   values (v_a_conta, v_ana, 'lembrete_de_sessao', 'whatsapp', '5511900000671',
-          '{"nome":"Ana","modo":"discreto"}'::jsonb, 'enviada')
+          '{"nome":"Ana","modo":"discreto"}'::jsonb, 'pendente', 'mao:3')
   returning id into v_msg3;
+
+update public.mensagens set estado = 'enviada', enviada_em = now() where id = v_msg3;
 
 select public.passar_para_a_sua_mao(v_msg3, 'sem provedor') into v_ok;
 select estado into v_situacao from public.mensagens where id = v_msg3;
@@ -172,11 +183,14 @@ raise notice '--- parte 2 · a caixa e o relógio ---';
 
 -- Uma vaga com oferta enviada e vencida, e a mensagem daquela oferta posta na
 -- mão dela pelo caminho novo.
-insert into public.sessoes (conta_id, profissional_id, paciente_id, inicio, fim, estado, origem, valor)
+-- `sessoes_check1` amarra o estado à data: cancelada **é** ter `cancelada_em`
+-- preenchido, nos dois sentidos. A suíte plantava o estado sem a data.
+insert into public.sessoes (conta_id, profissional_id, paciente_id, inicio, fim, estado, origem,
+                            valor, cancelada_em, cancelada_por)
   values (v_a_conta, v_a_prof, v_ana,
           (v_hoje + 1)::timestamptz + interval '15 hours',
           (v_hoje + 1)::timestamptz + interval '15 hours 50 minutes',
-          'cancelada_cedo', 'enquadre', '200.00')
+          'cancelada_cedo', 'recorrencia', '200.00', now(), 'paciente')
   returning id into v_sessao;
 
 insert into public.ofertas (conta_id, sessao_id, paciente_id, estado, enviar_em, expira_em)
@@ -248,8 +262,8 @@ end;
 -- ============================================================ limpeza
 
 set local role postgres;
-delete from auth.users where id = v_a_auth;
 delete from public.contas where nome = 'Mao Teste';
+delete from auth.users where id = v_a_auth;
 reset role;
 
 raise notice 'OK · 0068 · a mensagem vai para a mão dela, e o que já saiu não volta';

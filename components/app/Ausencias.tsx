@@ -1,5 +1,6 @@
 "use client";
 
+import { Recado } from "@/components/app/campos";
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import {
@@ -50,12 +51,13 @@ function BotaoRemover() {
 }
 
 function Remover({ id }: { id: string }) {
-  const [, despachar] = useActionState(removerAusencia, INICIAL);
+  const [r, despachar] = useActionState(removerAusencia, INICIAL);
 
   return (
-    <form action={despachar}>
+    <form action={despachar} className="flex flex-col items-end gap-1">
       <input type="hidden" name="id" value={id} />
       <BotaoRemover />
+      <Recado r={r} />
     </form>
   );
 }

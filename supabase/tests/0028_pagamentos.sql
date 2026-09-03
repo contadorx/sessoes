@@ -26,7 +26,12 @@ declare
   base timestamptz;
 begin
   -- ---------------------------------------------------------------- preparo
-  delete from public.eventos_pagamento where provedor in ('teste','asaas');
+  -- Pelos eventos que ESTA suíte cria, e não por `provedor in ('teste','asaas')`:
+  -- `asaas` é provedor de verdade, e no dia em que a B16 ligar, o preâmbulo
+  -- apagaria o histórico de conciliação de todo mundo. Hoje não há nenhum, e
+  -- era assim que passava despercebido.
+  delete from public.eventos_pagamento
+   where evento_id in ('ev1','ev2','ev3','ev4','ev5','ev6','x');
   delete from public.recibos_rfb where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
   delete from public.cobrancas where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
   delete from public.mensagens where conta_id in (select id from public.contas where nome in ('Ana Solo','Bruna Solo'));
@@ -151,8 +156,10 @@ begin
   delete from public.mensagens where conta_id in (a_conta,b_conta);
   delete from public.sessoes where conta_id in (a_conta,b_conta);
   delete from public.pacientes where conta_id in (a_conta,b_conta);
-  delete from auth.users where id in (a_auth,b_auth);
+  -- A conta primeiro: `pacientes.profissional_id` e `registros.*` são RESTRICT,
+  -- e a cascata desce pela conta sem esbarrar neles.
   delete from public.contas where id in (a_conta,b_conta);
+  delete from auth.users where id in (a_auth,b_auth);
 
   raise notice 'B16 OK — 9 verificações, todas passaram';
 end $$;

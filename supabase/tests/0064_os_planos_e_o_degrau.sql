@@ -94,6 +94,10 @@ declare
                             'fila limitada'];
   v_achou   text;
   v_faixa   record;
+  -- O `por_vir` do Consultório, guardado antes das sondas 17 e 18.
+  v_solo_por_vir text[];
+  -- Um item REAL de `recursos` do Consultório, lido do banco pelas sondas.
+  v_um_recurso text;
 begin
 
 -- ============================================================ preâmbulo
@@ -425,42 +429,119 @@ raise notice 'ok 15 · nenhuma das oito palavras mortas está sendo vendida';
 --
 -- Se a 0064 tivesse só apagado as linhas, a página ficaria honesta e muda, e a
 -- pergunta "vocês vão ter NFS-e?" continuaria sem resposta em lugar nenhum.
+--
+-- **A comparação é sem caixa, e isso é a cicatriz.** A primeira redação usava
+-- `position('repasse' in t.p)` — sensível a caixa — contra texto que a 0064
+-- tinha escrito em minúsculas. Aí veio a **0070**, que reescreveu `por_vir`
+-- com a capitalização de tela ('Repasse e demonstrativo por profissional',
+-- 'Fila cruzada entre profissionais'), e esta verificação passou a contar 2 em
+-- vez de 4.
+--
+-- Ou seja: a suíte 0064 ficou **vermelha em silêncio desde a 0070**, exatamente
+-- como a 0053 ficou depois que a 0067 renomeou `recibos_rfb.emitido_em`. É a
+-- razão de o `verificar:sql` existir.
+--
+-- O conserto não é trocar 'repasse' por 'Repasse': isso só adia o mesmo defeito
+-- para a próxima vez que alguém reescrever a frase. É comparar sem caixa — que
+-- é o que a verificação 15, oito linhas acima **neste mesmo arquivo**, já fazia.
 select count(*)::integer into v_n
   from (select unnest(por_vir) as p from public.planos) t
- where position('NFS-e' in t.p) > 0
-    or position('repasse' in t.p) > 0
-    or position('salas' in t.p) > 0
-    or position('fila cruzada' in t.p) > 0;
+ where position('nfs-e' in lower(t.p)) > 0
+    or position('repasse' in lower(t.p)) > 0
+    or position('salas' in lower(t.p)) > 0
+    or position('fila cruzada' in lower(t.p)) > 0;
 if v_n < 4 then
   raise exception 'FALHOU 16: só % das quatro linhas prometidas aparecem em por_vir — apagar não é responder', v_n;
 end if;
 raise notice 'ok 16 · o que saiu de recursos foi para por_vir, sob rótulo';
 
+-- 17 e 18 · As duas sondas escrevem em `public.planos`, que é catálogo do
+-- produto e não tem `conta_id`: é a mesma tabela que a página pública de
+-- preços lê. Enquanto o check recusa, nada muda — mas se ele afrouxar um dia,
+-- a verificação deixa de reprovar e passa a **reescrever a promessa do plano
+-- Consultório para 'tudo do Gratuito'**, no banco, para todo mundo que abrir a
+-- página. É a mesma forma da sonda da 0056: o teste que existe para pegar um
+-- afrouxamento não pode, ao pegá-lo, estragar o produto.
+--
+-- Guardar antes e devolver depois custa duas linhas e tira a aposta.
+select por_vir into v_solo_por_vir from public.planos where codigo = 'solo';
+
 -- 17 · O banco recusa a mesma linha nas duas listas.  ← decide
+--
+-- **A sonda pega um item real de `recursos` e o devolve em minúsculas.** As
+-- duas metades dessa frase são cicatriz, e cada uma custou uma reprovação em
+-- 03/09.
+--
+-- *Minúsculas*, porque o check da 0064 era `not (recursos && por_vir)` e o `&&`
+-- de arrays é interseção **literal**. Enquanto as duas listas foram escritas na
+-- mesma sessão, isso bastou. A **0070** reescreveu as duas com a capitalização
+-- de tela, e a partir dali dava para vender 'Tudo do Gratuito' e prometer 'tudo
+-- do Gratuito' no mesmo cartão — a mesma frase, duas vezes, uma em "o que você
+-- tem" e outra em "em breve". A migração **0087** fechou isso, e é esta sonda
+-- que impede o buraco de voltar. Trocá-la para a grafia certa faria a suíte
+-- ficar verde e apagaria o achado: seria o antipadrão nº 4, o filtro que
+-- esconde o inconveniente.
+--
+-- *Item real*, porque a primeira redação escrevia o literal `'tudo do Gratuito'`
+-- na mão, e um literal só vale enquanto existir em `recursos` um item que seja
+-- exatamente aquela frase. A 0070 juntou linhas — 'modo Receita Saúde' virou
+-- 'Modo Receita Saúde e pasta do contador' — e foi assim que a sonda irmã, a
+-- 18, passou a repetir um pedaço em vez de uma linha e ficou vermelha em
+-- silêncio. Lendo do banco, as duas continuam valendo depois da próxima
+-- reescrita de texto: é a lei 7 aplicada à sonda.
+select r into v_um_recurso
+  from public.planos pl, unnest(pl.recursos) r
+ where pl.codigo = 'solo' limit 1;
+if v_um_recurso is null then
+  raise exception 'FALHOU 17: o Consultório não tem recurso nenhum para a sonda repetir';
+end if;
+
 v_erro := null;
 begin
   set local role postgres;
-  update public.planos set por_vir = array['tudo do Gratuito'] where codigo = 'solo';
+  update public.planos set por_vir = array[lower(v_um_recurso)] where codigo = 'solo';
   reset role;
 exception when others then
   v_erro := sqlerrm;
   reset role;
 end;
 if v_erro is null then
-  raise exception 'FALHOU 17: o banco aceitou vender e prometer a mesma linha';
+  raise exception 'FALHOU 17: o banco aceitou vender e prometer "%" com outra caixa — é o buraco que a 0087 fechou, e ele voltou', v_um_recurso;
 end if;
-raise notice 'ok 17 · vender e prometer a mesma coisa é recusado pelo banco';
+
+-- E o espaço nas bordas também: uma frase e a mesma frase com espaço colado
+-- são iguais para quem lê, e espaço colado é o erro de digitação mais provável
+-- de todos.
+v_erro := null;
+begin
+  set local role postgres;
+  update public.planos set por_vir = array['  ' || v_um_recurso || '  '] where codigo = 'solo';
+  reset role;
+exception when others then
+  v_erro := sqlerrm;
+  reset role;
+end;
+if v_erro is null then
+  raise exception 'FALHOU 17: o banco aceitou a mesma linha com espaço nas bordas';
+end if;
+raise notice 'ok 17 · vender e prometer a mesma coisa é recusado, com outra caixa e com espaço';
 
 -- 18 · E recusa também quando a interseção é de um item entre muitos.
 --
 -- É o caso realista: ninguém vai duplicar uma lista inteira. O que acontece é
 -- alguém acrescentar uma linha a `por_vir` sem lembrar que ela já está em
 -- `recursos` — e é exatamente esse `update` que precisa cair.
+--
+-- O item repetido no meio sai do banco pelo mesmo motivo da 17: escrito à mão,
+-- ele era 'modo Receita Saúde', e a 0070 reescreveu o recurso para 'Modo
+-- Receita Saúde e pasta do contador'. A sonda passou a repetir um pedaço em vez
+-- de uma linha, o check (que compara itens inteiros, e é o certo) deixou
+-- passar, e esta verificação ficou vermelha em silêncio junto com a 16.
 v_erro := null;
 begin
   set local role postgres;
   update public.planos
-     set por_vir = array['coisa nova A', 'modo Receita Saúde', 'coisa nova B']
+     set por_vir = array['coisa nova A', v_um_recurso, 'coisa nova B']
    where codigo = 'solo';
   reset role;
 exception when others then
@@ -469,6 +550,14 @@ exception when others then
 end;
 if v_erro is null then
   raise exception 'FALHOU 18: a interseção de um item só passou';
+end if;
+
+-- E o catálogo volta ao que era, tenha o check segurado ou não.
+set local role postgres;
+update public.planos set por_vir = v_solo_por_vir where codigo = 'solo';
+reset role;
+if (select por_vir from public.planos where codigo = 'solo') is distinct from v_solo_por_vir then
+  raise exception 'FALHOU 18: as sondas mexeram no catálogo de planos e ele não voltou ao que era';
 end if;
 raise notice 'ok 18 · um item repetido entre muitos também é recusado';
 
@@ -567,40 +656,59 @@ if v_txt is not null then
 end if;
 raise notice 'ok 24 · só faixa_da_conta lê a faixa, e ela só devolve números';
 
--- 25 · "sem faixa de sessões" no cartão exige `faixa_e_fair_use` no banco.
+-- 25 · Dizer "sem limite" tendo número no banco exige `faixa_e_fair_use`.
 --
--- **Esta verificação existe porque uma leitura externa achou a contradição
--- aparente**, e a contradição é real se as duas metades se separarem: o
--- Consultório Completo e a Clínica dizem "sem faixa de sessões" em `recursos` e
--- têm `limite_sessoes_mes = 200` no banco.
+-- **Esta verificação foi reescrita em 03/09, e a reescrita é o registro de uma
+-- decisão que mudou.** A redação original exigia a frase *"sem faixa de
+-- sessões"* no cartão. Ela reprovou o produto — e o produto estava certo.
 --
--- As duas coisas convivem por causa de uma terceira: `faixa_e_fair_use`. Com
--- ela ligada, o 200 é número **meu** — serve para eu enxergar a clínica
--- disfarçada de autônoma — e o `lib/faixa.ts` cala: `nivelDaFaixa` devolve
--- "nenhum", `fraseDaFaixa` devolve string vazia, `fraseDoRestante` diz "seu
--- plano não tem faixa de sessões". A página e a tela dizem a mesma coisa.
+-- O que aconteceu: o `CLAUDE.md` §5 põe *faixa* (quando significa cota de
+-- plano) na lista do jargão que não pode ser rótulo de tela, e a página de
+-- preços foi corrigida para dizer **"Sessões sem limite"**. A suíte continuou
+-- cobrando a frase antiga — a frase que o produto tinha acabado de deixar de
+-- dizer, de propósito. É o caso que o §8 nomeia: quando a decisão muda, a suíte
+-- passa a provar o contrário do que provava.
 --
--- O que **não** pode acontecer é alguém desligar o fair-use e deixar a frase.
--- Aí o cartão venderia "sem faixa" e a tela dela começaria a avisar que faltam
--- 12 sessões — a página mentindo numa das duas pontas.
+-- E ao reescrever apareceu que a regra antiga era grossa demais. O **Gratuito**
+-- também diz "Sessões sem limite" e **não** tem fair-use — e está certo: o
+-- `limite_sessoes_mes` dele é nulo, então a frase é literalmente verdade, sem
+-- precisar de nenhum acordo por trás.
+--
+-- A regra fina é sobre a contradição de verdade: dizer "sem limite" **tendo um
+-- número no banco**. Aí, e só aí, o fair-use é o que faz as duas coisas
+-- conviverem — com ele ligado o número é meu (serve para eu enxergar a clínica
+-- disfarçada de autônoma) e o `lib/faixa.ts` cala. Sem ele, a tela começaria a
+-- avisar que faltam 12 sessões numa conta cujo cartão promete não contar.
 select string_agg(pl.codigo, ', ') into v_txt
   from public.planos pl
- where exists (select 1 from unnest(pl.recursos) r where position('sem faixa' in r) > 0)
+ where pl.limite_sessoes_mes is not null
+   and exists (select 1 from unnest(pl.recursos) r where position('sem limite' in lower(r)) > 0)
    and not pl.faixa_e_fair_use;
 if v_txt is not null then
-  raise exception 'FALHOU 25: % diz(em) "sem faixa" no cartão sem faixa_e_fair_use — a tela vai contar sessões que a página promete não contar', v_txt;
+  raise exception 'FALHOU 25: % diz(em) "sem limite" no cartão, tem(êm) número em limite_sessoes_mes e não tem(êm) fair-use — a tela vai contar sessões que a página promete não contar', v_txt;
 end if;
 
--- E o contrário: fair-use ligado sem a frase seria o número virando faixa
+-- E o contrário: fair-use ligado sem a frase seria o número virando cota
 -- vendida por omissão.
 select string_agg(pl.codigo, ', ') into v_txt
   from public.planos pl
  where pl.faixa_e_fair_use
-   and not exists (select 1 from unnest(pl.recursos) r where position('sem faixa' in r) > 0);
+   and not exists (select 1 from unnest(pl.recursos) r where position('sem limite' in lower(r)) > 0);
 if v_txt is not null then
-  raise exception 'FALHOU 25: % tem fair-use e não diz "sem faixa" — o número vira faixa vendida por omissão', v_txt;
+  raise exception 'FALHOU 25: % tem fair-use e não diz "sem limite" — o número vira cota vendida por omissão', v_txt;
 end if;
-raise notice 'ok 25 · "sem faixa" no cartão e fair-use no banco andam juntos, nos dois sentidos';
+
+-- E a palavra proibida não voltou por nenhuma das duas listas. O §5 tira
+-- *faixa* da tela, e `recursos`/`por_vir` são texto de tela: eles alimentam o
+-- cartão da página pública, que é onde a violação anterior morava.
+select string_agg(pl.codigo, ', ') into v_txt
+  from public.planos pl
+ where exists (select 1 from unnest(pl.recursos || pl.por_vir) t
+                where position('faixa' in lower(t)) > 0);
+if v_txt is not null then
+  raise exception 'FALHOU 25: % usa(m) a palavra "faixa" no cartão — é jargão do sistema, e o §5 o proíbe como rótulo de tela', v_txt;
+end if;
+raise notice 'ok 25 · "sem limite" e o número no banco andam juntos, e a palavra faixa não voltou';
 
 -- 26 · O número próprio só é prometido no plano em que ele vai morar.
 --

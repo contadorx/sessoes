@@ -1,6 +1,6 @@
 # P8 · O assistente do Receita Saúde
 
-**1 dia · migração: a definir (0066 já é da B44) · oitava da fila**
+**1 dia · migrações: 0067 e 0067b (aplicadas em 02/09, antes de a build abrir) · oitava da fila**
 *O doc de origem é o `claude/25`. Subiu de prioridade pela auditoria de UX.*
 
 ---
@@ -56,13 +56,13 @@ e-CAC.
 
 ## Pronto quando
 
-- [ ] **copiar e colar produz o recibo sem digitar nada — verificado fazendo uma
+- [x] **copiar e colar produz o recibo sem digitar nada — verificado fazendo uma
       vez**, com CPF e valor;
-- [ ] marcar como emitido baixa a pendência, e **nenhuma tela escreve "emitido"
+- [x] marcar como emitido baixa a pendência, e **nenhuma tela escreve "emitido"
       sem o "por você" junto**;
-- [ ] mudar o ritmo hoje não reenvia nada do passado;
-- [ ] conta PJ não recebe nada disso;
-- [ ] a **suíte adversarial planta um valor com cara de credencial gov.br e
+- [x] mudar o ritmo hoje não reenvia nada do passado;
+- [x] conta PJ não recebe nada disso;
+- [x] a **suíte adversarial planta um valor com cara de credencial gov.br e
       reprova qualquer coluna que o aceite**.
 
 ---

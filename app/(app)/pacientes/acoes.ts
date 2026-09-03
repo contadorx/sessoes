@@ -7,6 +7,8 @@ import { db, ErroDeBanco } from "@/lib/db";
 import { supabaseSessao } from "@/lib/supabase/server";
 import { sessaoAtual } from "@/lib/conta";
 import { validarPaciente } from "@/lib/paciente";
+import { combinadoTocado } from "@/lib/enquadre";
+import { proximaSessaoDo } from "./dados";
 import { hoje } from "@/lib/tempo-servidor";
 import { adaptadorPara } from "@/lib/pagamentos/adaptadores";
 import { deCentavos, paraCentavos } from "@/lib/dinheiro";
@@ -33,7 +35,24 @@ function lerEnquadre(form: FormData): {
   const hora = String(form.get("hora") ?? "").trim();
   const valorBruto = String(form.get("valor") ?? "").trim();
 
-  if (hora === "" && valorBruto === "") return { erros: [], porCampo: {}, dados: null };
+  // A seção inteira intocada continua sendo "sem combinado", e é legítimo: o
+  // cadastro de alguém em triagem não tem dia nem valor ainda. O que deixou de
+  // ser aceito é a seção tocada pela metade — ver `combinadoTocado`.
+  const tocado = combinadoTocado({
+    hora,
+    valor: valorBruto,
+    dia_semana: String(form.get("dia_semana") ?? ""),
+    duracao_min: String(form.get("duracao_min") ?? ""),
+    modelo_cobranca: String(form.get("modelo_cobranca") ?? ""),
+    mensalidade_valor: String(form.get("mensalidade_valor") ?? ""),
+    social: caixaMarcada(form, "social"),
+    falta_cobra_a_parte: caixaMarcada(form, "falta_cobra_a_parte"),
+    politica_horas: String(form.get("politica_horas") ?? ""),
+    politica_percentual: String(form.get("politica_percentual") ?? ""),
+    confirmacao_horas_antes: String(form.get("confirmacao_horas_antes") ?? ""),
+  });
+
+  if (!tocado) return { erros: [], porCampo: {}, dados: null };
 
   const erros: string[] = [];
   const porCampo: Record<string, string> = {};
@@ -46,6 +65,15 @@ function lerEnquadre(form: FormData): {
 
   const valorCentavos = lerCentavos(valorBruto);
   if (valorCentavos === null) problema("valor", "Informe o valor da sessão.");
+
+  // A frase que faltava. Sem ela, ela vê "informe o horário" num formulário
+  // onde não digitou horário nenhum e não sabe por que ele passou a ser
+  // obrigatório agora — o que mudou foi ela ter mexido no resto da seção.
+  if (hora === "" && valorBruto === "") {
+    erros.push(
+      "Você preencheu parte do combinado. Sem hora e valor não nasce sessão nenhuma dele: preencha os dois, ou deixe a seção como estava.",
+    );
+  }
 
   const dia = Number(form.get("dia_semana"));
   if (!Number.isInteger(dia) || dia < 0 || dia > 6) problema("dia_semana", "Escolha o dia da semana.");
@@ -137,6 +165,7 @@ export async function criarPaciente(_anterior: Resultado, form: FormData): Promi
 
   const supabase = await supabaseSessao();
   let id: string;
+  let criada: { id: string; inicio: string } | null = null;
 
   try {
     const criado = await db(
@@ -156,13 +185,19 @@ export async function criarPaciente(_anterior: Resultado, form: FormData): Promi
         "enquadres.criar",
         supabase.from("enquadres").insert({ ...enquadre.dados, paciente_id: id }),
       );
+      // O gatilho do combinado materializa as sessões no mesmo insert, então a
+      // primeira já existe aqui. Ela vai no endereço para a ficha poder dizer
+      // **o que foi criado** — antes, salvar levava para uma ficha muda, e a
+      // pergunta que sobrava era se a sessão de terça existia ou não.
+      criada = await proximaSessaoDo(id);
     }
   } catch (e) {
     return { estado: "erro", erros: [traduzir(e)] };
   }
 
   revalidatePath("/pacientes");
-  redirect(`/pacientes/${id}`);
+  revalidatePath("/agenda");
+  redirect(criada ? `/pacientes/${id}?criada=1` : `/pacientes/${id}`);
 }
 
 export async function atualizarPaciente(_anterior: Resultado, form: FormData): Promise<Resultado> {

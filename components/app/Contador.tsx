@@ -57,6 +57,7 @@ export function PainelContador({
   ativa,
   pastas,
   mesesFechaveis,
+  envioPorEmail,
 }: {
   email: string | null;
   nome: string | null;
@@ -64,6 +65,13 @@ export function PainelContador({
   ativa: boolean;
   pastas: PastaLinha[];
   mesesFechaveis: string[];
+  /**
+   * O adaptador de e-mail com anexo existe? (B25 — falta provedor.) Esta tela
+   * coleta "e-mail do contador" e "dia do envio", e dizia *"marque o envio
+   * automático e o primeiro sai sozinho"*. Sem adaptador nada sai: o que
+   * acontece no dia marcado é a pasta **ficar pronta**, e ela mesma manda.
+   */
+  envioPorEmail: boolean;
 }) {
   const [rSalvar, salvar] = useActionState(salvarContador, INICIAL);
   const [rFechar, fechar] = useActionState(fecharMes, INICIAL);
@@ -91,7 +99,7 @@ export function PainelContador({
             </div>
             <div>
               <label htmlFor="pasta_dia" className="text-[12px] font-medium text-tinta2">
-                Dia do envio
+                {envioPorEmail ? "Dia do envio" : "Dia em que a pasta fica pronta"}
               </label>
               <input
                 id="pasta_dia"
@@ -181,8 +189,9 @@ export function PainelContador({
 
         {pastas.length === 0 ? (
           <p className="mt-2 rounded-cartao border border-linha bg-folha2 px-5 py-4 text-[13px] leading-relaxed text-tinta2">
-            Nenhum mês fechado ainda. Feche um acima, ou marque o envio automático e o
-            primeiro sai sozinho.
+            {envioPorEmail
+              ? "Nenhum mês fechado ainda. Feche um acima, ou marque o envio automático e o primeiro sai sozinho."
+              : "Nenhum mês fechado ainda. Feche um acima, ou marque o fechamento automático: no dia marcado a pasta fica pronta aqui, e você manda para o contador."}
           </p>
         ) : (
           <ul className="mt-3 space-y-3">

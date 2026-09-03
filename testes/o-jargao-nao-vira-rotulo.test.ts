@@ -89,8 +89,28 @@ function fala(fonte: string): string[] {
 const SO_DELA = (caminho: string) =>
   !caminho.startsWith("app/(app)/negocio") && !/components\/app\/Negocio/.test(caminho);
 
-const TELAS = ["app/(app)", "components/app"]
+/**
+ * **A página pública entrou em 03/09, e ela era o buraco.**
+ *
+ * A varredura lia só a área logada, e o jargão estava no texto que vem antes
+ * dela: a página de preços dizia *"Sem faixa de sessões"* em dois cartões e
+ * *"Régua de atraso impessoal"* num terceiro, e a landing dizia *"quando você
+ * interrompe a régua"*. As duas regras já estavam declaradas aqui embaixo,
+ * com a perífrase pronta — só ninguém olhava para lá.
+ *
+ * O efeito é o pior possível para uma regra de vocabulário: o produto usava a
+ * linguagem certa depois que ela assinava e a errada enquanto ela decidia se
+ * assinava. Quem lê a landing ainda não tem contexto nenhum para adivinhar o
+ * que "faixa" e "régua" querem dizer.
+ *
+ * `lib/planos.ts` entra na varredura por nome: ele não é tela, é a fonte dos
+ * cartões que a landing renderiza — o texto sai daqui e vira pixel lá.
+ */
+const PUBLICO = ["app/(site)", "components/site"];
+
+const TELAS = ["app/(app)", "components/app", ...PUBLICO]
   .flatMap((d) => arquivos(join(RAIZ, d)))
+  .concat([join(RAIZ, "lib/planos.ts")])
   .filter((c) => SO_DELA(relative(RAIZ, c)))
   .map((caminho) => ({
     caminho: relative(RAIZ, caminho),

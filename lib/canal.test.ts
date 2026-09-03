@@ -10,6 +10,12 @@ import {
   SEM_RESUMO,
   type NaMao,
   type ResumoManual,
+  fraseDaOferta,
+  ofertaSaiu,
+  fraseDaFilaOferece,
+  fraseDaReguaVazia,
+  fraseDaReguaAndando,
+  notaDoComoAvisar,
 } from "./canal";
 
 const msg = (p: Partial<NaMao> = {}): NaMao => ({
@@ -186,5 +192,82 @@ describe("sem texto não há link", () => {
 
   it("com texto, continua devolvendo o link de sempre", () => {
     expect(linkDoWhatsapp("5511999998888", "oi")).toContain("wa.me/5511999998888");
+  });
+});
+
+// ============================== o tempo verbal da oferta, e as frases de canal
+
+/*
+  A oferta criada às 2h só tenta sair às 8h, e a tela dizia "Oferta enviada".
+  Estes casos são a lista de estados do `check` de `mensagens.estado` no banco,
+  e o último é o estado que ninguém previu.
+*/
+describe("fraseDaOferta — só fala no passado quando saiu", () => {
+  const AS_OITO = "2026-09-04T11:00:00.000Z"; // 08:00 em São Paulo
+  const DUAS_DA_MANHA = new Date("2026-09-04T05:00:00.000Z");
+
+  it("enviada e entregue são as únicas que autorizam o passado", () => {
+    expect(ofertaSaiu("enviada")).toBe(true);
+    expect(ofertaSaiu("entregue")).toBe(true);
+    for (const e of ["pendente", "enviando", "falhou", "cancelada", "na_sua_mao",
+                     "barrada_no_teto", null, "estado_que_ninguem_previu"]) {
+      expect(ofertaSaiu(e), String(e)).toBe(false);
+    }
+  });
+
+  it("saiu: fala no passado", () => {
+    expect(fraseDaOferta({ mensagem: "enviada", enviarEm: null })).toContain("Oferta enviada");
+  });
+
+  it("na janela de silêncio: diz a hora, e no futuro", () => {
+    const f = fraseDaOferta({ mensagem: "pendente", enviarEm: AS_OITO }, DUAS_DA_MANHA);
+    expect(f).toContain("sai às 08:00");
+    expect(f).not.toContain("Oferta enviada");
+  });
+
+  it("hora já passada não vira promessa de horário", () => {
+    const f = fraseDaOferta({ mensagem: "pendente", enviarEm: AS_OITO }, new Date("2026-09-04T14:00:00.000Z"));
+    expect(f).toBe("Oferta preparada. A mensagem ainda não saiu.");
+  });
+
+  it("na mão dela, barrada no teto e sem mensagem: cada uma diz o que houve", () => {
+    expect(fraseDaOferta({ mensagem: "na_sua_mao", enviarEm: null })).toContain("Na sua mão");
+    expect(fraseDaOferta({ mensagem: "barrada_no_teto", enviarEm: null })).toContain("limite de mensagens");
+    expect(fraseDaOferta({ mensagem: null, enviarEm: null })).toContain("Ninguém foi avisado");
+  });
+
+  it("estado novo cai no seguro: não afirma envio", () => {
+    const f = fraseDaOferta({ mensagem: "estado_que_ninguem_previu", enviarEm: null });
+    expect(f).toContain("ainda não saiu");
+  });
+});
+
+describe("as frases de canal derivam do mesmo estado", () => {
+  it("no manual, nenhuma delas diz que o sistema faz sozinho", () => {
+    const manuais = [
+      fraseDaFilaOferece(false),
+      fraseDaReguaVazia(false),
+      fraseDaReguaAndando(false, 3),
+      notaDoComoAvisar(false),
+    ];
+    for (const f of manuais) {
+      expect(f, f).not.toMatch(/não pede nada a ninguém|sistema lembra|sistema está lembrando|remetente neutro/);
+    }
+  });
+
+  it("no manual, a fila e o cadastro dizem de qual número sai", () => {
+    expect(fraseDaFilaOferece(false)).toContain("seu WhatsApp");
+    expect(notaDoComoAvisar(false)).toContain("seu número");
+  });
+
+  it("com provedor, as frases voltam a poder afirmar", () => {
+    expect(fraseDaFilaOferece(true)).toContain("Você não pede nada a ninguém");
+    expect(fraseDaReguaAndando(true, 3)).toBe("O sistema está lembrando 3 delas.");
+  });
+
+  it("zero lembretes não afirma envio em nenhum dos dois casos", () => {
+    for (const a of [true, false]) {
+      expect(fraseDaReguaAndando(a, 0)).toBe("Nenhum lembrete vai sair — os motivos estão abaixo.");
+    }
   });
 });

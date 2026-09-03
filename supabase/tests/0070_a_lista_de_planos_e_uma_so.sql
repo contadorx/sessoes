@@ -21,6 +21,15 @@
 -- caixa baixa por convenção da casa, e isso é apresentação. Conteúdo diferente
 -- reprova.
 --
+-- **Três linhas esperadas mudaram em 03/09, e é assim que tem de ser.** A 0078
+-- tirou da página de preços as duas últimas palavras que o `CLAUDE.md` §5
+-- proíbe como rótulo — "faixa" querendo dizer cota, "régua" querendo dizer a
+-- sequência de lembretes. Uma suíte que continuasse exigindo as frases antigas
+-- estaria provando a decisão revogada, que é o que aconteceu com a 0022 quando
+-- o P4 tirou a cobrança automática. A lista canônica desta suíte é sempre a da
+-- **última** migração que escreveu cada campo; do outro lado do espelho,
+-- `lib/planos.test.ts` varre a pasta inteira em vez de nomear um arquivo.
+--
 -- Levanta exceção no primeiro furo. Silêncio = passou.
 -- Rodar com: supabase db execute -f supabase/tests/0070_a_lista_de_planos_e_uma_so.sql
 
@@ -71,7 +80,7 @@ v_esperado := array[
     lower('A fila e a cobrança saem sozinhas, na hora em que a vaga abre'),
     lower('60 sessões por mês'),
     lower('Modo Receita Saúde e pasta do contador'),
-    lower('Régua de atraso impessoal'),
+    lower('Lembrete de atraso impessoal, para você não puxar o assunto'),
     lower('Receita por hora disponível e o que aconteceu com cada horário')
   ];
 select array_agg(lower(x) order by ord) into v_achado
@@ -93,7 +102,7 @@ end if;
 -- 6 · pro · recursos
 v_esperado := array[
     lower('Tudo do Consultório'),
-    lower('Sem faixa de sessões'),
+    lower('Sessões sem limite'),
     lower('Permissões por pessoa: quem vê o quê')
   ];
 select array_agg(lower(x) order by ord) into v_achado
@@ -122,7 +131,7 @@ end if;
 v_esperado := array[
     lower('Tudo do Consultório Completo'),
     lower('Vários profissionais, com sigilo entre eles por construção'),
-    lower('Sem faixa de sessões, por profissional que atende')
+    lower('Sessões sem limite, com quantos profissionais você tiver')
   ];
 select array_agg(lower(x) order by ord) into v_achado
   from public.planos p, unnest(p.recursos) with ordinality as t(x, ord)

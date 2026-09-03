@@ -16,11 +16,12 @@ import {
   resumoDoEnvioManual,
   cockpitDoMes,
   alertasARever,
+  diaDaSessao,
 } from "./dados";
 import { Semana } from "@/components/app/Semana";
 import { Retorno } from "@/components/app/Retorno";
 import { Ausencias } from "@/components/app/Ausencias";
-import { Encaixe } from "@/components/app/Encaixe";
+import { MarcarSessao } from "@/components/app/NovaSessao";
 import { semanaDe, rotuloSemana, somarDias } from "@/lib/semana";
 import { hoje } from "@/lib/tempo-servidor";
 import { FaixaDeConfirmacoes, NumerosDaConfirmacao } from "@/components/app/Confirmacoes";
@@ -45,12 +46,19 @@ export const metadata = { title: "Agenda" };
 export default async function Agenda({
   searchParams,
 }: {
-  searchParams: Promise<{ semana?: string }>;
+  searchParams: Promise<{ semana?: string; novo?: string; sessao?: string }>;
 }) {
-  const { semana: pedida } = await searchParams;
+  const { semana: pedida, novo, sessao: sessaoPedida } = await searchParams;
   const hojeStr = hoje();
 
-  const referencia = /^\d{4}-\d{2}-\d{2}$/.test(pedida ?? "") ? pedida! : hojeStr;
+  // Os dois parâmetros que o menu Novo e a faixa de confirmações já mandavam
+  // para cá, e que esta página não lia. `semana` explícita ganha de `sessao`:
+  // quem navegou para uma semana e clicou num link de sessão está dizendo as
+  // duas coisas, e a última que ela tocou é a semana.
+  const diaDaPedida = sessaoPedida ? await diaDaSessao(sessaoPedida) : null;
+  const referencia = /^\d{4}-\d{2}-\d{2}$/.test(pedida ?? "")
+    ? pedida!
+    : (diaDaPedida ?? hojeStr);
   const semana = semanaDe(referencia);
 
   const [sessao, sessoes, ausencias, aRever, ate, pacientes, retorno, prazos, comeco, confirmacoes,
@@ -237,6 +245,7 @@ export default async function Agenda({
           cobrancas={cobrancas}
           hoje={hojeStr}
           acessos={acessos}
+          selecionada={diaDaPedida ? sessaoPedida : null}
         />
       </div>
 
@@ -282,7 +291,11 @@ export default async function Agenda({
       </div>
 
       <div className="mt-8">
-        <Encaixe pacientes={pacientes} dias={semana.dias} />
+        <MarcarSessao
+          pacientes={pacientes}
+          dias={semana.dias}
+          abrirDeInicio={novo === "sessao"}
+        />
       </div>
 
       <div className="mt-10">

@@ -95,3 +95,75 @@ export function resumoDoEnquadre(e: {
     rotuloPolitica({ horas: e.politica_horas, percentual: e.politica_percentual }),
   ].join(" · ");
 }
+
+// ============================================ a seção do combinado foi tocada?
+
+/**
+ * Os padrões da seção "O combinado" — **num lugar só.**
+ *
+ * `CamposEnquadre` nasce com estes valores e `lerEnquadre` decide por eles se a
+ * seção foi tocada. Enquanto eram duas listas, o dia padrão do formulário podia
+ * mudar para segunda e o servidor continuaria achando que terça é "intocado":
+ * um combinado inteiro passaria por não-preenchido, que é o defeito que esta
+ * função existe para fechar.
+ */
+export const PADRAO_ENQUADRE = {
+  dia_semana: 2,
+  duracao_min: 50,
+  modelo_cobranca: "avulso",
+  politica_horas: 24,
+  politica_percentual: 50,
+} as const;
+
+export type CamposDoCombinado = {
+  hora: string;
+  valor: string;
+  dia_semana: string;
+  duracao_min: string;
+  modelo_cobranca: string;
+  mensalidade_valor: string;
+  social: boolean;
+  falta_cobra_a_parte: boolean;
+  politica_horas: string;
+  politica_percentual: string;
+  confirmacao_horas_antes: string;
+};
+
+/**
+ * Ela mexeu em alguma coisa do combinado?
+ *
+ * O que isto conserta: `lerEnquadre` devolvia "sem combinado" quando hora **e**
+ * valor estavam vazios, e devolvia isso **antes** de olhar dia, duração,
+ * modelo de cobrança, política de falta e confirmação. Quem preenchia o dia,
+ * escolhia mensalista e ajustava a política, mas pulava a hora, criava a
+ * paciente e perdia o combinado inteiro — sem erro, sem aviso, sem nada na
+ * tela. Ela descobriria na semana seguinte, quando nenhuma sessão nascesse.
+ *
+ * Campo em branco conta como intocado, e não como zero: `politica_percentual`
+ * vazio não é "não cobro nada".
+ */
+export function combinadoTocado(c: CamposDoCombinado): boolean {
+  const texto = (v: string) => v.trim() !== "";
+  if (texto(c.hora) || texto(c.valor) || texto(c.mensalidade_valor)) return true;
+  if (texto(c.confirmacao_horas_antes)) return true;
+  if (c.social || c.falta_cobra_a_parte) return true;
+
+  if (texto(c.modelo_cobranca) && c.modelo_cobranca !== PADRAO_ENQUADRE.modelo_cobranca) {
+    return true;
+  }
+
+  const numeros: [string, number][] = [
+    [c.dia_semana, PADRAO_ENQUADRE.dia_semana],
+    [c.duracao_min, PADRAO_ENQUADRE.duracao_min],
+    [c.politica_horas, PADRAO_ENQUADRE.politica_horas],
+    [c.politica_percentual, PADRAO_ENQUADRE.politica_percentual],
+  ];
+  for (const [bruto, padrao] of numeros) {
+    if (!texto(bruto)) continue;
+    const n = Number(bruto);
+    // Valor que não é número é mexida — e cai na validação, que diz onde.
+    if (!Number.isFinite(n) || n !== padrao) return true;
+  }
+
+  return false;
+}

@@ -483,3 +483,27 @@ begin
   raise notice 'parte 5 · rastro recolhido: ok';
   raise notice '=== 0041 · a falta como dado clínico: 20 verificações, todas passaram ===';
 end $do$;
+
+-- ==================== o desmonte
+--
+-- O preâmbulo limpa o rastro da rodada passada; este bloco limpa o da rodada
+-- de agora. Só o segundo devolve o banco como o encontrou — e sem ele a conta
+-- fica de pé com `is_teste = false`, porque quem nasce pelo gatilho de
+-- `auth.users` nasce como conta de verdade e vira linha em toda métrica de
+-- operação do painel do negócio.
+--
+-- A conta leva o resto por cascata; o `auth.users` sai depois dela, porque
+-- `pacientes.profissional_id` e `registros.profissional_id` são RESTRICT e a
+-- ordem inversa trava.
+do $do$
+declare c uuid;
+begin
+  for c in select id from public.contas where nome in ('Ana Solo','Bia Outra') loop
+    delete from public.contas where id = c;
+  end loop;
+  delete from auth.users where id in ('11111111-1111-4111-8111-111111111111',
+                                      '22222222-2222-4222-8222-222222222222');
+  if exists (select 1 from public.contas where nome in ('Ana Solo','Bia Outra')) then
+    raise exception 'DESMONTE FUROU: sobrou conta de teste no banco'; end if;
+  raise notice 'desmonte: ok';
+end $do$;

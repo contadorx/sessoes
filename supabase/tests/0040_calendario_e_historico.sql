@@ -44,6 +44,9 @@
 --  31. o anônimo não lê nem executa nada
 --  32. função de gatilho não é rota: nem logado nem anônimo a executa
 --
+-- E no fim o desmonte, que a suíte não tinha: conta de teste que fica de pé
+-- vira linha nas métricas do painel do negócio.
+--
 -- Levanta exceção no primeiro furo. Silêncio = passou.
 -- Rodar com: supabase db execute -f supabase/tests/0040_calendario_e_historico.sql
 
@@ -709,4 +712,31 @@ begin
   reset role;
   raise notice 'parte 6 · isolamento e o anônimo: ok';
   raise notice '=== 0040 · calendário e histórico: 32 verificações, todas passaram ===';
+end $do$;
+
+-- ==================== o desmonte
+--
+-- A 0040 nasceu sem esta parte. Rodar a suíte deixava três contas de pé —
+-- 'Ana Solo', 'Bia Colega' (que a parte 1 funde na conta da Ana) e
+-- 'Bia Outra' — todas com `is_teste = false`, porque quem nasce pelo gatilho
+-- de `auth.users` nasce como conta de verdade. Conta de teste que fica é
+-- linha a mais em toda métrica de operação do painel do negócio.
+--
+-- A conta leva o resto por cascata; o `auth.users` sai depois dela, porque
+-- `pacientes.profissional_id` é RESTRICT e a ordem inversa trava.
+do $do$
+declare
+  a_auth uuid := '11111111-1111-4111-8111-111111111111';
+  b_auth uuid := '22222222-2222-4222-8222-222222222222';
+  c_auth uuid := '33333333-3333-4333-8333-333333333333';
+  c uuid;
+begin
+  for c in select id from public.contas where nome in ('Ana Solo','Bia Colega','Bia Outra') loop
+    delete from public.contas where id = c;
+  end loop;
+  delete from auth.users where id in (a_auth, b_auth, c_auth);
+
+  if exists (select 1 from public.contas where nome in ('Ana Solo','Bia Colega','Bia Outra')) then
+    raise exception 'DESMONTE FUROU: sobrou conta de teste no banco'; end if;
+  raise notice 'desmonte: ok';
 end $do$;

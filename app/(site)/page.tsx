@@ -8,7 +8,7 @@ import { UltimosTextos } from "@/components/site/UltimosTextos";
 import { RodapeDoSite } from "@/components/site/Moldura";
 import { Confirmar } from "@/components/app/Confirmar";
 import { PLANOS, ROTULO_POR_VIR, precoDeTabela, precoDaClinicaCom } from "@/lib/planos";
-import { fraseDoEnvioAutomatico } from "@/lib/promessa";
+import { fraseDoEnvioAutomatico, envioAutomaticoLigado } from "@/lib/promessa";
 import { formatar } from "@/lib/dinheiro";
 import {
   AgendaEExtrato,
@@ -208,6 +208,11 @@ function Cartao({
 export const revalidate = 300;
 
 export default function Home() {
+  // O único estado que a página pública consulta, e ela consulta o mesmo que a
+  // área logada: `lib/promessa.ts` pergunta ao adaptador de mensageria. Sem
+  // isto, a landing afirmava envio automático em dois lugares.
+  const automatico = envioAutomaticoLigado();
+
   return (
     <>
       {/* ---------------- topo ---------------- */}
@@ -392,8 +397,8 @@ export default function Home() {
             <Cartao titulo="A cobrança segue o ritmo que você definiu">
               O lembrete de pagamento em atraso não vem de você. Vem da agenda,
               no dia que você escolheu, no mesmo texto neutro. Ele para quando o
-              pagamento é identificado, ou quando você interrompe a régua. É
-              para você não precisar puxar o assunto.
+              pagamento é identificado, ou quando você manda parar. É para você
+              não precisar puxar o assunto.
             </Cartao>
             <Cartao titulo="No fim do mês, o contador recebe pronto">
               Receitas, estornos, recibos, taxas e pendências no formato que ele
@@ -545,7 +550,7 @@ export default function Home() {
           titulo="O horário é oferecido a quem pediu para ser avisado, no valor combinado."
           linha="Uma pessoa por vez, na ordem que você definiu, e a primeira que responder fica com o horário. Não é leilão e não tem desconto: quem entra paga o mesmo que já estava combinado. Se ninguém quiser, o horário fica registrado como não ocupado — e aparece na conta do mês pelo nome."
         >
-          <Cascata />
+          <Cascata envioAutomatico={automatico} />
           {/* A ressalva fica — é o que separa esta página das outras sete do
               mercado —, mas em duas frases em vez de quatro. O método publicado
               antes da coleta é assunto do Panorama, e é lá que ele se lê. */}
@@ -566,7 +571,7 @@ export default function Home() {
           linha="Um lembrete aparece na tela bloqueada — que pode estar na mesa da cozinha, na mão do marido, do pai, do chefe. Aqui a discrição é a posição padrão, não uma opção escondida nas configurações."
           fundo="folha"
         >
-          <Discricao />
+          <Discricao envioAutomatico={automatico} />
         </Secao>
 
         {/* ---------------- o CFP e as fronteiras, agora numa seção só ----------------

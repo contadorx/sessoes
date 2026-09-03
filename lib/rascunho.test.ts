@@ -6,6 +6,7 @@ import {
   guardarRascunho,
   lerRascunho,
   limparRascunhos,
+  expirarRascunhos,
 } from "./rascunho";
 
 /** Um `Storage` de mentira, com o mesmo contrato do de verdade. */
@@ -148,5 +149,75 @@ describe("o rascunho nunca derruba a tela", () => {
     const s2 = storageFalso({ [chaveDoRascunho("s")]: '{"texto":123}' });
     expect(lerRascunho(s2, "s")).toBeNull();
     expect(s2.getItem(chaveDoRascunho("s"))).toBeNull();
+  });
+});
+
+
+/**
+ * A promessa nº 3 do cabeçalho, que não estava sendo cumprida.
+ *
+ * *"Rascunho que ninguém retomou em `DIAS_DE_VALIDADE` é descartado na primeira
+ * leitura seguinte."* — e a leitura seguinte só existia para a sessão que ela
+ * reabrisse. O rascunho **abandonado**, que é o caso que a frase descreve, era
+ * o único que nunca era lido de novo, e portanto o único que nunca vencia.
+ */
+describe("o rascunho abandonado vence sozinho", () => {
+  const DIA = 24 * 60 * 60 * 1000;
+  const AGORA = 1_800_000_000_000;
+
+  function storageFalso(itens: Record<string, string>): Storage {
+    const mapa = new Map(Object.entries(itens));
+    return {
+      get length() {
+        return mapa.size;
+      },
+      key: (i: number) => [...mapa.keys()][i] ?? null,
+      getItem: (k: string) => mapa.get(k) ?? null,
+      setItem: (k: string, v: string) => void mapa.set(k, v),
+      removeItem: (k: string) => void mapa.delete(k),
+      clear: () => mapa.clear(),
+    } as unknown as Storage;
+  }
+
+  const rascunho = (dias: number) =>
+    JSON.stringify({ texto: "conteúdo de evolução", em: AGORA - dias * DIA });
+
+  it("apaga o vencido e deixa o recente, sem ninguém reabrir a sessão", () => {
+    const s = storageFalso({
+      "sessoes:rascunho:evolucao:velho": rascunho(30),
+      "sessoes:rascunho:evolucao:novo": rascunho(1),
+      "outra-coisa": "não é minha",
+    });
+
+    expect(expirarRascunhos(s, AGORA)).toBe(1);
+    expect(s.getItem("sessoes:rascunho:evolucao:velho")).toBeNull();
+    expect(s.getItem("sessoes:rascunho:evolucao:novo")).not.toBeNull();
+    // Varre por prefixo: o que não é nosso não se toca.
+    expect(s.getItem("outra-coisa")).toBe("não é minha");
+  });
+
+  it("na fronteira, o que está no prazo fica", () => {
+    const s = storageFalso({
+      "sessoes:rascunho:evolucao:a": rascunho(DIAS_DE_VALIDADE - 1),
+      "sessoes:rascunho:evolucao:b": rascunho(DIAS_DE_VALIDADE + 1),
+    });
+    expect(expirarRascunhos(s, AGORA)).toBe(1);
+    expect(s.getItem("sessoes:rascunho:evolucao:a")).not.toBeNull();
+    expect(s.getItem("sessoes:rascunho:evolucao:b")).toBeNull();
+  });
+
+  /**
+   * JSON ilegível conta como vencido: guardar texto clínico que ninguém
+   * consegue ler é ficar com o risco sem ficar com a utilidade.
+   */
+  it("o ilegível também sai", () => {
+    const s = storageFalso({ "sessoes:rascunho:evolucao:x": "{isto não é json" });
+    expect(expirarRascunhos(s, AGORA)).toBe(1);
+    expect(s.getItem("sessoes:rascunho:evolucao:x")).toBeNull();
+  });
+
+  it("sem storage, não lança", () => {
+    expect(expirarRascunhos(null)).toBe(0);
+    expect(expirarRascunhos(undefined)).toBe(0);
   });
 });

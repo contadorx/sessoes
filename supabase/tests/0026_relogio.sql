@@ -57,8 +57,15 @@ begin
   reset role; perform set_config('request.jwt.claims','',true);
 
   -- ---------------------------------------------------------------- 1
-  select public.agendar_lembretes() into n;
-  if n <> 1 then raise exception '1 FUROU: agendou % (esperado 1)', n; end if;
+  -- `agendar_lembretes` é do cron e varre o banco inteiro, não esta conta. Num
+  -- banco com outras contas dentro — a de demonstração, por exemplo — o retorno
+  -- dela conta as sessões das outras também, e uma verificação sobre o número
+  -- global reprova por um motivo que não é o produto. O que esta suíte tem de
+  -- provar é o que aconteceu **com estas três sessões**.
+  perform public.agendar_lembretes();
+  select count(*) into n from public.mensagens
+   where conta_id = a_conta and chave_idem like 'lembrete:%';
+  if n <> 1 then raise exception '1 FUROU: agendou % lembrete(s) nesta conta (esperado 1)', n; end if;
   if (select count(*) from public.mensagens where chave_idem='lembrete:'||s2::text) <> 0 then
     raise exception '1 FUROU: agendou sessão de 5 dias'; end if;
   if (select count(*) from public.mensagens where chave_idem='lembrete:'||s3::text) <> 0 then
@@ -71,8 +78,10 @@ begin
   if m.template <> 'lembrete_de_sessao' then raise exception '2 FUROU: template %', m.template; end if;
 
   -- ---------------------------------------------------------------- 3
-  select public.agendar_lembretes() into n;
-  if n <> 0 then raise exception '3 FUROU: duplicou %', n; end if;
+  perform public.agendar_lembretes();
+  select count(*) into n from public.mensagens
+   where conta_id = a_conta and chave_idem like 'lembrete:%';
+  if n <> 1 then raise exception '3 FUROU: a segunda passada duplicou — % lembrete(s) nesta conta', n; end if;
   if (select count(*) from public.mensagens where chave_idem='lembrete:'||s1::text) <> 1 then
     raise exception '3 FUROU: duas linhas para a mesma sessão'; end if;
 
@@ -87,11 +96,30 @@ begin
   insert into public.fila_encaixe (paciente_id) values (caio);
   select public.abrir_vaga(s1) into of1;
   if of1 is null then raise exception '5 FUROU: não ofertou'; end if;
+  -- **O convite precisa ter saído antes de o relógio dele valer.** A 0061 fez
+  -- `expirar_ofertas` pular oferta cuja mensagem esteja `na_sua_mao`, e a conta
+  -- desta suíte é do plano Gratuito — onde a mensagem nasce exatamente assim.
+  -- Sem esta linha a oferta não expira, e **é o produto certo**: queimar a fila
+  -- de quem nunca foi convidado é o defeito que aquela proteção existe para
+  -- impedir. Então a suíte manda à mão, como ela mandaria.
+  -- E ela manda de dentro da sessão dela: `marcar_enviada_a_mao` é
+  -- `security invoker` e deriva a conta de `conta_atual()`.
+  perform set_config('request.jwt.claims',
+    json_build_object('sub',a_auth,'role','authenticated')::text, true);
+  execute 'set local role authenticated';
+
+  perform public.marcar_enviada_a_mao(m2.id)
+     from public.mensagens m2
+    where m2.chave_idem = 'oferta:' || of1::text;
+
+  reset role; perform set_config('request.jwt.claims','',true);
+
   update public.ofertas
      set enviar_em = now() - interval '2 hours', expira_em = now() - interval '1 minute'
    where id = of1;
-  select public.expirar_ofertas() into n;
-  if n <> 1 then raise exception '5 FUROU: expirou %', n; end if;
+  -- Mesma razão da 1: `expirar_ofertas` varre o banco. O que importa é o
+  -- destino desta oferta, e é ele que a linha seguinte confere.
+  perform public.expirar_ofertas();
   if (select estado from public.ofertas where id=of1) <> 'expirada' then
     raise exception '5 FUROU: não expirou'; end if;
 

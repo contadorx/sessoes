@@ -22,9 +22,20 @@ descobrir, no meio de um incidente, que o backup existia mas não voltava.
 
 ## O ensaio, em sete passos
 
-**1. Confirme que o backup existe.**
+**1. Confirme que o backup existe, e tire a impressão digital da produção.**
 No painel: `Database` → `Backups`. O plano pago faz backup diário e mantém PITR
 (*point in time recovery*). Anote a hora do backup mais recente.
+
+**E antes de qualquer outra coisa, rode a parte 2 de
+`supabase/verificar-restauracao.sql` no SQL Editor da PRODUÇÃO e guarde a saída.**
+São onze linhas — classe, quantidade e um md5. Elas são a única coisa capaz de
+dizer, depois, que **não sumiu nada**: uma tabela que não voltou não deixa
+rastro na base restaurada, ela só não está lá.
+
+Isto substitui a lista escrita à mão do que "deveria existir", que era como
+este arquivo conferia até 03/09 — e que em 03/09 conferia 44 tabelas de 56,
+147 funções de 285 e 12 views de 29. A expectativa agora se gera do catálogo,
+não da memória de quem escreveu.
 
 **2. Crie um projeto temporário** na mesma organização, na mesma região
 (`sa-east-1`). Chame de `sessoes-ensaio`. Ele vai ser apagado no fim.
@@ -45,18 +56,36 @@ psql "$URL_ENSAIO" -f producao.sql
 **4. Rode a prova.** No SQL Editor do `sessoes-ensaio`, cole
 `supabase/verificar-restauracao.sql` e execute.
 
-O script levanta exceção no primeiro furo e é silencioso quando passa. Ele
-confere o que realmente importa depois de um restore, que não é "tem dado" e sim
+Ele tem duas partes, e as duas importam.
+
+**A parte 1 levanta exceção no primeiro furo e é silenciosa quando passa.** Ela
+confere o que se prova sem saber o que havia antes — não "tem dado" e sim
 **"as defesas voltaram junto"**:
 
-- todas as tabelas existem e estão com RLS ligada;
-- as políticas voltaram (uma tabela restaurada sem política é uma tabela aberta);
-- as funções e os gatilhos voltaram — sem eles, a classificação de cancelamento,
-  o retrato da mensagem e a cobrança automática simplesmente param de existir;
-- os índices únicos que sustentam as invariantes voltaram;
-- as extensões (`btree_gist`) voltaram — sem ela, duas pessoas na mesma hora
-  deixa de ser impossível;
-- as contagens batem com o que você anotou no passo 1.
+- RLS ligada em toda tabela, sem exceção;
+- toda tabela com RLS tem política, menos as cinco que existem para não ter
+  nenhuma — e essas cinco reprovam se **ganharem** uma;
+- nenhuma view aberta: toda view de `public` com `security_invoker` e sem
+  `select` para `anon` ou `authenticated`. É a trava que impede que o texto
+  livre da pesquisa seja lido com a chave que está no formulário;
+- todo `security definer` com `search_path` fixado (lei 2);
+- toda chave estrangeira indexada (lei 2) — apagar paciente e encerrar conta
+  são deletes em cascata, e FK sem índice vira varredura de tabela inteira;
+- `btree_gist` e a restrição de exclusão de `sessoes` — sem elas, duas pessoas
+  na mesma hora volta a ser possível;
+- os dois tetos técnicos (por hora e por paciente/dia), os planos sem teto de
+  paciente nem de mensagem, e os quatro templates essenciais.
+
+**A parte 2 devolve a impressão digital.** Compare com a que você guardou no
+passo 1:
+
+- `n` igual e `digital` igual → a classe voltou inteira;
+- `n` menor → sumiu coisa;
+- `n` igual e `digital` diferente → algo trocou de nome ou de assinatura.
+
+E a última consulta conta as linhas de **todas** as tabelas, sem lista: compare
+com o que você anotou. Diferença pode ser a idade do backup; **zero onde havia
+dado é sempre erro**.
 
 **5. Abra o app apontado para a base restaurada.** Localmente, com
 `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY` do `sessoes-ensaio`.

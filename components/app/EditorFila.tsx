@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import {
@@ -12,7 +12,7 @@ import {
 import type { NaFila } from "@/app/(app)/encaixes/dados";
 import { rotuloJanela, tempoDeEspera } from "@/lib/janela";
 import { DIAS } from "@/lib/enquadre";
-import { Campo, Erros, ENTRADA } from "./campos";
+import { Campo, Erros, ENTRADA, Recado } from "./campos";
 
 const INICIAL: Resultado = { estado: "inicial" };
 
@@ -94,7 +94,7 @@ function CamposJanela({ base }: { base?: NaFila }) {
 function Linha({ item }: { item: NaFila }) {
   const [aberto, setAberto] = useState(false);
   const [estado, salvar] = useActionState(atualizarNaFila, INICIAL);
-  const [, sair] = useActionState(sairDaFila, INICIAL);
+  const [rSair, sair] = useActionState(sairDaFila, INICIAL);
   const erros = estado.estado === "erro" ? estado.erros : [];
 
   return (
@@ -169,9 +169,10 @@ function Linha({ item }: { item: NaFila }) {
             </div>
           </form>
 
-          <form action={sair} className="mt-3 border-t border-linha pt-3">
+          <form action={sair} className="mt-3 flex flex-col gap-1 border-t border-linha pt-3">
             <input type="hidden" name="id" value={item.id} />
             <Salvar rotulo="tirar da fila" tom="leve" />
+            <Recado r={rSair} />
           </form>
         </div>
       )}
@@ -182,16 +183,29 @@ function Linha({ item }: { item: NaFila }) {
 export function EditorFila({
   fila,
   candidatos,
+  abrirDeInicio = false,
 }: {
   fila: NaFila[];
   candidatos: { id: string; nome: string }[];
+  /**
+   * Chegou por `/encaixes?novo=pedido` — o endereço que o menu Novo → Pedido de
+   * encaixe já usava, e que esta página não lia: ela clicava e chegava na mesma
+   * tela, com o formulário fechado, sem sinal de que havia um formulário.
+   */
+  abrirDeInicio?: boolean;
 }) {
-  const [abrindo, setAbrindo] = useState(false);
+  const [abrindo, setAbrindo] = useState(abrirDeInicio && candidatos.length > 0);
+  const secao = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!abrirDeInicio) return;
+    secao.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [abrirDeInicio]);
   const [estado, entrar] = useActionState(entrarNaFila, INICIAL);
   const erros = estado.estado === "erro" ? estado.erros : [];
 
   return (
-    <section>
+    <section ref={secao} id="entrar-na-fila" className="scroll-mt-6">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h2 className="rotulo">Quem está na fila</h2>
         <button

@@ -17,7 +17,16 @@ const MSG = {
 
 type Modo = keyof typeof MSG;
 
-export function Discricao() {
+/**
+ * O remetente neutro é metade promessa de texto e metade promessa de número.
+ *
+ * A primeira o produto cumpre sempre: o texto não leva o nome profissional nem
+ * a natureza do atendimento. A segunda depende de haver provedor — sem ele a
+ * mensagem sai do WhatsApp dela, e o remetente é o número dela. Afirmar as
+ * duas sem condição é prometer o que hoje não acontece, na página que ela lê
+ * antes de assinar.
+ */
+export function Discricao({ envioAutomatico }: { envioAutomatico: boolean }) {
   const [modo, setModo] = useState<Modo>("discreto");
   const msg = MSG[modo];
   const exposto = modo === "comum";
@@ -63,8 +72,9 @@ export function Discricao() {
           ) : (
             <>
               <b className="font-semibold text-tinta">
-                Remetente neutro, sem a natureza do atendimento e sem o seu nome
-                profissional.
+                {envioAutomatico
+                  ? "Remetente neutro, sem a natureza do atendimento e sem o seu nome profissional."
+                  : "Texto neutro, sem a natureza do atendimento e sem o seu nome profissional — e ele sai do seu WhatsApp, com um toque seu."}
               </b>{" "}
               Quem passar pela mesa da cozinha lê um lembrete de agenda — não
               descobre que a pessoa faz terapia. Esta é a posição padrão do

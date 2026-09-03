@@ -520,3 +520,32 @@ export async function resumoDoEnvioManual(): Promise<ResumoManual> {
     return SEM_RESUMO;
   }
 }
+
+/**
+ * O dia de uma sessão, em São Paulo — para `/agenda?sessao={id}` abrir a semana
+ * dela.
+ *
+ * O endereço existia e a página lia só `semana`: a confirmação recusada
+ * oferecia *"ver sessão"* e levava para a semana de hoje, sem nada selecionado.
+ * Uma sessão de três semanas atrás simplesmente não estava na tela — e o link
+ * parecia quebrado sem dar nenhum sinal de que estava.
+ *
+ * Devolve `null` para id que não existe ou que a RLS não deixa ver, e a página
+ * cai em hoje: um id colado de outra conta não conta que aquela sessão existe.
+ * O dia sai de `diaEmSP`, nunca de `toISOString()` — sessão de 21h cairia no
+ * dia seguinte, que é a semana errada quando a semana virar (lei 3).
+ */
+export async function diaDaSessao(id: string): Promise<string | null> {
+  if (!/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id)) {
+    return null;
+  }
+
+  const supabase = await supabaseSessao();
+  const linhas = await db(
+    "sessoes.dia",
+    supabase.from("sessoes").select("inicio").eq("id", id).limit(1),
+  );
+
+  const inicio = ((linhas ?? []) as { inicio: string }[])[0]?.inicio;
+  return inicio ? diaEmSP(new Date(inicio)) : null;
+}

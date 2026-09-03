@@ -451,13 +451,15 @@ end $do$;
 do $do$
 declare
   a_auth uuid := '11111111-1111-4111-8111-111111111111';
-  a_conta uuid; a_prof uuid;
+  b_auth uuid := '22222222-2222-4222-8222-222222222222';
+  a_conta uuid; a_prof uuid; b_conta uuid;
   men uuid; pac uuid; zero uuid; fulano uuid;
   e_men uuid; e_pac uuid;
   s_men uuid; s_pac uuid; s_zero uuid;
   j jsonb; n int; ofe uuid; r text; qual text;
 begin
   select id into a_conta from public.contas where nome='Ana Solo';
+  select id into b_conta from public.contas where nome='Bruna Solo';
   select id into a_prof from public.profissionais where conta_id=a_conta;
 
   perform set_config('request.jwt.claims', json_build_object('sub',a_auth,'role','authenticated')::text, true);
@@ -544,6 +546,24 @@ begin
     raise exception '24 FUROU: a policy de criação de sessão perdeu encaixe/avulsa: %', qual; end if;
   if position('remarcada' in qual) > 0 then
     raise exception '24 FUROU: a policy passou a deixar o cliente criar remarcada: %', qual; end if;
+
+  -- ------------------------------------------------------------------- fim
+  -- A 0035 não recolhia o rastro: 'Ana Solo' e 'Bruna Solo' ficavam de pé
+  -- depois dela, e é a mesma raiz da 'Bia Solo' órfã que apareceu no banco. A
+  -- conta antes de `auth.users`: `pacientes.profissional_id` e `registros.*`
+  -- são RESTRICT de propósito.
+  delete from public.remarcacoes    where conta_id in (a_conta, b_conta);
+  delete from public.propostas_de_cobranca where conta_id in (a_conta, b_conta);
+  delete from public.cobrancas      where conta_id in (a_conta, b_conta);
+  delete from public.mensagens      where conta_id in (a_conta, b_conta);
+  delete from public.eventos_fila   where conta_id in (a_conta, b_conta);
+  delete from public.ofertas        where conta_id in (a_conta, b_conta);
+  delete from public.fila_encaixe   where conta_id in (a_conta, b_conta);
+  delete from public.sessoes        where conta_id in (a_conta, b_conta);
+  delete from public.enquadres      where conta_id in (a_conta, b_conta);
+  delete from public.pacientes      where conta_id in (a_conta, b_conta);
+  delete from public.contas         where id in (a_conta, b_conta);
+  delete from auth.users            where id in (a_auth, b_auth);
 
   raise notice 'parte 4 · o custo nos modelos e a B7: ok';
   raise notice '0035 · 24 verificações passaram.';

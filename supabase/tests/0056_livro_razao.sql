@@ -94,6 +94,13 @@ hoje := public.hoje_sp();
 -- dia em que a suíte roda.
 base := hoje - 7;
 
+-- As claims entram aqui, e não só na parte 2. A verificação 4 planta um
+-- paciente para sondar um check, e o gatilho de `pacientes` deriva a conta de
+-- `conta_atual()` — sem claims ele aborta com "sem conta na sessao", e a sonda
+-- mediria a mensagem errada.
+perform set_config('request.jwt.claims',
+  json_build_object('sub', a_auth::text, 'role', 'authenticated')::text, true);
+
 raise notice '--- parte 1 · a estrutura e a dívida declarada ---';
 
 -- 1 · o estado não foi reescrito. É a decisão central da migração.
@@ -131,11 +138,27 @@ end if;
 raise notice 'ok 3 · perdão tem nome de perdão';
 
 -- 4 · reposta sem apontar para nada é linha que não conta história nenhuma.
+--
+-- O paciente da sonda é criado aqui, na conta desta suíte, e **fora** do
+-- subbloco — o `exception` desfaz o que estiver dentro dele, e a linha
+-- precisa sobreviver para o `delete` do fim achá-la.
+--
+-- A versão anterior escrevia `(select id from public.pacientes limit 1)`, e
+-- isso era uma aposta: enquanto o check recusa, o paciente escolhido não
+-- importa. Mas se o check afrouxar um dia, a verificação passa a plantar uma
+-- sessão falsa na ficha de quem estiver em primeiro na tabela — que num banco
+-- com gente dentro é a ficha de uma pessoa. O teste que existe para reprovar
+-- um afrouxamento não pode, ao reprová-lo, escrever na conta de outra pessoa.
+set local role authenticated;
+insert into public.pacientes (conta_id, profissional_id, nome, estado)
+  values (a_conta, a_prof, 'Sonda do Check', 'interessado') returning id into ana;
+reset role;
+
 erro := null;
 begin
   set local role postgres;
   insert into public.sessoes (conta_id, profissional_id, paciente_id, inicio, fim, origem, estado, valor, eixo_capacidade)
-  values (a_conta, a_prof, (select id from public.pacientes limit 1),
+  values (a_conta, a_prof, ana,
           (base + time '07:00') at time zone 'America/Sao_Paulo',
           (base + time '07:50') at time zone 'America/Sao_Paulo',
           'avulsa', 'falta', 100, 'reposta');
@@ -146,6 +169,17 @@ reset role;
 if erro is null then
   raise exception 'FALHOU 4: entrou uma sessão "reposta" sem apontar para a hora que a repôs';
 end if;
+-- E recusou pelo motivo certo: sem esta linha, um erro de coluna nula (ou
+-- qualquer outro) contaria como aprovação, e o check poderia já não existir.
+if erro not ilike '%sessoes_reposta_aponta%' then
+  raise exception 'FALHOU 4: recusou com "%" — esperava o check sessoes_reposta_aponta', erro;
+end if;
+
+-- A sonda sai: ela existiu para uma linha que o banco recusou.
+set local role postgres;
+delete from public.pacientes where id = ana;
+reset role;
+ana := null;
 raise notice 'ok 4 · reposta e reposta_por andam juntos';
 
 -- 6 · nenhuma tela escreve eixo.

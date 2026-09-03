@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   PLANOS,
@@ -11,6 +11,7 @@ import {
   ROTULO_POR_VIR,
   type CodigoDePlano,
 } from "./planos";
+import { calcular, nivelDaFaixa, fraseDaFaixa } from "./faixa";
 
 /**
  * Estes testes são o gêmeo da suíte SQL 0064, com os mesmos valores esperados.
@@ -224,20 +225,58 @@ describe("recursos é o que existe; porVir é o que não existe", () => {
   });
 });
 
-describe("fair-use e a frase do cartão andam juntos", () => {
-  it("quem diz 'sem faixa' no cartão tem fairUse ligado", () => {
-    // Com fairUse, o `lib/faixa.ts` cala: nivelDaFaixa devolve "nenhum" e
-    // fraseDoRestante diz que o plano não tem faixa. Sem ele, a tela começaria
-    // a contar sessões que a página promete não contar.
+describe("o cartão e a tela dizem a mesma coisa sobre limite de sessões", () => {
+  /**
+   * Antes de 03/09 esta prova era um `includes("sem faixa")` — cartão contra
+   * `fairUse`, string contra flag. Ela morreu com a frase: "sessões sem limite"
+   * agora aparece em três planos, e num deles (`gratis`) `fairUse` é falso,
+   * porque lá não existe número nenhum. Os dois casos são verdade do ponto de
+   * vista dela, que é o único ponto de vista que o cartão tem.
+   *
+   * O que ficou no lugar é mais forte: **o cartão promete comportamento, então
+   * é o comportamento que se prova.** Um cartão que diz "sem limite" só é
+   * honesto se `lib/faixa.ts` calar em qualquer uso — inclusive no dia em que
+   * ela passar muito do número interno, que é exatamente quando uma tela
+   * indiscreta apareceria.
+   */
+  const CADA_USO = [0, 1, 59, 60, 199, 200, 201, 5_000];
+
+  it("quem diz 'sem limite' tem a tela calada em qualquer uso", () => {
     for (const p of PLANOS) {
-      const diz = p.recursos.join(" ").toLowerCase().includes("sem faixa");
-      expect(diz, `${p.codigo}: cartão e banco discordam`).toBe(p.fairUse);
+      if (!p.recursos.join(" ").toLowerCase().includes("sem limite")) continue;
+
+      for (const usadas of CADA_USO) {
+        const f = calcular(p.faixa, 1, usadas, p.fairUse);
+        expect(nivelDaFaixa(f), `${p.codigo} com ${usadas} sessões`).toBe("nenhum");
+        expect(fraseDaFaixa(f), `${p.codigo} com ${usadas} sessões`).toBe("");
+      }
     }
   });
 
-  it("o Consultório vende a faixa, e por isso a diz no cartão", () => {
-    expect(plano("solo").fairUse).toBe(false);
-    expect(plano("solo").recursos.join(" ")).toContain("60 sessões");
+  it("quem diz um número no cartão conta, e fala quando passa", () => {
+    // O contrário da prova acima, e ele precisa existir: uma implementação que
+    // calasse sempre passaria na primeira e quebraria o Consultório, onde a
+    // faixa é vendida e a frase é o que ela comprou.
+    const solo = plano("solo");
+    expect(solo.fairUse).toBe(false);
+    expect(solo.recursos.join(" ")).toContain("60 sessões");
+
+    const dentro = calcular(solo.faixa, 1, 10, solo.fairUse);
+    expect(nivelDaFaixa(dentro)).toBe("nenhum");
+
+    const acima = calcular(solo.faixa, 1, 61, solo.fairUse);
+    expect(nivelDaFaixa(acima)).toBe("acima");
+    expect(fraseDaFaixa(acima)).toContain("61");
+  });
+
+  it("nenhum cartão diz o número que é meu", () => {
+    // 200 é fair-use: existe para eu enxergar a clínica disfarçada de autônoma.
+    // No dia em que ele aparecer num cartão, vira limite vendido — e aí a tela
+    // que cala passa a ser a mentira.
+    for (const p of PLANOS) {
+      if (!p.fairUse) continue;
+      expect(p.recursos.join(" "), p.codigo).not.toContain(String(p.faixa));
+    }
   });
 });
 
@@ -276,24 +315,31 @@ describe("as portas", () => {
  * constante do TypeScript**. Eram dois textos do mesmo produto, e o protegido
  * era justamente o que ninguém via.
  *
- * Este bloco lê a migração `0070` do disco e compara as duas listas linha a
- * linha, **nos dois sentidos**. Não precisa de banco para rodar — o que a torna
- * capaz de reprovar num `npm run verificar`, que é onde o defeito teria sido
- * pego. O outro lado do espelho, banco contra a mesma lista, é a suíte
+ * Este bloco lê as migrações do disco e compara as duas listas linha a linha,
+ * **nos dois sentidos**. Não precisa de banco para rodar — o que a torna capaz
+ * de reprovar num `npm run verificar`, que é onde o defeito teria sido pego. O
+ * outro lado do espelho, banco contra a mesma lista, é a suíte
  * `supabase/tests/0070_a_lista_de_planos_e_uma_so.sql`.
+ *
+ * **A leitura varre a pasta; não nomeia uma migração.** Até 03/09 ela abria
+ * `0070_a_lista_de_planos_e_uma_so.sql` pelo nome, e isso tinha data de
+ * validade: a 0078 trocou três linhas de `recursos`, e um espelho preso à 0070
+ * compararia o TypeScript de hoje com o banco de anteontem — reprovando o lado
+ * certo e mandando corrigir o errado. Agora vale a **última** migração que
+ * escreve cada campo de cada plano, na ordem dos arquivos, que é a ordem em que
+ * o Supabase as aplicou. É a lei 7 no lugar onde ela é mais fácil de esquecer:
+ * a checagem que enumera um arquivo só.
  *
  * A comparação ignora maiúscula e acento de caixa, e só isso: o banco escreve o
  * primeiro caractere em minúscula por convenção da casa, e isso é apresentação.
  * Qualquer diferença de **conteúdo** reprova.
  */
 describe("a lista do TypeScript e a do banco são a mesma", () => {
-  const sql = readFileSync(
-    join(import.meta.dirname, "..", "supabase", "migrations", "0070_a_lista_de_planos_e_uma_so.sql"),
-    "utf8",
-  );
+  const PASTA = join(import.meta.dirname, "..", "supabase", "migrations");
 
   /**
-   * Os `update ... where codigo = 'x';` da migração, um por plano.
+   * Todo `update public.planos set ...;` de todas as migrações, na ordem dos
+   * arquivos — que é a ordem em que o Supabase as aplicou.
    *
    * Recorta por statement antes de procurar o plano: um regex não-guloso a
    * partir do primeiro `update` casaria do começo do arquivo até o `where` do
@@ -301,13 +347,29 @@ describe("a lista do TypeScript e a do banco são a mesma", () => {
    * espelho reprovar por engano, e o próximo a mexer nele desconfiar do
    * espelho em vez do código.
    */
-  const STATEMENTS = sql
-    .split(/;\s*\n/)
-    .filter((t) => t.includes("update public.planos set"));
+  const STATEMENTS = readdirSync(PASTA)
+    .filter((f) => f.endsWith(".sql"))
+    .sort()
+    .flatMap((f) =>
+      readFileSync(join(PASTA, f), "utf8")
+        .split(/;\s*\n/)
+        .filter((t) => t.includes("update public.planos set")),
+    );
 
+  /**
+   * A última escrita vence — e "última" é por campo, não por plano.
+   *
+   * A 0078 reescreve só `recursos`, e só de três planos. Um espelho que
+   * pegasse o statement mais recente inteiro leria `por_vir` como ausente onde
+   * a 0070 continua sendo a verdade.
+   */
   function daMigracao(codigo: string, campo: "recursos" | "por_vir"): string[] {
-    const bloco = STATEMENTS.find((t) => new RegExp(`where codigo = '${codigo}'`).test(t));
-    if (!bloco) throw new Error(`a migração não tem o plano ${codigo}`);
+    const blocos = STATEMENTS.filter((t) =>
+      new RegExp(`where codigo = '${codigo}'`).test(t),
+    ).filter((t) => new RegExp(`\\b${campo} = `).test(t));
+
+    const bloco = blocos.at(-1);
+    if (!bloco) throw new Error(`nenhuma migração escreve ${campo} de ${codigo}`);
 
     const vazio = new RegExp(`${campo} = '\\{\\}'::text\\[\\]`).test(bloco);
     if (vazio) return [];

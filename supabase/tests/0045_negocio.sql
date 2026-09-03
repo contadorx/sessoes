@@ -67,7 +67,12 @@ begin
     delete from public.contas      where id = a_conta;
   end loop;
   delete from auth.users where email like '%@teste.negocio.com.br';
-  delete from public.custos_fixos where mes = '2026-07-01';
+  -- **Não apaga `custos_fixos`.** A suíte nunca escreve nesta tabela — nem por
+  -- insert, nem por `lancar_custo_fixo` —, então o delete só destruía linha que
+  -- ela não criou. E `where mes = …` parece filtro e não é: casa com a linha de
+  -- quem quer que seja naquele mês. Havia três custos fixos de verdade em
+  -- 2026-07-01 no dia em que isto foi conferido. Num banco vazio era inofensivo,
+  -- e foi assim que passou.
   delete from public.precos_canal where vigencia_inicio = '2026-08-01';
   raise notice 'parte 0 · preâmbulo: ok';
 end $do$;
@@ -561,7 +566,6 @@ begin
     delete from public.contas      where id = a_conta;
   end loop;
   delete from auth.users where email like '%@teste.negocio.com.br';
-  delete from public.custos_fixos where mes = '2026-07-01';
   delete from public.precos_canal where vigencia_inicio = '2026-08-01';
 
   select count(*) into n from public.contas where nome like '%Negócio';

@@ -19,6 +19,8 @@
  * paciente, e ela não escolheu plano nenhum.
  */
 
+import { horaEmSP } from "./tempo";
+
 export const CANAIS = ["manual", "plataforma"] as const;
 export type Canal = (typeof CANAIS)[number];
 
@@ -186,4 +188,117 @@ function emMinutos(m: number): string {
  */
 export function fraseDoQueMudaNoPago(): string {
   return "Nos planos pagos, essas mensagens saem sozinhas, na hora em que a vaga abre — pelo número do Sessões.";
+}
+
+// ==================================== o tempo verbal da oferta que acabou de nascer
+
+/**
+ * A cascata anunciava envio que não houve.
+ *
+ * `oferecerEmCascata` criava a oferta, cutucava o despacho e **sempre**
+ * devolvia *"Oferta enviada. A fila anda sozinha a partir daqui"* — sem ler
+ * resultado nenhum. Com a janela de silêncio ativa isso é falso em todo caso
+ * noturno: uma oferta criada às 2h só tenta sair às 8h, e a tela dizia que ela
+ * já tinha saído.
+ *
+ * O tempo verbal é o produto aqui. "Enviada" no passado é uma afirmação sobre
+ * uma pessoa que não recebeu nada — e é a partir dela que a psicóloga decide
+ * não avisar ninguém, porque acha que o sistema já avisou.
+ *
+ * Os estados vêm do `check` de `mensagens.estado` no banco, e o `default` do
+ * `switch` existe para o estado que alguém acrescentar amanhã: ele diz que não
+ * saiu, que é a resposta segura — nunca afirmar saída que não se conferiu.
+ */
+export type SaidaDaOferta = {
+  /** `mensagens.estado`, ou `null` quando não há mensagem nenhuma para a oferta. */
+  mensagem: string | null;
+  /** `ofertas.enviar_em` — quando a janela de silêncio deixa a mensagem sair. */
+  enviarEm: string | null;
+};
+
+/** Saiu de verdade? É o único par de estados que autoriza o passado. */
+export function ofertaSaiu(estado: string | null): boolean {
+  return estado === "enviada" || estado === "entregue";
+}
+
+export function fraseDaOferta(s: SaidaDaOferta, agora = new Date()): string {
+  if (ofertaSaiu(s.mensagem)) {
+    return "Oferta enviada. A fila anda sozinha a partir daqui.";
+  }
+
+  const hora = (() => {
+    if (!s.enviarEm) return null;
+    const d = new Date(s.enviarEm);
+    if (Number.isNaN(d.getTime()) || d <= agora) return null;
+    return horaEmSP(d);
+  })();
+
+  switch (s.mensagem) {
+    case "pendente":
+    case "enviando":
+      return hora
+        ? `Oferta preparada. A mensagem sai às ${hora} — a janela de silêncio não manda mensagem de madrugada.`
+        : "Oferta preparada. A mensagem ainda não saiu.";
+    case "na_sua_mao":
+      return "Oferta preparada. A mensagem está esperando você em Agenda → Na sua mão.";
+    case "barrada_no_teto":
+      return "Oferta preparada, mas a mensagem não saiu: o limite de mensagens do seu plano fechou este mês.";
+    case "cancelada":
+      return "Oferta preparada. Você decidiu não mandar a mensagem, então o prazo da vaga volta a correr.";
+    case null:
+      return "Oferta preparada, mas nenhuma mensagem foi criada para ela. Ninguém foi avisado.";
+    default:
+      return "Oferta preparada. A mensagem ainda não saiu.";
+  }
+}
+
+// ================================= as frases que afirmam envio, num lugar só
+
+/**
+ * Quatro telas da área logada diziam coisas incompatíveis sobre o mesmo fato.
+ *
+ *   · `NaSuaMao` — *"estas não saíram; esperam até você mandar pelo seu
+ *     WhatsApp"*. **Correta**, e já condicionada ao estado.
+ *   · a fila — *"Você não pede nada a ninguém."*
+ *   · a régua — *"o sistema lembra por você"*, *"O sistema está lembrando N"*.
+ *   · o cadastro — *"remetente neutro, sem o seu nome profissional"*.
+ *
+ * As três últimas afirmam, sem condição nenhuma, o que só é verdade quando há
+ * provedor: hoje a mensagem nasce escrita e sai **do WhatsApp dela**, com um
+ * toque. Quem lê a fila e a régua conclui que não precisa fazer nada — e não
+ * faz. A promessa que o software não cumpre é antipadrão nomeado deste projeto,
+ * e estas eram quatro versões dela na mesma sessão de uso.
+ *
+ * O estado vem de um lugar só, `envioAutomaticoLigado()` em `lib/promessa.ts`,
+ * que pergunta ao adaptador. Estas funções são o texto, e ficam aqui porque
+ * `promessa.ts` é `server-only` e duas dessas telas são componentes de cliente
+ * — o booleano desce por prop, como o `NaSuaMao` já fazia.
+ *
+ * E no manual a frase diz **quem manda e de qual número**: "do seu WhatsApp".
+ * Sem isso, "com um toque seu" ainda deixaria no ar de qual número sai a
+ * mensagem que chega na paciente.
+ */
+export function fraseDaFilaOferece(automatico: boolean): string {
+  return automatico
+    ? "Quando um horário vaga, a fila oferece para uma pessoa por vez, na ordem que você definiu, e passa para a próxima se ninguém responder. Você não pede nada a ninguém."
+    : "Quando um horário vaga, a fila escolhe uma pessoa por vez, na ordem que você definiu, e passa para a próxima se ninguém responder. A mensagem nasce escrita e sai do seu WhatsApp, com um toque seu em Agenda → Na sua mão.";
+}
+
+export function fraseDaReguaVazia(automatico: boolean): string {
+  return automatico
+    ? "Nada a receber. Quando houver, é aqui que você vê — e o sistema lembra por você, no texto neutro, sem você precisar puxar o assunto."
+    : "Nada a receber. Quando houver, é aqui que você vê — e o lembrete nasce escrito, no texto neutro, para você mandar do seu WhatsApp com um toque.";
+}
+
+export function fraseDaReguaAndando(automatico: boolean, quantas: number): string {
+  if (quantas === 0) return "Nenhum lembrete vai sair — os motivos estão abaixo.";
+  return automatico
+    ? `O sistema está lembrando ${quantas} delas.`
+    : `${quantas} ${quantas === 1 ? "lembrete está" : "lembretes estão"} escritos esperando você mandar, em Agenda → Na sua mão.`;
+}
+
+export function notaDoComoAvisar(automatico: boolean): string {
+  return automatico
+    ? "O modo discreto é o padrão: remetente neutro, sem o seu nome profissional e sem a palavra terapia na tela bloqueada."
+    : "O modo discreto é o padrão: sem o seu nome profissional e sem a palavra terapia na tela bloqueada. Enquanto o envio automático não entra, a mensagem sai do seu WhatsApp — o remetente é o seu número.";
 }

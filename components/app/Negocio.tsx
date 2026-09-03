@@ -7,8 +7,12 @@ import {
   sinaisDaConta,
   mesPorExtenso,
   margemDaConta,
+  diasAteABaixa,
+  fraseDaMedida,
+  fraseDaPendencia,
   type Painel,
   type ContaNoPainel,
+  type MedidaDoReceitaSaude,
 } from "@/lib/negocio";
 
 /**
@@ -59,9 +63,11 @@ function Numero({
 export function PainelNegocio({
   painel,
   contas,
+  medida,
 }: {
   painel: Painel | null;
   contas: ContaNoPainel[];
+  medida: MedidaDoReceitaSaude;
 }) {
   if (!painel) {
     return (
@@ -158,6 +164,43 @@ export function PainelNegocio({
           fraco={painel.ltv_centavos === null}
           nota={fraseDoLtv(painel.ltv_centavos)}
         />
+      </section>
+
+      {/* ------------------------------------------ a medida do P8 (0079) */}
+      <section className="mt-8">
+        <h2 className="rotulo">O cartão do Receita Saúde serviu?</h2>
+        <p className="mt-1 text-[13px] text-tinta2">
+          A P8 foi construída para tirar dias entre o pagamento e a baixa. O número que responde
+          isso é este, e ele é sobre a <b className="font-medium text-tinta">feature</b> — contas de
+          teste ficam de fora, e a de demonstração sozinha tem mais recibos que todas as reais.
+        </p>
+
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Numero
+            rotulo="Dias até a baixa"
+            valor={diasAteABaixa(medida.dias_ate_a_baixa)}
+            fraco={medida.dias_ate_a_baixa === null}
+            nota={fraseDaMedida(medida)}
+          />
+          <Numero
+            rotulo="Marcados"
+            valor={String(medida.marcados)}
+            fraco={medida.marcados === 0}
+            nota={`${medida.pendentes} ainda esperando`}
+          />
+          <Numero
+            rotulo="Atravessaram o ano"
+            valor={String(medida.pendentes_de_anos_anteriores)}
+            fraco={medida.pendentes_de_anos_anteriores === 0}
+            nota={fraseDaPendencia(medida)}
+          />
+          <Numero
+            rotulo="No escopo"
+            valor={String(medida.contas)}
+            fraco={medida.contas === 0}
+            nota={`PF com o modo ligado · ${medida.contas_com_recibo} com recibo`}
+          />
+        </div>
       </section>
 
       {/* ------------------------------------------------------- as contas */}

@@ -188,7 +188,17 @@ export default async function Buscar({
           <ul className="mt-3 grid gap-px overflow-hidden rounded-cartao border border-linha bg-linha">
             {ss.map((s) => (
               <li key={s.id} className="bg-folha">
-                <Link href={`/encaixes/${s.id}`} className="block px-4 py-3 text-[13.5px] hover:text-vaga">
+                {/*
+                  Toda sessão ia para `/encaixes/{id}`, e aquela página recusa
+                  sessão que não seja vaga aberta — quatro dos seis estados
+                  batiam na recusa. Buscar o nome de alguém, achar a sessão de
+                  terça e receber "esta sessão não é uma vaga" é o resultado da
+                  busca funcionando e a busca parecendo quebrada.
+                */}
+                <Link
+                  href={`/agenda?sessao=${s.id}`}
+                  className="block px-4 py-3 text-[13.5px] hover:text-vaga"
+                >
                   {diaBr(s.inicio)} · {um(s.pacientes)?.nome}
                   <span className="ml-2 text-[12px] text-tinta3">{s.estado.replace(/_/g, " ")}</span>
                 </Link>

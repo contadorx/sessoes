@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 import * as negocio from "./negocio";
 import {
+  diasAteABaixa,
+  fraseDaMedida,
+  fraseDaPendencia,
+  SEM_MEDIDA,
+  type MedidaDoReceitaSaude,
   porMes,
   reais,
   fraseDaOrigem,
@@ -537,5 +542,63 @@ describe("a assinatura suspensa continua viva", () => {
 
   it("o rótulo dela existe e é curto", () => {
     expect(rotuloEstado("suspensa")).toBe("suspensa");
+  });
+});
+
+describe("a medida do P8 (0079)", () => {
+  const base: MedidaDoReceitaSaude = { ...SEM_MEDIDA, contas: 4 };
+
+  it("sem ninguém marcado, a mediana é travessão — nunca zero", () => {
+    // Zero dia seria a afirmação de que a baixa é instantânea, e ela é o
+    // número que a build inteira existe para mover. Um zero aqui diria que a
+    // P8 já venceu antes de a primeira conta usá-la.
+    expect(diasAteABaixa(null)).toBe("—");
+    expect(diasAteABaixa(0)).toBe("0 dias");
+  });
+
+  it("meio dia aparece, porque foi medido", () => {
+    // Mediana de quatro recibos cai entre dois valores. Arredondar 2,5 para 3
+    // inventa precisão, e inventa **para cima**, que é o lado que faz a feature
+    // parecer pior do que é.
+    expect(diasAteABaixa(2.5)).toBe("2,5 dias");
+    expect(diasAteABaixa(1)).toBe("1 dia");
+    expect(diasAteABaixa(12.34)).toBe("12,3 dias");
+  });
+
+  it("a frase diz de que amostra o número saiu, e não julga", () => {
+    expect(fraseDaMedida(base)).toBe("nenhuma conta tem recibo ainda");
+    expect(fraseDaMedida({ ...base, contas_com_recibo: 3 })).toBe(
+      "3 com recibo, nenhuma marcou ainda",
+    );
+    expect(
+      fraseDaMedida({ ...base, contas_com_recibo: 3, contas_que_marcaram: 1 }),
+    ).toBe("de 1 conta que marcou");
+    expect(
+      fraseDaMedida({ ...base, contas_com_recibo: 3, contas_que_marcaram: 2 }),
+    ).toBe("de 2 contas que marcaram");
+  });
+
+  it("nenhuma frase contém veredito", () => {
+    // O portão do `claude/25` é decisão minha, e um "amostra suficiente" no
+    // código seria um limiar escolhido no teclado virando, um mês depois, um
+    // "passou" que ninguém sabe de onde veio.
+    const todas = [
+      fraseDaMedida(base),
+      fraseDaMedida({ ...base, contas_com_recibo: 9, contas_que_marcaram: 9 }),
+      fraseDaPendencia(base),
+      fraseDaPendencia({ ...base, pendentes: 5, pendentes_de_anos_anteriores: 2 }),
+    ].join(" ");
+    expect(todas).not.toMatch(/suficiente|insuficiente|passou|reprov|bom|ruim|ideal|meta/i);
+  });
+
+  it("a pendência que atravessou o ano é a que vira multa, e a frase diz isso", () => {
+    expect(fraseDaPendencia(base)).toBe("nada esperando");
+    expect(fraseDaPendencia({ ...base, pendentes: 3 })).toBe("nenhum atravessou o ano");
+    expect(
+      fraseDaPendencia({ ...base, pendentes: 3, pendentes_de_anos_anteriores: 1 }),
+    ).toBe("1 de 3 atravessou o ano — é a que vira multa");
+    expect(
+      fraseDaPendencia({ ...base, pendentes: 5, pendentes_de_anos_anteriores: 2 }),
+    ).toBe("2 de 5 atravessaram o ano — são as que viram multa");
   });
 });
