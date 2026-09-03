@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import type { SessaoLinha, CobrancaLinha } from "@/app/(app)/agenda/dados";
+import { podeClinico, podeFinanceiro, type Acessos } from "@/lib/permissao";
 import {
   cancelarSessao,
   marcarSessao,
@@ -77,13 +78,56 @@ function Marcar({ id, estado, rotulo, destaque }: {
   );
 }
 
+/**
+ * Desmarcar, em duas etapas.
+ *
+ * Os cinco botões desta fileira — Confirmar · Aconteceu · Não veio · Paciente
+ * desmarcou · Eu desmarquei — ficavam num `flex flex-wrap gap-2`, alvos de
+ * ~35 px a 8 px um do outro, e **qualquer um deles acontecia no primeiro
+ * toque**. Não há `confirm`, `window.confirm` nem `<dialog>` em lugar nenhum
+ * do repositório; nunca houve segunda etapa aqui.
+ *
+ * O que um toque errado faz: desmarcar cancela a sessão e abre a vaga, e "Não
+ * veio" leva a sessão para `falta`, que é cobrável e dispara a proposta de
+ * multa. Ela faz isso de pé, com o polegar, entre uma sessão e outra.
+ *
+ * O padrão é o que `components/app/Privacidade.tsx` já usa: estado
+ * `confirmando` no próprio componente. Nada de diálogo nativo — o produto não
+ * usa nenhum, e não é aqui que ele vai começar.
+ *
+ * E a saída tem o mesmo peso da ação. Nas duas confirmações que já existiam, o
+ * "deixa" era o elemento de menor contraste da fileira: quem se arrependeu
+ * precisa achar a saída mais rápido do que achou a entrada.
+ */
 function Cancelar({ id, por, rotulo }: { id: string; por: string; rotulo: string }) {
   const [, despachar] = useActionState(cancelarSessao, INICIAL);
+  const [confirmando, setConfirmando] = useState(false);
+
+  if (!confirmando) {
+    return (
+      <button
+        type="button"
+        onClick={() => setConfirmando(true)}
+        className="min-h-11 rounded-full border border-vaga-linha px-4 py-2 text-[12.5px] font-medium text-vaga transition-colors hover:bg-vaga-bg"
+      >
+        {rotulo}
+      </button>
+    );
+  }
+
   return (
-    <form action={despachar}>
+    <form action={despachar} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="por" value={por} />
-      <Acao rotulo={rotulo} destaque="vaga" />
+      <span className="text-[12.5px] text-tinta2">Desmarcar esta sessão?</span>
+      <Acao rotulo="Sim, desmarcar" destaque="vaga" />
+      <button
+        type="button"
+        onClick={() => setConfirmando(false)}
+        className="min-h-11 rounded-full border border-linha2 px-4 py-2 text-[12.5px] font-medium text-tinta2 transition-colors hover:bg-folha2"
+      >
+        deixa
+      </button>
     </form>
   );
 }
@@ -364,11 +408,34 @@ export function PainelSessao({
   cobranca,
   aoFechar,
   hoje,
+  acessos,
 }: {
   sessao: SessaoLinha;
   cobranca: CobrancaLinha | null;
   aoFechar: () => void;
   hoje: string;
+  /**
+   * Quem está olhando este painel.
+   *
+   * Ele era o mesmo para todo mundo que abre a agenda, e isso era um convite
+   * que o banco recusa. Uma **secretária** — que por padrão não tem acesso
+   * clínico nem financeiro — marcava "Aconteceu" e recebia, ali mesmo, uma
+   * caixa de evolução **já aberta**, com "Guarda de cinco anos: o que entra
+   * aqui não se apaga" embaixo, e o bloco "Recebi". As duas escritas são
+   * recusadas pela RLS (`le_clinico()` e `ve_financeiro()`, migração 0049).
+   *
+   * As abas do paciente já faziam certo (`SemAcessoClinico` no prontuário e na
+   * anamnese); o painel da agenda tinha ficado de fora. E `lib/permissao.ts` já
+   * dizia a frase: *"oferecer e depois recusar é pior do que não oferecer"*.
+   * Aqui era pior que oferecer — era convidar quem não pode ler prontuário a
+   * escrever num.
+   *
+   * O que **não** muda: "Aconteceu" continua à vista para todo mundo. Marcar
+   * uma sessão como realizada é fato administrativo, e é o que a secretária
+   * existe para fazer — tirar isso devolveria o trabalho para a psicóloga, que
+   * é o oposto do produto inteiro.
+   */
+  acessos: Acessos;
 }) {
   const politica = {
     horas: sessao.politica_horas,
@@ -444,7 +511,7 @@ export function PainelSessao({
         )
       )}
 
-      {sessao.estado === "realizada" && !cobranca && (
+      {sessao.estado === "realizada" && !cobranca && podeFinanceiro(acessos) && (
         <Recebi id={sessao.id} hojeSP={hoje} />
       )}
 
@@ -461,7 +528,7 @@ export function PainelSessao({
       {/* A evolução mora aqui pelo mesmo motivo que a nota da B27: é agora que
           ela lembra. Empurrar para a ficha é garantir que a maior parte nunca
           seja escrita — e o registro que não existe é o que falta na fiscalização. */}
-      {sessao.estado === "realizada" && (
+      {sessao.estado === "realizada" && podeClinico(acessos) && (
         <div className="mt-4">
           <Evolucao
             sessaoId={sessao.id}
@@ -475,20 +542,34 @@ export function PainelSessao({
         </div>
       )}
 
-      <div className="mt-4 flex flex-wrap gap-2">
+      {/*
+        A fileira virou três grupos, e a separação é a build.
+
+        "Aconteceu" e "Não veio" eram vizinhos a 8 px, com consequências
+        opostas: um fecha a hora, o outro leva a sessão para `falta`, que é
+        cobrável e dispara a proposta de multa. Agora eles ficam em blocos
+        separados por uma linha, e desmarcar — que abre a vaga — fica no
+        terceiro, longe dos dois.
+      */}
+      <div className="mt-4 flex flex-col gap-3">
         {!terminal && (
           <>
             {sessao.estado === "prevista" && (
-              <Marcar id={sessao.id} estado="confirmada" rotulo="Confirmar" />
+              <div className="flex flex-wrap gap-2">
+                <Marcar id={sessao.id} estado="confirmada" rotulo="Confirmar" />
+              </div>
             )}
             {jaComecou && (
-              <>
+              <div className="flex flex-wrap items-center gap-2 border-t border-linha pt-3">
                 <Marcar id={sessao.id} estado="realizada" rotulo="Aconteceu" destaque="cheia" />
+                <span className="text-[11.5px] text-tinta3">ou</span>
                 <Marcar id={sessao.id} estado="falta" rotulo="Não veio" />
-              </>
+              </div>
             )}
-            <Cancelar id={sessao.id} por="paciente" rotulo="Paciente desmarcou" />
-            <Cancelar id={sessao.id} por="profissional" rotulo="Eu desmarquei" />
+            <div className="flex flex-wrap gap-2 border-t border-linha pt-3">
+              <Cancelar id={sessao.id} por="paciente" rotulo="Paciente desmarcou" />
+              <Cancelar id={sessao.id} por="profissional" rotulo="Eu desmarquei" />
+            </div>
           </>
         )}
 

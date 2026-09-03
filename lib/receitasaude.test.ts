@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   PISO_POR_RECIBO,
   prazoDoAno,
@@ -439,5 +441,61 @@ describe("as obrigações da PJ", () => {
     expect(fraseNfse("2026-09-02")).toContain("faltam 29 dias");
     expect(fraseNfse("2026-10-01")).toContain("hoje");
     expect(fraseNfse("2026-11-01")).toContain("desde");
+  });
+});
+
+/**
+ * O estado que o produto pode escrever, e a palavra que ele não pode.
+ *
+ * A P8 renomeou no banco: `recibos_rfb.emitido_em` → `marcado_por_ela_em`,
+ * `numero_rfb` → `numero_informado`, e o estado `'emitido'` →
+ * `'marcado_por_ela'`. O `check` da tabela hoje aceita exatamente
+ * `pendente | marcado_por_ela | dispensado | vencido | cancelado`.
+ *
+ * **E o código deste repositório ficou para trás**, porque as duas migrações da
+ * P8 foram aplicadas no banco e nunca entraram em `supabase/migrations/` — a
+ * lei 5 furada, e a consequência não foi teórica: a tela do Receita Saúde
+ * pedia `numero_rfb, emitido_em` num `select` e filtrava `estado in
+ * ('emitido','dispensado')`. Contra o banco de hoje, o `select` falha, `db()`
+ * lança, e a tela não abre. Em fevereiro, no prazo, com recibos pendentes.
+ *
+ * Este teste prende as duas metades do conserto: o estado certo e a palavra
+ * errada. O outro lado — o `check` do banco — só pode ser conferido por suíte
+ * SQL, e a da P8 está no mesmo lugar que as migrações dela: fora do repo.
+ */
+describe("o produto não emite, e não escreve que emitiu", () => {
+  it("o estado é `marcado_por_ela`, e `emitido` não é estado nenhum", () => {
+    expect(rotuloEstado("marcado_por_ela")).toBe("você marcou como emitido");
+    // `rotuloEstado` devolve a própria entrada quando não conhece o estado.
+    // "emitido" cair no fallback é a prova de que ele não é mais um dos cinco.
+    expect(rotuloEstado("emitido")).toBe("emitido");
+  });
+
+  it("os cinco estados do check da tabela têm rótulo, e são estes", () => {
+    // `dispensado` e `cancelado` têm rótulo igual à própria chave, de
+    // propósito: a palavra do banco já é a palavra da tela. Então a prova de
+    // que o mapa está inteiro são os três que **traduzem**.
+    expect(rotuloEstado("pendente")).toBe("a emitir");
+    expect(rotuloEstado("marcado_por_ela")).toBe("você marcou como emitido");
+    expect(rotuloEstado("vencido")).toBe("fora do prazo");
+    expect(rotuloEstado("dispensado")).toBe("dispensado");
+    expect(rotuloEstado("cancelado")).toBe("cancelado");
+  });
+
+  it("nenhuma tela compara estado com a palavra antiga", () => {
+    const RAIZ = join(import.meta.dirname, "..");
+    const alvos = [
+      "app/(app)/fechamento/receita-saude/page.tsx",
+      "components/app/ReceitaSaude.tsx",
+      "lib/receitasaude.ts",
+    ];
+    for (const alvo of alvos) {
+      const texto = readFileSync(join(RAIZ, alvo), "utf8")
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+      for (const morto of ['"emitido"', "'emitido'", "numero_rfb", "emitido_em"]) {
+        expect(texto, `${alvo} ainda cita ${morto} — o banco não tem mais`).not.toContain(morto);
+      }
+    }
   });
 });

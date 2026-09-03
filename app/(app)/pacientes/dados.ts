@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import type { Objetivo } from "@/lib/objetivo";
 import { supabaseSessao } from "@/lib/supabase/server";
 import type { Canal, Estado } from "@/lib/paciente";
 import type { AceiteLinha } from "@/lib/contrato";
@@ -272,6 +273,23 @@ export async function registroDoPaciente(id: string): Promise<RegistroDoPaciente
     supabase.rpc("registro_do_paciente", { p_paciente: id }),
   );
   return (bruto ?? null) as RegistroDoPaciente | null;
+}
+
+/**
+ * Os objetivos do plano leve (B31).
+ *
+ * Vêm por função própria, e não dentro de `registro_do_paciente`: aquela
+ * função é lida por oito lugares, e reescrevê-la para acrescentar uma lista
+ * seria mexer no que já funciona para todo mundo — a lei 6 diz para ler o
+ * banco antes de reescrever, e a leitura mais segura é não reescrever.
+ */
+export async function objetivosDoPaciente(id: string): Promise<Objetivo[]> {
+  const supabase = await supabaseSessao();
+  const linhas = await db(
+    "paciente.objetivos",
+    supabase.rpc("objetivos_do_paciente", { p_paciente: id }),
+  );
+  return (linhas ?? []) as unknown as Objetivo[];
 }
 
 /** A retenção da conta (5 a 20 anos) — entra na conta do prazo de guarda. */

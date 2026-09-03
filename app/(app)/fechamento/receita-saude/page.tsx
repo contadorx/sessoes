@@ -24,8 +24,8 @@ type Bruta = {
   pago_em: string;
   valor: string;
   estado: string;
-  numero_rfb: string | null;
-  emitido_em: string | null;
+  numero_informado: string | null;
+  marcado_por_ela_em: string | null;
   dispensa_motivo: string | null;
   divergente_em: string | null;
   pacientes: { nome: string } | null;
@@ -63,9 +63,9 @@ export default async function ReceitaSaude({
       supabase
         .from("recibos_rfb")
         .select(
-          "id, pago_em, valor, estado, numero_rfb, emitido_em, dispensa_motivo, divergente_em, pacientes ( nome )",
+          "id, pago_em, valor, estado, numero_informado, marcado_por_ela_em, dispensa_motivo, divergente_em, pacientes ( nome )",
         )
-        .in("estado", ["emitido", "dispensado"])
+        .in("estado", ["marcado_por_ela", "dispensado"])
         .gte("competencia", `${seguro}-01-01`)
         .lte("competencia", `${seguro}-12-31`)
         .order("pago_em", { ascending: false })
@@ -81,8 +81,8 @@ export default async function ReceitaSaude({
     pago_em: r.pago_em,
     valor: r.valor,
     estado: r.estado,
-    numero_rfb: r.numero_rfb,
-    emitido_em: r.emitido_em,
+    numero_informado: r.numero_informado,
+    marcado_por_ela_em: r.marcado_por_ela_em,
     dispensa_motivo: r.dispensa_motivo,
     divergente_em: r.divergente_em,
   }));

@@ -76,7 +76,7 @@ export function Cockpit({
       </div>
 
       {/* Os quatro. Nunca um. */}
-      <dl className="mt-3 grid gap-px overflow-hidden rounded-cartao border border-linha bg-linha sm:grid-cols-2 lg:grid-cols-4">
+      <dl className="mt-3 grid grid-cols-2 gap-px overflow-hidden rounded-cartao border border-linha bg-linha lg:grid-cols-4">
         {numeros.map((n) => (
           <div key={n.chave} className="bg-folha2 px-4 py-3">
             <dt className="text-[11.5px] text-tinta3">{n.rotulo}</dt>

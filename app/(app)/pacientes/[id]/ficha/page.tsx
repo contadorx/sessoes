@@ -3,6 +3,7 @@ import { obterPaciente } from "../../dados";
 import { atualizarPaciente } from "../../acoes";
 import { FormPaciente } from "@/components/app/FormPaciente";
 import { Privacidade } from "@/components/app/Privacidade";
+import { rotuloHorario } from "@/lib/enquadre";
 
 export const metadata = { title: "Cadastro" };
 
@@ -51,6 +52,15 @@ export default async function Ficha({ params }: { params: Promise<{ id: string }
         arquivado={Boolean(paciente.arquivado_em)}
         contatoEsquecidoEm={paciente.contato_esquecido_em}
         restricaoJudicial={paciente.restricao_judicial}
+        horarioVigente={
+          // O combinado aberto é o primeiro da lista (`obterPaciente` ordena
+          // com o sem `vigencia_fim` na frente).
+          ((): string | null => {
+            const aberto = (paciente.enquadres ?? []).find((e) => !e.vigencia_fim);
+            if (!aberto || aberto.dia_semana === null || !aberto.hora) return null;
+            return rotuloHorario(aberto.dia_semana, aberto.hora);
+          })()
+        }
       />
     </>
   );

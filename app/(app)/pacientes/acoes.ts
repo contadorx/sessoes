@@ -298,8 +298,18 @@ export async function esquecerContato(_anterior: Resultado, form: FormData): Pro
 export async function arquivarPaciente(_anterior: Resultado, form: FormData): Promise<Resultado> {
   const id = String(form.get("paciente_id") ?? "");
   const encerramento = String(form.get("encerramento") ?? "").trim();
+  const tipo = String(form.get("tipo") ?? "").trim();
 
   if (!id) return { estado: "erro", erros: ["Paciente não identificado."] };
+
+  // O tipo é o bloco 4 da Res. 001/2009, e o `check` de `registros` recusa data
+  // de encerramento sem ele. Antes desta build o arquivamento gravava só o
+  // texto, em `pacientes.encerramento` — uma coluna que o registro não lê —, e
+  // a ficha ficava arquivada com o bloco 4 vazio para sempre.
+  if (!["alta", "abandono", "encaminhamento"].includes(tipo)) {
+    return { estado: "erro", erros: ["Escolha como terminou: alta, abandono ou encaminhamento."] };
+  }
+
   if (encerramento.length < 10) {
     return {
       estado: "erro",
@@ -312,7 +322,11 @@ export async function arquivarPaciente(_anterior: Resultado, form: FormData): Pr
   try {
     await db(
       "paciente.arquivar",
-      supabase.rpc("arquivar_paciente", { p_paciente: id, p_encerramento: encerramento }),
+      supabase.rpc("arquivar_paciente", {
+        p_paciente: id,
+        p_encerramento: encerramento,
+        p_tipo: tipo,
+      }),
     );
   } catch (e) {
     console.error("[paciente] falhou arquivar", e);
@@ -789,4 +803,92 @@ async function cunharPixDasAbertas(pacienteId: string): Promise<void> {
   } catch (e) {
     console.error("[paciente] não consegui cunhar o pix das cobranças abertas", e);
   }
+}
+
+/**
+ * O plano terapêutico leve (B31, PR9).
+ *
+ * As três ações são finas de propósito: anotar, concluir e remarcar a revisão.
+ * Não há "sugerir data", "reabrir" nem "editar o texto" — objetivo que mudou é
+ * objetivo novo, e o antigo fica no registro contando o que aconteceu. É a
+ * mesma decisão de `evolucao_nao_se_reescreve`.
+ */
+export async function anotarObjetivo(_anterior: Resultado, form: FormData): Promise<Resultado> {
+  const paciente = String(form.get("paciente_id") ?? "");
+  const texto = String(form.get("texto") ?? "").trim();
+  const revisarEm = String(form.get("revisar_em") ?? "").trim();
+
+  if (!paciente) return { estado: "erro", erros: ["Paciente não identificado."] };
+  if (texto.length < 3 || texto.length > 500) {
+    return { estado: "erro", erros: ["O objetivo tem de 3 a 500 caracteres."] };
+  }
+  if (revisarEm && !/^\d{4}-\d{2}-\d{2}$/.test(revisarEm)) {
+    return { estado: "erro", erros: ["Data de revisão inválida."] };
+  }
+
+  try {
+    const supabase = await supabaseSessao();
+    await db(
+      "objetivo.anotar",
+      supabase.rpc("anotar_objetivo", {
+        p_paciente: paciente,
+        p_texto: texto,
+        p_revisar_em: revisarEm === "" ? null : revisarEm,
+      }),
+    );
+  } catch (e) {
+    console.error("[objetivo] falhou anotar", e);
+    return { estado: "erro", erros: [traduzir(e)] };
+  }
+
+  revalidatePath(`/pacientes/${paciente}/prontuario`);
+  return { estado: "ok", mensagem: "Anotado." };
+}
+
+export async function concluirObjetivo(_anterior: Resultado, form: FormData): Promise<Resultado> {
+  const objetivo = String(form.get("objetivo") ?? "");
+  const paciente = String(form.get("paciente_id") ?? "");
+  if (!objetivo) return { estado: "erro", erros: ["Objetivo não identificado."] };
+
+  try {
+    const supabase = await supabaseSessao();
+    const feito = await db<boolean>(
+      "objetivo.concluir",
+      supabase.rpc("concluir_objetivo", { p_objetivo: objetivo }),
+    );
+    if (feito === false) {
+      return { estado: "erro", erros: ["Este já estava concluído. Recarregue para ver como está."] };
+    }
+  } catch (e) {
+    console.error("[objetivo] falhou concluir", e);
+    return { estado: "erro", erros: [traduzir(e)] };
+  }
+
+  revalidatePath(`/pacientes/${paciente}/prontuario`);
+  return { estado: "ok", mensagem: "Concluído — e continua no registro." };
+}
+
+export async function remarcarRevisao(_anterior: Resultado, form: FormData): Promise<Resultado> {
+  const objetivo = String(form.get("objetivo") ?? "");
+  const paciente = String(form.get("paciente_id") ?? "");
+  const data = String(form.get("revisar_em") ?? "").trim();
+
+  if (!objetivo) return { estado: "erro", erros: ["Objetivo não identificado."] };
+  if (data && !/^\d{4}-\d{2}-\d{2}$/.test(data)) {
+    return { estado: "erro", erros: ["Data de revisão inválida."] };
+  }
+
+  try {
+    const supabase = await supabaseSessao();
+    await db(
+      "objetivo.remarcar",
+      supabase.rpc("remarcar_revisao", { p_objetivo: objetivo, p_data: data === "" ? null : data }),
+    );
+  } catch (e) {
+    console.error("[objetivo] falhou remarcar", e);
+    return { estado: "erro", erros: [traduzir(e)] };
+  }
+
+  revalidatePath(`/pacientes/${paciente}/prontuario`);
+  return { estado: "ok", mensagem: "Revisão remarcada." };
 }

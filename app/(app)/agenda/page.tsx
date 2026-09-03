@@ -159,8 +159,74 @@ export default async function Agenda({
         </Link>
       )}
 
+      {/*
+        A ordem desta tela, e por que ela é esta.
+
+        Ela abre o app **entre uma sessão e outra**, de pé, para ver quem vem às
+        15h. Antes desta build vinham dez números de dinheiro e de ocupação
+        antes do primeiro nome de paciente — em 375 px, dois polegares de
+        rolagem até a agenda. O produto compete com o caderno, e perdia essa
+        comparação por rolagem.
+
+        A regra da ordem é uma só: **o que exige decisão hoje vem antes da
+        grade; o que descreve o mês vem depois.** Nada foi escondido, nada virou
+        aba — aba é onde métrica morre, e o P5 tem razão escrita sobre isso. O
+        cockpit continua na primeira tela; ele só deixou de vir antes da agenda.
+      */}
+
+      {/* A caixa de decisões vem antes de tudo o que é rotina do dia, e é
+          deliberado: **enquanto ela não decidir, nada é cobrado.** Uma pergunta
+          que o sistema faz e esconde numa aba é uma cobrança que nunca sai — e
+          o P4 trocou o silêncio-que-cobra pelo silêncio-que-não-cobra, o que só
+          é honesto se a pergunta estiver à vista. */}
+      <div className="mt-6">
+        <CaixaDeDecisoes decisoes={decisoes} />
+      </div>
+
+      {/* A caixa do que está na mão dela (OP9) vem logo depois das decisões, e
+          pela mesma razão: é trabalho que só acontece se ela vir. No plano
+          Grátis a fila e a cobrança saem do WhatsApp dela, com um toque — e uma
+          oferta que ela não mandou **segura a vaga**, porque o prazo da paciente
+          só começa quando alguém é convidado. Escondida numa aba, essa caixa
+          seria uma fila parada sem motivo aparente. */}
+      <div className="mt-6">
+        <CaixaNaSuaMao
+          mensagens={naMao}
+          resumo={resumoManual}
+          envioAutomatico={adaptadorPara("whatsapp").disponivel}
+        />
+      </div>
+
+      {/* A faixa da confirmação vem **antes** da semana porque ela é sobre
+          hoje, e some sozinha quando ninguém foi perguntado. */}
+      {ehSemanaAtual && (
+        <div className="mt-6">
+          <FaixaDeConfirmacoes
+            sessoes={sessoes.filter(
+              (x) => x.inicio.slice(0, 10) === hojeStr && x.estado !== "cancelada_cedo" && x.estado !== "cancelada_tarde",
+            )}
+          />
+        </div>
+      )}
+
+      {ehSemanaAtual && (
+        <div className="mt-4">
+          <NumerosDaConfirmacao bruta={confirmacoes} />
+        </div>
+      )}
+
+      <div className="mt-6">
+        <Semana
+          semana={semana}
+          sessoes={sessoes}
+          cobrancas={cobrancas}
+          hoje={hojeStr}
+          acessos={acessos}
+        />
+      </div>
+
       {/* a faixa de números */}
-      <dl className="mt-5 grid gap-px overflow-hidden rounded-cartao border border-linha bg-linha sm:grid-cols-2 lg:grid-cols-4">
+      <dl className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-cartao border border-linha bg-linha lg:grid-cols-4">
         <Numero rotulo="sessões na semana" valor={String(resumo.vivas)} />
         <Numero
           rotulo="previsto"
@@ -186,29 +252,6 @@ export default async function Agenda({
         />
       </dl>
 
-      {/* A caixa de decisões vem antes de tudo o que é rotina do dia, e é
-          deliberado: **enquanto ela não decidir, nada é cobrado.** Uma pergunta
-          que o sistema faz e esconde numa aba é uma cobrança que nunca sai — e
-          o P4 trocou o silêncio-que-cobra pelo silêncio-que-não-cobra, o que só
-          é honesto se a pergunta estiver à vista. */}
-      <div className="mt-6">
-        <CaixaDeDecisoes decisoes={decisoes} />
-      </div>
-
-      {/* A caixa do que está na mão dela (OP9) vem logo depois das decisões, e
-          pela mesma razão: é trabalho que só acontece se ela vir. No plano
-          Grátis a fila e a cobrança saem do WhatsApp dela, com um toque — e uma
-          oferta que ela não mandou **segura a vaga**, porque o prazo da paciente
-          só começa quando alguém é convidado. Escondida numa aba, essa caixa
-          seria uma fila parada sem motivo aparente. */}
-      <div className="mt-6">
-        <CaixaNaSuaMao
-          mensagens={naMao}
-          resumo={resumoManual}
-          envioAutomatico={adaptadorPara("whatsapp").disponivel}
-        />
-      </div>
-
       {/* O cockpit do mês (P5), na primeira tela e não numa aba de relatórios.
           É o critério de pronto do bloco 4 do doc 30, e é o mesmo argumento dos
           dois números do P3: uma métrica que mora onde ninguém abre é uma
@@ -218,29 +261,6 @@ export default async function Agenda({
           <Cockpit bruto={cockpit} alertas={alertas} mes={mesPorExtenso(hojeStr)} />
         </div>
       )}
-
-      {/* A faixa da confirmação vem **antes** da semana porque ela é sobre
-          hoje, e some sozinha quando ninguém foi perguntado. */}
-      {ehSemanaAtual && (
-        <div className="mt-6">
-          <FaixaDeConfirmacoes
-            sessoes={sessoes.filter(
-              (x) => x.inicio.slice(0, 10) === hojeStr && x.estado !== "cancelada_cedo" && x.estado !== "cancelada_tarde",
-            )}
-          />
-        </div>
-      )}
-
-      {ehSemanaAtual && (
-        <div className="mt-4">
-          <NumerosDaConfirmacao bruta={confirmacoes} />
-        </div>
-      )}
-
-      <div className="mt-6">
-        <Semana semana={semana} sessoes={sessoes}
-        cobrancas={cobrancas} hoje={hojeStr} />
-      </div>
 
       <div className="mt-8">
         <Retorno r={retorno} rotulo={mesPorExtenso(hojeStr)} />

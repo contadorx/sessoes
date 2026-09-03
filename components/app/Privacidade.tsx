@@ -56,12 +56,23 @@ export function Privacidade({
   arquivado,
   contatoEsquecidoEm,
   restricaoJudicial,
+  horarioVigente,
 }: {
   pacienteId: string;
   nome: string;
   arquivado: boolean;
   contatoEsquecidoEm: string | null;
   restricaoJudicial: boolean;
+  /**
+   * "terça, 15h" — o horário do combinado que ainda está de pé, ou `null`.
+   *
+   * Ele existe aqui por uma razão só: arquivar **fecha esse combinado**, e
+   * fechar um combinado dispara `ao_encerrar_enquadre`, que abre uma vaga fixa
+   * com motivo `alta`. O horário entra na fila de entrada e passa a ser
+   * oferecido — e a tela não dizia isso. Nomear o horário é a diferença entre
+   * ela decidir e ela descobrir.
+   */
+  horarioVigente: string | null;
 }) {
   const [rEsquecer, despacharEsquecer] = useActionState(esquecerContato, INICIAL);
   const [rArquivar, despacharArquivar] = useActionState(arquivarPaciente, INICIAL);
@@ -135,12 +146,21 @@ export function Privacidade({
           {confirmando === "esquecer" ? (
             <form action={despacharEsquecer} className="mt-3 flex flex-wrap items-center gap-2">
               <input type="hidden" name="paciente_id" value={pacienteId} />
+              {/*
+                O "deixa" tem o mesmo peso do botão grave.
+
+                Era o elemento de **menor** contraste da fileira — texto solto
+                em `text-tinta3`, sem alvo de toque, ao lado de um botão cheio
+                que apaga contato. Quem se arrependeu precisa achar a saída pelo
+                menos tão rápido quanto achou a entrada, e num alvo que o polegar
+                acerte de primeira.
+              */}
               <span className="text-[12.5px] text-tinta2">Apagar o contato?</span>
               <Botao rotulo="Sim, apagar" tom="grave" />
               <button
                 type="button"
                 onClick={() => setConfirmando(null)}
-                className="text-[12.5px] text-tinta3 hover:text-tinta2"
+className="min-h-11 rounded-full border border-linha2 px-4 py-2 text-[12.5px] font-medium text-tinta2 transition-colors hover:bg-folha2"
               >
                 deixa
               </button>
@@ -175,9 +195,72 @@ export function Privacidade({
             você se um dia alguém perguntar.
           </p>
 
+          {/*
+            O que mais acontece, dito antes.
+
+            `arquivar_paciente` faz cinco coisas e a tela mencionava uma. As
+            outras quatro não são detalhe de implementação: fecham o combinado,
+            tiram a pessoa das duas filas e cancelam o que ia ser enviado. E o
+            fechamento do combinado dispara `ao_encerrar_enquadre`, que **abre
+            o horário para a fila de entrada** — a terça das 15h passa a ser
+            oferecida a outra pessoa, e ela ficava sabendo depois.
+          */}
+          <ul className="mt-2 space-y-1 text-[12.5px] leading-relaxed text-tinta2">
+            <li>· o combinado vigente é encerrado hoje;</li>
+            {horarioVigente ? (
+              <li>
+                · <b className="font-medium text-tinta">{horarioVigente}</b> passa a
+                ser oferecido para quem está na fila de entrada;
+              </li>
+            ) : (
+              <li>· não há horário fixo para liberar;</li>
+            )}
+            <li>· ela sai da fila de encaixe e da fila de entrada;</li>
+            <li>· as mensagens que ainda não saíram são canceladas.</li>
+          </ul>
+          <p className="mt-2 text-[12.5px] leading-relaxed text-tinta3">
+            Nada é apagado: encerrar não é apagar, e o prontuário fica guardado
+            pelo prazo.
+          </p>
+
           {confirmando === "arquivar" ? (
             <form action={despacharArquivar} className="mt-3">
               <input type="hidden" name="paciente_id" value={pacienteId} />
+              {/*
+                O tipo, antes do texto — porque é ele que decide o que a frase
+                precisa dizer, e porque sem ele o bloco 4 do registro não fecha.
+                Três rádios e não um `select`: são três, e as três consequências
+                clínicas são diferentes o bastante para ficarem à vista ao mesmo
+                tempo. É a mesma escolha da camada do registro.
+              */}
+              <fieldset className="mb-3">
+                <legend className="text-[12px] font-medium text-tinta2">
+                  Como terminou
+                </legend>
+                <div className="mt-1.5 grid gap-2 sm:grid-cols-3">
+                  {(
+                    [
+                      ["alta", "alta", "os objetivos combinados foram alcançados"],
+                      ["encaminhamento", "encaminhamento", "seguiu com outro profissional"],
+                      ["abandono", "abandono", "deixou de vir, sem encerrar com você"],
+                    ] as const
+                  ).map(([valor, rotulo, explica]) => (
+                    <label
+                      key={valor}
+                      className="flex cursor-pointer gap-2 rounded-cartao border border-linha2 px-3 py-2 has-[:checked]:border-vaga has-[:checked]:bg-vaga-bg"
+                    >
+                      <input type="radio" name="tipo" value={valor} required className="mt-0.5" />
+                      <span>
+                        <span className="block text-[12.5px] text-tinta">{rotulo}</span>
+                        <span className="mt-0.5 block text-[11px] leading-relaxed text-tinta3">
+                          {explica}
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+
               <textarea
                 name="encerramento"
                 rows={3}
@@ -191,7 +274,7 @@ export function Privacidade({
                 <button
                   type="button"
                   onClick={() => setConfirmando(null)}
-                  className="text-[12.5px] text-tinta3 hover:text-tinta2"
+  className="min-h-11 rounded-full border border-linha2 px-4 py-2 text-[12.5px] font-medium text-tinta2 transition-colors hover:bg-folha2"
                 >
                   deixa
                 </button>

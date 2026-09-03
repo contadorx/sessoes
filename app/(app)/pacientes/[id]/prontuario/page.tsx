@@ -1,10 +1,16 @@
 import { notFound } from "next/navigation";
-import { obterPaciente, registroDoPaciente, retencaoDaConta } from "../../dados";
+import {
+  obterPaciente,
+  objetivosDoPaciente,
+  registroDoPaciente,
+  retencaoDaConta,
+} from "../../dados";
 import { PainelRegistro } from "@/components/app/Registro";
 import { sessaoAtual, acessosDa } from "@/lib/conta";
 import { podeClinico } from "@/lib/permissao";
 import { hoje } from "@/lib/tempo-servidor";
 import { SemAcessoClinico } from "@/components/app/SemAcessoClinico";
+import { Objetivos } from "@/components/app/Objetivos";
 
 export const metadata = { title: "Prontuário" };
 
@@ -25,9 +31,10 @@ export default async function Prontuario({ params }: { params: Promise<{ id: str
   const paciente = await obterPaciente(id);
   if (!paciente) notFound();
 
-  const [registro, retencao] = await Promise.all([
+  const [registro, retencao, objetivos] = await Promise.all([
     registroDoPaciente(paciente.id),
     retencaoDaConta(),
+    objetivosDoPaciente(paciente.id),
   ]);
   if (!registro) notFound();
 
@@ -46,6 +53,21 @@ export default async function Prontuario({ params }: { params: Promise<{ id: str
         ultimoRegistro={hoje()}
         retencaoAnos={retencao}
       />
+
+      {/*
+        O plano leve fica **junto do bloco 2**, e não numa aba nova.
+
+        O bloco 2 é onde a demanda e os objetivos em texto livre já moram, e é
+        onde ela olha quando a pergunta é "o que a gente combinou de trabalhar".
+        Uma aba "Plano" teria a mesma sorte de qualquer métrica que mora onde
+        ninguém abre — e este produto já tem telas demais competindo pela
+        segunda-feira de manhã dela.
+
+        `hoje` desce do servidor, em São Paulo: é ele que decide se uma data de
+        revisão já chegou, e um `new Date()` no navegador às 21h daria o dia
+        seguinte (lei 3).
+      */}
+      <Objetivos pacienteId={paciente.id} objetivos={objetivos} hoje={hoje()} />
 
       <p className="mt-5 max-w-xl text-[11.5px] leading-relaxed text-tinta3">
         O que estiver na <b className="font-medium">gaveta</b> não sai na cópia que o

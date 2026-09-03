@@ -65,18 +65,25 @@ export default async function Encaixes() {
           valor={String(vagas.filter((v) => !v.preenchida).length)}
           cor={semOferta.length > 0 ? "text-vaga" : undefined}
         />
-        <Numero rotulo="preenchidas em 30 dias" valor={String(metrica.preenchidas)} cor="text-cheia" />
+        <Numero rotulo="preenchidas em 30 dias" valor={String(metrica.preenchidas)} />
+        {/*
+          O número fica; a meta sai, e a cor junto.
+
+          Estava escrito aqui "a meta é 60% — abaixo disso o produto não se
+          justifica", em verde acima de 60% e vermelho abaixo. A regra 3 de
+          `lib/risco.ts` proíbe isso com todas as letras: *"não existe meta, e
+          nada elogia... nenhuma cor que melhore com o número subindo"*. E a
+          verificação do P5 existia — só olhava o cockpit, e esta tela é outra.
+
+          A meta era minha, não dela. "Abaixo disso o produto não se justifica"
+          é uma frase sobre o meu negócio, pintada de vermelho na tela de quem
+          está tentando preencher um horário — e o número já é o dela, sem
+          precisar de juízo em cima.
+        */}
         <Numero
           rotulo="cancelamentos com oferta"
           valor={metrica.taxa === null ? "—" : `${metrica.taxa}%`}
-          cor={
-            metrica.taxa === null
-              ? undefined
-              : Number(metrica.taxa) >= 60
-                ? "text-cheia"
-                : "text-vaga"
-          }
-          nota="a meta é 60% — abaixo disso o produto não se justifica"
+          nota="quantos dos horários que abriram chegaram a ser oferecidos"
         />
       </dl>
 

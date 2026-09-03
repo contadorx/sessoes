@@ -16,11 +16,32 @@ import { cpfValido } from "@/lib/paciente";
 /** R$ 100 por mês-calendário ou fração, por recibo. O piso é um mês. */
 export const PISO_POR_RECIBO = 10000;
 
-export type EstadoRecibo = "pendente" | "emitido" | "dispensado" | "vencido" | "cancelado";
+/**
+ * Os estados do recibo — e o segundo deles é `marcado_por_ela`, não `emitido`.
+ *
+ * **O produto nunca emitiu nada.** Não há API do Receita Saúde, não existe
+ * função que emita, e há teste de estrutura desde a 0038 que reprova qualquer
+ * função com esse nome. O que acontece é que **ela** abre o app da Receita
+ * Federal, digita, e depois vem aqui dizer que fez. Guardar a palavra "emitido"
+ * era o banco afirmando um fato que só a Receita pode confirmar — e o dia em
+ * que ela for questionada, pelo contador ou pela fiscalização, o que este
+ * sistema pode provar é o que ela declarou aqui, não o que a Receita registrou.
+ *
+ * O banco foi renomeado pela P8 (`recibos_rfb.emitido_em` → `marcado_por_ela_em`,
+ * `numero_rfb` → `numero_informado`, estado `emitido` → `marcado_por_ela`).
+ * Estes tipos estavam para trás.
+ */
+export type EstadoRecibo =
+  | "pendente"
+  | "marcado_por_ela"
+  | "dispensado"
+  | "vencido"
+  | "cancelado";
 
 const ROTULO: Record<EstadoRecibo, string> = {
   pendente: "a emitir",
-  emitido: "emitido",
+  // "você marcou", e não "emitido": quem emitiu foi ela, no e-CAC.
+  marcado_por_ela: "você marcou como emitido",
   dispensado: "dispensado",
   vencido: "fora do prazo",
   cancelado: "cancelado",

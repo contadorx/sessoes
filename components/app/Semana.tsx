@@ -6,6 +6,7 @@ import type { SessaoLinha, CobrancaLinha } from "@/app/(app)/agenda/dados";
 import { faixaDeHoras, posicaoNaGrade, porDiaDaSemana, type Semana as TSemana } from "@/lib/semana";
 import { horaEmSP } from "@/lib/tempo";
 import { PainelSessao } from "./PainelSessao";
+import type { Acessos } from "@/lib/permissao";
 
 const PX_POR_HORA = 56;
 
@@ -35,11 +36,18 @@ export function Semana({
   sessoes,
   cobrancas,
   hoje,
+  acessos,
 }: {
   semana: TSemana;
   sessoes: SessaoLinha[];
   cobrancas: Record<string, CobrancaLinha>;
   hoje: string;
+  /**
+   * Quem está olhando. Desce até o painel porque é lá que a tela oferece
+   * escrita clínica e registro de dinheiro — e a RLS recusa as duas para quem
+   * não tem o acesso. Ver o comentário no `PainelSessao`.
+   */
+  acessos: Acessos;
 }) {
   const [escolhida, setEscolhida] = useState<string | null>(null);
   const painel = useRef<HTMLDivElement>(null);
@@ -253,6 +261,7 @@ export function Semana({
             cobranca={cobrancas[sessaoAberta.id] ?? null}
             aoFechar={() => setEscolhida(null)}
             hoje={hoje}
+            acessos={acessos}
           />
         </div>
       )}

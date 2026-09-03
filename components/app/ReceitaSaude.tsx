@@ -42,8 +42,8 @@ export type Registrado = {
   pago_em: string;
   valor: string;
   estado: string;
-  numero_rfb: string | null;
-  emitido_em: string | null;
+  numero_informado: string | null;
+  marcado_por_ela_em: string | null;
   dispensa_motivo: string | null;
   divergente_em: string | null;
 };
@@ -353,10 +353,10 @@ export function PainelReceitaSaude({
                 <span className="font-mono text-[12.5px] tabular-nums text-tinta2">
                   {formatar(paraCentavos(r.valor))}
                 </span>
-                {r.estado === "emitido" ? (
+                {r.estado === "marcado_por_ela" ? (
                   <span className="text-[11.5px] text-cheia">
-                    emitido {r.emitido_em && diaBr(r.emitido_em)}
-                    {r.numero_rfb && ` · nº ${r.numero_rfb}`}
+                    você marcou {r.marcado_por_ela_em && diaBr(r.marcado_por_ela_em)}
+                    {r.numero_informado && ` · nº ${r.numero_informado}`}
                     {r.divergente_em && " · pagamento desfeito depois"}
                   </span>
                 ) : (
@@ -375,9 +375,9 @@ export function PainelReceitaSaude({
                     recibo continua de pé na Receita. Quem desfaz lá é ela, no
                     e-CAC, e tem dez dias contados da emissão. Sem esta linha,
                     o botão parece resolver uma coisa que não resolve. */}
-                {r.estado === "emitido" && (
+                {r.estado === "marcado_por_ela" && (
                   <p className="w-full text-[11.5px] leading-relaxed text-tinta3">
-                    {fraseDaJanela(diasParaDesfazer(r.emitido_em, hoje))}
+                    {fraseDaJanela(diasParaDesfazer(r.marcado_por_ela_em, hoje))}
                   </p>
                 )}
               </li>
