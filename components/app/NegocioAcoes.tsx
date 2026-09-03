@@ -135,7 +135,7 @@ export function CancelarAssinatura({ assinatura }: { assinatura: string }) {
       <button
         type="button"
         onClick={() => setAberto(true)}
-        className="text-[12.5px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
+        className="toque text-[12.5px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
       >
         cancelar assinatura
       </button>
@@ -210,7 +210,7 @@ export function AvisoDaRegua({ aviso, assunto, corpo }: {
       <button
         type="button"
         onClick={() => setAberto((v) => !v)}
-        className="text-[12px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
+        className="toque text-[12px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
       >
         {aberto ? "esconder o texto" : "ver o texto do aviso"}
       </button>
@@ -278,7 +278,7 @@ export function AcoesDaFatura({ fatura, estado }: { fatura: string; estado: stri
         <button
           type="button"
           onClick={() => setEstornando(true)}
-          className="text-[12px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
+          className="toque text-[12px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
         >
           estornar
         </button>

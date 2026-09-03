@@ -145,6 +145,20 @@ export function Semana({
                       type="button"
                       onClick={() => setEscolhida(selecionada ? null : s.id)}
                       aria-pressed={selecionada}
+                      /*
+                        Na grade do desktop o estado da sessão era **só cor**:
+                        verde escuro é realizada, âmbar é falta, rosa é
+                        cancelada. Quem não distingue essas cores — e quem lê
+                        por leitor de tela — via seis blocos idênticos com nome
+                        e hora, sem saber qual delas aconteceu.
+
+                        A lista do celular já fazia certo, escrevendo o rótulo
+                        em texto. Aqui não cabe texto: o bloco tem 22 px na
+                        sessão mais curta. Então o rótulo vai no `title`, para o
+                        mouse, e no `sr-only`, para quem lê por som — os dois a
+                        partir de `ROTULO_ESTADO`, que já é a fonte da lista.
+                      */
+                      title={`${horaEmSP(new Date(s.inicio))} · ${s.pacientes?.nome ?? "—"} · ${ROTULO_ESTADO[s.estado]}`}
                       className={`absolute inset-x-1 overflow-hidden rounded-[4px] border px-1.5 py-1 text-left transition-shadow ${ESTILO[s.estado]} ${
                         selecionada ? "ring-2 ring-tinta/25" : ""
                       }`}
@@ -159,6 +173,7 @@ export function Semana({
                       <span className="block truncate text-[12px] font-medium leading-tight">
                         {s.pacientes?.nome ?? "—"}
                       </span>
+                      <span className="sr-only"> — {ROTULO_ESTADO[s.estado]}</span>
                     </button>
                   );
                 })}

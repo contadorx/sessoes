@@ -92,7 +92,7 @@ export function Horarios({
                 <button
                   type="button"
                   onClick={() => acrescentar(dia)}
-                  className="ml-auto text-[12px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
+                  className="toque ml-auto text-[12px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
                 >
                   acrescentar faixa
                 </button>
@@ -147,7 +147,7 @@ export function Horarios({
                       <button
                         type="button"
                         onClick={() => setLista(lista.filter((_, k) => k !== i))}
-                        className="ml-auto text-[11.5px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
+                        className="toque ml-auto text-[11.5px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
                       >
                         tirar
                       </button>

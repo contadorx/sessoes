@@ -63,6 +63,16 @@ export const FAMILIAS = [
   "oferta_de_vaga_fixa",
   // A oitava, do P3. Ver o defeito no cabeçalho deste arquivo.
   "confirmacao_de_sessao",
+  // As duas do B36, e elas são as primeiras que falam de **um período**, não de
+  // uma sessão. O reajuste avisa a partir de quando o valor muda; a pausa avisa
+  // que não haverá horário entre duas datas, e quando volta.
+  //
+  // Nenhuma das duas pede desculpa e nenhuma explica o porquê — nem inflação,
+  // nem custo, nem "infelizmente". O valor é dela e o descanso é dela; o texto
+  // informa e devolve a palavra à pessoa, que é o mesmo desenho do
+  // `aviso_de_cobranca`.
+  "aviso_de_reajuste",
+  "aviso_de_pausa",
 ] as const;
 
 export type Familia = (typeof FAMILIAS)[number];
@@ -78,6 +88,11 @@ export type Parametros = {
   expira_em?: string;
   /** Nome do profissional. Sem ele, o modo completo não acontece. */
   profissional?: string;
+  /** B36 · a data em que o valor novo passa a valer, em ISO (só a data). */
+  vale_de?: string;
+  /** B36 · o período da pausa, em ISO (só a data). */
+  pausa_de?: string;
+  pausa_ate?: string;
   /** Quantos horários o lembrete de pagamento cobre. */
   quantidade?: number;
   /**
@@ -161,6 +176,48 @@ function prazo(iso: string | undefined): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "o fim do dia";
   return `às ${SO_HORA.format(d)}`;
+}
+
+const SO_DIA = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: FUSO,
+  day: "numeric",
+  month: "long",
+});
+
+/** "14 de outubro", ou uma expressão que não mente. */
+function dia(iso: string | undefined, semData: string): string {
+  if (!iso) return semData;
+  // Data pura ("2026-10-14") é meia-noite UTC, que em São Paulo ainda é o dia
+  // anterior. O meio-dia resolve, e é a lei nº 3 do jeito mais barato.
+  const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(iso) ? `${iso}T12:00:00Z` : iso);
+  if (Number.isNaN(d.getTime())) return semData;
+  return SO_DIA.format(d);
+}
+
+/**
+ * "14 e 25 de outubro" — o período da pausa.
+ *
+ * Sem as duas pontas não se inventa uma: o texto passa a falar do período sem
+ * dizer qual, e quem recebe pergunta. Melhor do que uma data errada no celular
+ * de alguém que ia sair de casa.
+ */
+function periodo(de: string | undefined, ate: string | undefined): string {
+  const a = dia(de, "");
+  const b = dia(ate, "");
+  if (!a && !b) return "as datas que combinamos";
+  if (!a) return `agora e ${b}`;
+  if (!b) return `${a} e a data que combinamos`;
+  if (a === b) return a;
+  return `${a} e ${b}`;
+}
+
+/** O dia seguinte ao fim da pausa — em data pura, sem passar por fuso. */
+function diaSeguinte(iso: string | undefined): string | undefined {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return undefined;
+  const d = new Date(`${iso}T12:00:00Z`);
+  if (Number.isNaN(d.getTime())) return undefined;
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
 }
 
 /** "R$ 100,00", ou uma expressão honesta quando não há número. */
@@ -291,6 +348,12 @@ export const CORPOS: Record<Modo, Record<Familia, string>> = {
     confirmacao_de_sessao:
       "Oi, {{1}}. Você confirma o seu horário {{2}}? " +
       "Responda SIM ou NÃO por aqui, quando puder.",
+    aviso_de_reajuste:
+      "Oi, {{1}}. A partir de {{2}}, o valor do nosso horário passa a ser {{3}}. " +
+      "Se quiser conversar sobre isso, é só responder aqui.",
+    aviso_de_pausa:
+      "Oi, {{1}}. Vou estar fora entre {{2}}, então nossos horários desse período " +
+      "não acontecem. Volto {{3}}, no horário de sempre.",
   },
   completo: {
     oferta_de_vaga:
@@ -317,6 +380,12 @@ export const CORPOS: Record<Modo, Record<Familia, string>> = {
     confirmacao_de_sessao:
       "Oi, {{1}}. Você confirma a sua sessão {{2}} com {{3}}? " +
       "Responda SIM ou NÃO por aqui, quando puder.",
+    aviso_de_reajuste:
+      "Oi, {{1}}. A partir de {{2}}, o valor da sessão com {{3}} passa a ser {{4}}. " +
+      "Se quiser conversar sobre isso, é só responder aqui.",
+    aviso_de_pausa:
+      "Oi, {{1}}. {{2}} estará fora entre {{3}}, então as sessões desse período " +
+      "não acontecem. Voltam {{4}}, no horário de sempre.",
   },
 };
 
@@ -338,6 +407,8 @@ const VARIAVEIS: Record<Modo, Record<Familia, (c: Campos) => string[]>> = {
     lembrete_de_pagamento: (c) => [c.nome, c.valor, c.quantos],
     oferta_de_vaga_fixa: (c) => [c.nome, c.fixo, c.limite],
     confirmacao_de_sessao: (c) => [c.nome, c.hora],
+    aviso_de_reajuste: (c) => [c.nome, c.desde, c.valor],
+    aviso_de_pausa: (c) => [c.nome, c.pausa, c.volta],
   },
   completo: {
     oferta_de_vaga: (c) => [c.nome, c.hora, c.limite, c.prof],
@@ -348,6 +419,8 @@ const VARIAVEIS: Record<Modo, Record<Familia, (c: Campos) => string[]>> = {
     lembrete_de_pagamento: (c) => [c.nome, c.valor, c.prof, c.quantos],
     oferta_de_vaga_fixa: (c) => [c.nome, c.fixo, c.limite, c.prof],
     confirmacao_de_sessao: (c) => [c.nome, c.hora, c.prof],
+    aviso_de_reajuste: (c) => [c.nome, c.desde, c.prof, c.valor],
+    aviso_de_pausa: (c) => [c.nome, c.prof, c.pausa, c.volta],
   },
 };
 
@@ -359,6 +432,11 @@ type Campos = {
   valor: string;
   quantos: string;
   fixo: string;
+  /** B36 · a partir de quando o valor novo vale. */
+  desde: string;
+  /** B36 · o período da pausa, e o dia em que os horários voltam. */
+  pausa: string;
+  volta: string;
 };
 
 /**
@@ -386,8 +464,14 @@ export function renderizar(template: string, params: Parametros): Renderizado {
   const valor = dinheiro(params.valor_centavos);
   const quantos = horarios(params.quantidade);
   const fixo = horarioFixo(params.horario_fixo);
+  const desde = dia(params.vale_de, "a data que combinamos");
+  const pausa = periodo(params.pausa_de, params.pausa_ate);
+  // O dia em que volta é o seguinte ao fim da pausa, e a conta é feita aqui em
+  // vez de vir pronta: quem enfileira já mandou o fim do período, e derivar dele
+  // é uma fonte de verdade a menos.
+  const volta = dia(diaSeguinte(params.pausa_ate), "assim que eu voltar");
   const variaveis = VARIAVEIS[modo][template]({
-    nome, hora, limite, prof, valor, quantos, fixo,
+    nome, hora, limite, prof, valor, quantos, fixo, desde, pausa, volta,
   });
 
   return {
@@ -419,6 +503,8 @@ function assunto(familia: Familia, modo: Modo): string {
       lembrete_de_pagamento: "Sobre o combinado",
       oferta_de_vaga_fixa: "Abriu um horário fixo",
       confirmacao_de_sessao: "Confirma o seu horário?",
+      aviso_de_reajuste: "Sobre o nosso combinado",
+      aviso_de_pausa: "Sobre os próximos horários",
     }[familia];
   }
 
@@ -431,5 +517,7 @@ function assunto(familia: Familia, modo: Modo): string {
     lembrete_de_pagamento: "Sobre o combinado",
     oferta_de_vaga_fixa: "Abriu um horário fixo na agenda",
     confirmacao_de_sessao: "Confirma a sua sessão?",
+    aviso_de_reajuste: "Sobre o valor das sessões",
+    aviso_de_pausa: "Sessões suspensas por um período",
   }[familia];
 }

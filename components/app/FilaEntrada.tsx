@@ -31,10 +31,18 @@ export function FilaEntrada({
   pacienteId,
   naFila,
   desde,
+  envioAutomatico,
 }: {
   pacienteId: string;
   naFila: boolean;
   desde: string | null;
+  /**
+   * Se a mensagem sai sozinha hoje. Vem de `lib/promessa.ts`, pelo servidor —
+   * as duas frases abaixo diziam "o sistema oferece" e "é chamado sozinho", e
+   * no plano Gratuito quem oferece e quem chama é o polegar dela. A ordem da
+   * fila é do sistema; o envio, não necessariamente.
+   */
+  envioAutomatico: boolean;
 }) {
   const [r, mudar] = useActionState(mudarFilaDeEntrada, INICIAL);
 
@@ -50,13 +58,14 @@ export function FilaEntrada({
                 desde {new Date(desde).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}
               </span>
             )}
-            . Quando um horário fixo vagar, o sistema oferece — na ordem de
-            chegada, uma pessoa por vez.
+            . Quando um horário fixo vagar, a vez é dela — na ordem de chegada,
+            uma pessoa por vez
+            {envioAutomatico ? ", e o convite sai sozinho" : ", e o convite nasce escrito para você mandar"}.
           </>
         ) : (
           <>
-            Fora da fila de entrada. Quem liga sem haver horário entra aqui e é
-            chamado sozinho quando alguém recebe alta.
+            Fora da fila de entrada. Quem liga sem haver horário entra aqui e
+            entra na ordem quando alguém recebe alta.
           </>
         )}
       </p>

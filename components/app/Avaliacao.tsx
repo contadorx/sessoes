@@ -71,7 +71,7 @@ export function Avaliacao({ pendencia }: { pendencia: Pendencia }) {
               className={
                 nota === n
                   ? "h-9 w-9 rounded-full border border-tinta bg-tinta font-mono text-[12.5px] tabular-nums text-folha"
-                  : "h-9 w-9 rounded-full border border-linha2 font-mono text-[12.5px] tabular-nums text-tinta2 transition-colors hover:bg-folha2"
+                  : "h-11 w-11 rounded-full border border-linha2 font-mono text-[12.5px] tabular-nums text-tinta2 transition-colors hover:bg-folha2"
               }
             >
               {n}

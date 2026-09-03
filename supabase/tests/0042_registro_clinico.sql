@@ -383,8 +383,8 @@ begin
    where id in (menor, adulto);
   execute 'set local role authenticated';
 
-  perform public.arquivar_paciente(menor, 'Encerrado por mudança de cidade da família; encaminhada a colega da nova cidade.');
-  perform public.arquivar_paciente(adulto, 'Alta combinada em sessão; objetivos do plano alcançados.');
+  perform public.arquivar_paciente(menor, 'Encerrado por mudança de cidade da família; encaminhada a colega da nova cidade.', 'encaminhamento');
+  perform public.arquivar_paciente(adulto, 'Alta combinada em sessão; objetivos do plano alcançados.', 'alta');
 
   -- ---------------------------------------------------------------- 19
   achou := exists (select 1 from public.elegiveis_para_eliminacao() x where x.paciente_id = menor);
@@ -413,7 +413,7 @@ begin
     values (a_conta,a_prof,virou,(d - 2500 + time '09:00') at time zone 'America/Sao_Paulo',
                                  (d - 2500 + time '09:50') at time zone 'America/Sao_Paulo','avulsa','realizada',150.00);
   execute 'set local role authenticated';
-  perform public.arquivar_paciente(virou, 'Alta combinada; encerramento registrado na época.');
+  perform public.arquivar_paciente(virou, 'Alta combinada; encerramento registrado na época.', 'alta');
 
   select * into r from public.elegiveis_para_eliminacao() x where x.paciente_id = virou;
   if not found then

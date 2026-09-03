@@ -89,7 +89,7 @@ export function FaixaDeConfirmacoes({
                 {acao && (
                   <Link
                     href={`/agenda?sessao=${s.id}`}
-                    className="ml-auto text-[11.5px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
+                    className="toque ml-auto text-[11.5px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
                   >
                     {acao.rotulo}
                   </Link>

@@ -37,7 +37,7 @@ export async function publicarContrato(
   for (const m of faltamObrigatorios(corpo)) {
     erros.push(
       m === "{{politica}}"
-        ? "Falta {{politica}} no texto. A regra de desmarcação precisa estar escrita para quem aceita — é ela que a cobrança automática aplica."
+        ? "Falta {{politica}} no texto. A regra de desmarcação precisa estar escrita para quem aceita — é ela que vale quando você decidir cobrar uma falta."
         : "Falta {{valor}} no texto. O combinado de dinheiro precisa estar escrito para quem aceita.",
     );
   }

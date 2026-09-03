@@ -32,8 +32,8 @@ function Botao({ rotulo, destaque }: { rotulo: string; destaque?: boolean }) {
       disabled={pending}
       className={
         destaque
-          ? "rounded-full bg-cheia px-4 py-1.5 text-[12.5px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-45"
-          : "rounded-full border border-linha2 px-4 py-1.5 text-[12.5px] font-medium text-tinta2 transition-colors hover:bg-folha2 disabled:opacity-45"
+          ? "min-h-11 rounded-full bg-cheia px-5 py-2 text-[12.5px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-45"
+          : "min-h-11 rounded-full border border-linha2 px-5 py-2 text-[12.5px] font-medium text-tinta2 transition-colors hover:bg-folha2 disabled:opacity-45"
       }
     >
       {pending ? "…" : rotulo}
@@ -182,7 +182,7 @@ export function Evolucao({
           <button
             type="button"
             onClick={() => setAberta(true)}
-            className="ml-auto text-[11.5px] text-tinta3 hover:text-vaga"
+            className="ml-auto px-2 text-[12.5px] text-tinta3 hover:text-vaga"
           >
             editar
           </button>
@@ -233,20 +233,33 @@ export function Evolucao({
         áudio não passa pelo Sessões.
       </p>
       <EscolhaDaCamada atual={camada} />
+
+      {/*
+        "Guarda de cinco anos: o que entra aqui não se apaga" estava **dentro da
+        fileira de botões**, entre "Guardar" e "fechar", em 11 px. Era a frase
+        pior colocada do produto: um aviso sobre uma consequência irreversível,
+        no lugar onde o olho já decidiu e só procura onde tocar.
+
+        Ela não sai — é informação de verdade, e ela precisa dela antes de
+        escrever. Sobe para onde a decisão ainda está sendo tomada: junto da
+        escolha da camada, que é exatamente a pergunta "o que vai acontecer com
+        o que eu escrever aqui".
+      */}
+      <p className="mt-2 text-[11.5px] leading-relaxed text-tinta3">
+        Guarda de cinco anos: o que entra aqui não se apaga.
+      </p>
+
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <Botao rotulo="Guardar" destaque />
         {texto && (
           <button
             type="button"
             onClick={() => setAberta(false)}
-            className="text-[12px] text-tinta3 hover:text-tinta2"
+            className="px-2 text-[12.5px] text-tinta3 hover:text-tinta2"
           >
             fechar
           </button>
         )}
-        <span className="text-[11px] text-tinta3">
-          Guarda de cinco anos: o que entra aqui não se apaga.
-        </span>
       </div>
       <Recado r={r} />
     </form>
@@ -345,6 +358,16 @@ export function PainelRegistro({
                 {b.completo ? "●" : "○"}
               </span>
               <span className={b.completo ? "text-tinta2" : "text-tinta3"}>
+                {/*
+                  O ●/○ é `aria-hidden`, e com razão: é enfeite. O problema é
+                  que ele era a **única** diferença que sobrava além da cor — o
+                  texto do bloco é idêntico nos dois casos. Quem lê por som
+                  ouvia a lista dos quatro blocos sem saber qual está escrito e
+                  qual falta, que é a única pergunta que a lista responde.
+                */}
+                <span className="sr-only">
+                  {b.completo ? "escrito: " : "ainda não escrito: "}
+                </span>
                 {b.n}. {b.nome}
                 <span className="text-tinta3"> · {b.onde}</span>
               </span>

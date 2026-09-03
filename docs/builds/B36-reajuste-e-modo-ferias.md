@@ -1,6 +1,6 @@
 # B36 · Reajuste sem saia justa e modo férias
 
-**3 dias · migração: a definir · décima segunda da fila**
+**3 dias · migração: 0073 · décima segunda da fila**
 **Códigos:** D14, D16.
 
 ---
@@ -40,12 +40,12 @@ que acontece com a mensalidade do mês, e como o horário volta.
 
 ## Pronto quando
 
-- [ ] reajustar hoje não altera nenhuma sessão anterior à mudança, nem nenhum
+- [x] reajustar hoje não altera nenhuma sessão anterior à mudança, nem nenhum
       valor já reconhecido;
-- [ ] o período de férias sai do vendável e **não** aparece como hora não
+- [x] o período de férias sai do vendável e **não** aparece como hora não
       ocupada no livro-razão (é `excecao`, não perda);
-- [ ] a mensalidade de um mês parcial sai certa, e a tela diz a conta;
-- [ ] o texto do reajuste passa no check do público: se explica para uma
+- [x] a mensalidade de um mês parcial sai certa, e a tela diz a conta;
+- [x] o texto do reajuste passa no check do público: se explica para uma
       psicóloga em uma frase.
 
 ---

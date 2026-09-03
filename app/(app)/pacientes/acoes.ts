@@ -251,11 +251,137 @@ export async function substituirEnquadre(
   return INICIAL;
 }
 
+/**
+ * O reajuste com data (B36 · D14).
+ *
+ * `substituirEnquadre`, aqui em cima, continua existindo para mudança de
+ * horário e encerramento — ela fecha hoje e abre hoje. Reajuste é outra coisa:
+ * ele tem **data**, e é a data que transforma um fato consumado numa conversa
+ * preparada.
+ *
+ * Quem fecha e abre é `reajustar_enquadre`, no banco, e não este arquivo. Duas
+ * razões: o fecho tem de cair na **véspera** da abertura (com o fecho no mesmo
+ * dia, a semana da virada é cobrada duas vezes na mensalidade — está medido no
+ * cabeçalho da 0073), e as duas escritas precisam acontecer juntas ou nenhuma.
+ * Fechar aqui e falhar ao abrir deixaria a paciente sem combinado nenhum.
+ */
+export async function reajustarCombinado(
+  _anterior: Resultado,
+  form: FormData,
+): Promise<Resultado> {
+  const pacienteId = String(form.get("paciente_id") ?? "");
+  const enquadreId = String(form.get("enquadre_id") ?? "");
+  const vigencia = String(form.get("vigencia") ?? "");
+  const avisar = caixaMarcada(form, "avisar");
+
+  if (!pacienteId || !enquadreId) {
+    return { estado: "erro", erros: ["Combinado não identificado."] };
+  }
+
+  const erros: string[] = [];
+  const porCampo: Record<string, string> = {};
+  const problema = (campo: string, frase: string) => {
+    erros.push(frase);
+    if (!porCampo[campo]) porCampo[campo] = frase;
+  };
+
+  const valor = lerCentavos(String(form.get("valor") ?? "").trim());
+  if (valor === null || valor <= 0) problema("valor", "Informe o novo valor da sessão.");
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(vigencia)) {
+    problema("vigencia", "Escolha a partir de quando o valor novo vale.");
+  }
+
+  // O valor fixo do mês é opcional, e vazio continua querendo dizer "cobro por
+  // sessão". Reajustar a sessão sem tocar na mensalidade seria deixar as duas
+  // contas discordando dentro do mesmo combinado.
+  const mensalBruto = String(form.get("mensalidade_valor") ?? "").trim();
+  let mensalidade: string | null = null;
+  if (mensalBruto !== "") {
+    const m = lerCentavos(mensalBruto);
+    if (m === null) problema("mensalidade_valor", "O valor fixo do mês não parece um número.");
+    else mensalidade = deCentavos(m);
+  }
+
+  if (erros.length > 0) return { estado: "erro", erros, porCampo };
+
+  const supabase = await supabaseSessao();
+
+  let recibo: { para: number; vale_a_partir_de: string } | null = null;
+  try {
+    recibo = (await db(
+      "enquadres.reajustar",
+      supabase.rpc("reajustar_enquadre", {
+        p_enquadre: enquadreId,
+        p_valor: deCentavos(valor!),
+        p_mensalidade_valor: mensalidade,
+        p_vigencia: vigencia,
+        p_motivo: "reajuste",
+      }),
+    )) as unknown as { para: number; vale_a_partir_de: string };
+  } catch (e) {
+    return { estado: "erro", erros: [traduzir(e)] };
+  }
+
+  // O aviso é uma segunda escrita, e ela **não** derruba a primeira. O reajuste
+  // já aconteceu; se a mensagem não entrar na fila, a frase diz isso em vez de
+  // fingir que o reajuste falhou — e ela manda pelo WhatsApp dela, que é o que
+  // ela faria de qualquer jeito.
+  let avisou = false;
+  if (avisar) {
+    try {
+      await db(
+        "mensagens.aviso_de_reajuste",
+        supabase.rpc("enfileirar_mensagem", {
+          p_paciente: pacienteId,
+          p_template: "aviso_de_reajuste",
+          p_chave: `reajuste:${enquadreId}:${vigencia}`,
+          p_params: { vale_de: vigencia, valor_centavos: valor },
+        }),
+      );
+      avisou = true;
+    } catch (e) {
+      console.error("[reajuste] o combinado mudou, o aviso não entrou na fila", e);
+    }
+  }
+
+  revalidatePath(`/pacientes/${pacienteId}`);
+  revalidatePath("/agenda");
+
+  // A data vem do **recibo do banco**, não da que eu mandei: é ele que decide,
+  // e repetir o que eu pedi seria confirmar a minha intenção em vez do que
+  // aconteceu. Barato aqui, e é a lei 6 em miniatura.
+  const desde = String(recibo?.vale_a_partir_de ?? vigencia)
+    .slice(0, 10)
+    .split("-")
+    .reverse()
+    .join("/");
+
+  return {
+    estado: "ok",
+    mensagem: avisar
+      ? avisou
+        ? `Reajustado, valendo a partir de ${desde}. O aviso está na caixa "Na sua mão", na agenda.`
+        : `Reajustado, valendo a partir de ${desde}. O aviso não entrou na fila — mande por você mesma.`
+      : `Reajustado, valendo a partir de ${desde}. Nenhum aviso foi preparado.`,
+  };
+}
+
 function traduzir(e: unknown): string {
   if (e instanceof ErroDeBanco) {
     if (e.codigo === "23505") return "Já existe um combinado aberto para este paciente.";
     if (e.codigo === "23514") return "Algum valor está fora do permitido.";
     if (e.codigo === "42501") return "Sem permissão para esta operação.";
+
+    // P0001 é `raise exception` escrito por nós, em português e para ela ler —
+    // "a data em que o valor novo passa a valer não pode estar no passado:
+    // sessão que já aconteceu mantém o valor combinado na época". Trocar isso
+    // por "não consegui salvar agora" joga fora a única frase que explica a
+    // recusa, e manda ela tentar de novo exatamente do mesmo jeito.
+    if (e.codigo === "P0001") {
+      const frase = e.message.replace(/^\[[^\]]*\]\s*/, "").trim();
+      if (frase) return frase[0].toUpperCase() + frase.slice(1);
+    }
   }
   console.error("[pacientes] erro não traduzido", e);
   return "Não consegui salvar agora. Tente de novo em instantes.";

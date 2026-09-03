@@ -2,9 +2,15 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { criarAusencia, removerAusencia, type Resultado } from "@/app/(app)/agenda/acoes";
-import type { Ausencia } from "@/app/(app)/agenda/dados";
+import {
+  criarAusencia,
+  removerAusencia,
+  reverMensalidade,
+  type Resultado,
+} from "@/app/(app)/agenda/acoes";
+import type { Ausencia, MensalidadeARever } from "@/app/(app)/agenda/dados";
 import { Campo, Erros, ENTRADA } from "./campos";
+import { formatar, paraCentavos } from "@/lib/dinheiro";
 
 const INICIAL: Resultado = { estado: "inicial" };
 
@@ -54,14 +60,74 @@ function Remover({ id }: { id: string }) {
   );
 }
 
+/**
+ * A conta do mês que ficou para trás.
+ *
+ * A mensalidade é gerada no dia do mês e o valor **congela** na cobrança. Uma
+ * pausa marcada depois disso não volta atrás sozinha, e é decisão: reescrever
+ * cobrança sem ela saber seria descobrir a mudança pelo extrato.
+ *
+ * Então a diferença aparece aqui, com os dois números lado a lado e um botão
+ * por linha. Ela aplica o que quiser aplicar.
+ */
+function ARever({ itens }: { itens: MensalidadeARever[] }) {
+  const [estado, despachar] = useActionState(reverMensalidade, INICIAL);
+  if (itens.length === 0) return null;
+
+  return (
+    <div className="mt-4 rounded-cartao border border-aviso-linha bg-aviso-bg px-5 py-4">
+      <p className="text-[13px] leading-relaxed text-tinta2">
+        {itens.length === 1
+          ? "Uma mensalidade em aberto deixou de bater com a conta do mês"
+          : `${itens.length} mensalidades em aberto deixaram de bater com a conta do mês`}{" "}
+        — a cobrança foi gerada antes da pausa. Nada foi mudado: quem decide é
+        você.
+      </p>
+
+      <ul className="mt-3 flex flex-col gap-2">
+        {itens.map((m) => {
+          const antes = paraCentavos(m.valor_cobrado);
+          const agora = paraCentavos(m.valor_agora);
+          return (
+            <li key={m.cobranca} className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <span className="text-[13px] text-tinta">{m.paciente}</span>
+              <span className="font-mono text-[12.5px] tabular text-tinta3">
+                {m.competencia.slice(5, 7)}/{m.competencia.slice(0, 4)}
+              </span>
+              <span className="font-mono text-[12.5px] tabular text-tinta2">
+                {formatar(antes)} → <b className="font-semibold text-tinta">{formatar(agora)}</b>
+              </span>
+              <form action={despachar} className="ml-auto">
+                <input type="hidden" name="cobranca" value={m.cobranca} />
+                <button
+                  type="submit"
+                  className="min-h-11 rounded-full border border-linha2 bg-folha px-4 py-2 text-[12.5px] font-medium text-tinta2 transition-colors hover:bg-folha2"
+                >
+                  Passar para {formatar(agora)}
+                </button>
+              </form>
+            </li>
+          );
+        })}
+      </ul>
+
+      {estado.estado === "erro" && (
+        <p className="mt-2 text-[12.5px] text-vaga">{estado.erros[0]}</p>
+      )}
+    </div>
+  );
+}
+
 export function Ausencias({
   ausencias,
   hoje,
   horizonte,
+  aRever,
 }: {
   ausencias: Ausencia[];
   hoje: string;
   horizonte: string | null;
+  aRever: MensalidadeARever[];
 }) {
   const [aberto, setAberto] = useState(false);
   const [estado, despachar] = useActionState(criarAusencia, INICIAL);
@@ -82,9 +148,12 @@ export function Ausencias({
 
       <p className="mt-2 max-w-[70ch] text-[12.5px] leading-relaxed text-tinta2">
         Marcar ausência <b className="font-semibold text-tinta">não mexe no combinado</b> de
-        ninguém: só tira as sessões daquele período da agenda. Remover devolve a
-        recorrência sozinha.
+        ninguém: só tira as sessões daquele período da agenda, e elas saem junto
+        da conta do mês de quem paga mensalidade. Remover devolve a recorrência
+        sozinha.
       </p>
+
+      <ARever itens={aRever} />
 
       {aberto && (
         <form action={despachar} className="mt-4 rounded-cartao border border-linha bg-folha p-5">
@@ -141,8 +210,8 @@ export function Ausencias({
 
       {horizonte && (
         <p className="mt-4 text-[11.5px] text-tinta3">
-          A agenda se monta oito semanas à frente e caminha sozinha —
-          materializada até {dm(horizonte)}.
+          A agenda se monta oito semanas à frente e caminha sozinha — montada
+          até {dm(horizonte)}.
         </p>
       )}
     </section>

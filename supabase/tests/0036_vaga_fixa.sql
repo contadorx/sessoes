@@ -274,7 +274,7 @@ begin
   select id into e_ana from public.enquadres where paciente_id=ana and vigencia_fim is null;
   insert into public.fila_encaixe (conta_id, paciente_id) values (a_conta, ana);
 
-  perform public.arquivar_paciente(ana, 'Alta combinada em sessão, com fechamento do processo.');
+  perform public.arquivar_paciente(ana, 'Alta combinada em sessão, com fechamento do processo.', 'alta');
 
   select count(*) into n from public.enquadres where id=e_ana and vigencia_fim is null;
   if n <> 0 then

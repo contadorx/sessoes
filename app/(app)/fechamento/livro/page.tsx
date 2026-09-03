@@ -19,7 +19,7 @@ import {
   type EixoAgenda,
 } from "@/lib/livro";
 
-export const metadata = { title: "O livro-razão" };
+export const metadata = { title: "O que aconteceu com cada hora" };
 
 const MESES = [
   "janeiro", "fevereiro", "março", "abril", "maio", "junho",
@@ -114,7 +114,9 @@ export default async function LivroRazao({
   if (!prof) {
     return (
       <div className="mx-auto max-w-3xl">
-        <h1 className="font-serif text-[28px] leading-tight tracking-[-0.015em]">O livro-razão</h1>
+        <h1 className="font-serif text-[28px] leading-tight tracking-[-0.015em]">
+          O que aconteceu com cada hora
+        </h1>
         <p className="mt-3 text-[13.5px] text-tinta2">
           Não encontrei um profissional ativo nesta conta.
         </p>
@@ -138,8 +140,9 @@ export default async function LivroRazao({
 
       <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
         <h1 className="font-serif text-[28px] leading-tight tracking-[-0.015em]">
-          O livro-razão · {mes.rotulo}
+          O que aconteceu com cada hora
         </h1>
+        <span className="font-mono text-[13px] tabular text-tinta2">{mes.rotulo}</span>
         {/*
           De quem é o mês — e só quando há mais de uma pessoa atendendo. Numa
           conta solo, escrever o nome dela de volta é ruído; numa clínica, a
@@ -161,8 +164,8 @@ export default async function LivroRazao({
 
       <p className="mt-3 max-w-[64ch] text-[14px] leading-relaxed text-tinta2">
         Quanto da sua capacidade virou receita, e por onde o resto foi. Cada hora
-        entra em quatro eixos ao mesmo tempo — agenda, confirmação, dinheiro e
-        imposto —, e{" "}
+        é contada de quatro jeitos ao mesmo tempo — o que a agenda diz, se houve
+        confirmação, se o dinheiro entrou e se o imposto foi declarado —, e{" "}
         <b className="font-semibold text-tinta">nenhum deles se preenche à mão</b>.
       </p>
 
@@ -247,7 +250,7 @@ export default async function LivroRazao({
                   {acao && (
                     <Link
                       href={acao.href}
-                      className="mt-2 inline-block text-[12px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
+                      className="toque mt-2 inline-block text-[12px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
                     >
                       {acao.rotulo}
                     </Link>
@@ -276,25 +279,18 @@ export default async function LivroRazao({
         <p className="mt-2 max-w-[62ch] text-[13px] leading-relaxed text-tinta2">
           {fraseDaCompletude(l)}
         </p>
-        <p className="mt-2 max-w-[62ch] text-[11.5px] leading-relaxed text-tinta3">
-          Os eixos são calculados a partir do que já aconteceu — o estado da
-          sessão, a cobrança, o consumo de pacote, a remarcação e o recibo.
-          Nenhuma tela deste sistema escreve um eixo, e é isso que faz esta conta
-          continuar de pé nos meses em que ninguém teve tempo de organizar nada.
-        </p>
       </section>
 
-      {/* ------------------------------------------------ o que ainda não está */}
-      <section className="mt-8 rounded-cartao border border-dashed border-linha2 bg-folha2 px-5 py-4">
-        <p className="max-w-[62ch] text-[12.5px] leading-relaxed text-tinta2">
-          <b className="font-medium text-tinta">Ainda não há percentual de ocupação
-          aqui</b>, e é decisão. Ocupação sozinha é manipulável: ela sobe se você
-          declarar menos horas, ou se deixar de reservar tempo de prontuário. Ela
-          vai aparecer junto de outros três números — ocupação paga, receita por
-          hora disponível e perda por causa —, porque ocupação subindo com receita
-          por hora caindo é sintoma, não sucesso.
-        </p>
-      </section>
+      {/*
+        Aqui havia 52 palavras explicando que "ainda não há percentual de ocupação
+        nesta tela, e é decisão" — e a lista dos quatro números que apareceriam um
+        dia. Os quatro **já existem** desde o P5, na agenda, e são exatamente os
+        que o parágrafo prometia. A tela negava um recurso do produto para quem
+        estava lendo o produto.
+
+        O parágrafo era duas coisas erradas ao mesmo tempo: texto de projeto no
+        meio de uma tarefa, e promessa envelhecida ao contrário. As duas saem.
+      */}
     </div>
   );
 }

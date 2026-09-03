@@ -126,7 +126,7 @@ begin
   -- 4 · arquivar libera vaga
   select id into p1 from public.pacientes
    where conta_id = a_conta and nome = 'Limite 1';
-  perform public.arquivar_paciente(p1, 'processo encerrado no teste');
+  perform public.arquivar_paciente(p1, 'processo encerrado no teste', 'alta');
 
   select * into t from public.pacientes_da_conta(a_conta);
   if t.lotou then raise exception '4 · arquivei uma e a conta continua lotada (ativos %)', t.ativos; end if;
@@ -156,7 +156,7 @@ begin
   -- 10 · e arquivar continua possível com a conta lotada. Se o limite
   -- fechasse a saída, a conta cheia ficaria presa — e a saída é o que faz o
   -- limite ser aceitável em vez de ser uma parede.
-  perform public.arquivar_paciente(p6, 'encerrado, conferindo a saída');
+  perform public.arquivar_paciente(p6, 'encerrado, conferindo a saída', 'alta');
   select ativos into n from public.pacientes_da_conta(a_conta);
   if n <> 4 then raise exception '10 · arquivar com a conta lotada não funcionou (ativos %)', n; end if;
   raise notice '10 · arquivar continua possível com a conta lotada: ok';

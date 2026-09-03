@@ -39,6 +39,23 @@ export default async function Encaixes() {
 
   const semOferta = vagas.filter((v) => v.ofertas === 0);
 
+  /*
+    A tela ainda não aconteceu.
+
+    Numa conta nova a faixa mostrava `0 · 0 · 0 · —` sem dizer que zero é o
+    esperado, e quatro zeros lidos de primeira parecem quatro fracassos. O
+    modelo é o estado vazio de `/pacientes`, que é o melhor do produto: diz o
+    que a tela vai mostrar quando existir, e oferece o próximo passo.
+
+    A condição é estrita de propósito — **nada** aconteceu ainda: fila vazia,
+    nenhum horário jamais vago, nenhum preenchimento em 30 dias. Basta uma
+    dessas três existir e os números voltam inteiros, zeros incluídos. Esconder
+    um zero que significa alguma coisa seria "o filtro que esconde o
+    inconveniente", e ele é antipadrão nomeado aqui.
+  */
+  const nadaAconteceu =
+    fila.length === 0 && vagas.length === 0 && metrica.preenchidas === 0;
+
   return (
     <div>
       <h1 className="font-serif text-[28px] leading-tight tracking-[-0.015em]">A fila</h1>
@@ -57,6 +74,18 @@ export default async function Encaixes() {
         <AvisoDaFaixa faixa={faixa} />
       </div>
 
+      {nadaAconteceu ? (
+        <div className="mt-6 rounded-cartao border border-dashed border-linha2 bg-folha px-6 py-10 text-center">
+          <p className="font-serif text-[20px] text-tinta">A fila ainda está vazia.</p>
+          <p className="mx-auto mt-2 max-w-[52ch] text-[13.5px] leading-relaxed text-tinta2">
+            Enquanto ninguém estiver esperando encaixe, um cancelamento continua
+            sendo só um buraco na agenda. Os números desta tela — quem está
+            esperando, quais horários vagaram e quantos foram preenchidos —
+            começam a existir a partir da primeira pessoa aqui.
+          </p>
+        </div>
+      ) : (
+      <>
       {/* a métrica que decide o produto */}
       <dl className="mt-5 grid gap-px overflow-hidden rounded-cartao border border-linha bg-linha sm:grid-cols-4">
         <Numero rotulo="na fila" valor={String(fila.filter((f) => f.ativo).length)} />
@@ -135,6 +164,8 @@ export default async function Encaixes() {
             </p>
           )}
         </section>
+      )}
+      </>
       )}
 
       <div className="mt-10">

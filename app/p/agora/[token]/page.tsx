@@ -162,6 +162,37 @@ export default async function PaginaDoPaciente({
         </section>
       )}
 
+      {/* A pré-ficha (PR4).
+          
+          Fica **sempre** à vista, e não só quando falta preencher: telefone
+          trocado e CPF que faltava são as duas coisas que a pessoa quer
+          corrigir sozinha, e um caminho que só existe uma vez obriga a pedir
+          outro link por WhatsApp para arrumar um dígito.
+
+          A frase diz o que há do outro lado antes do toque. Quem recebe um
+          link de consultório antes da primeira sessão espera um questionário —
+          é o que os outros mandam —, e a pessoa que abre esperando falar de si
+          e encontra um formulário de cadastro fica com a impressão errada nas
+          duas direções. */}
+      {visto.estado === "aberta" && (
+        <section className="mt-9 border-t border-linha pt-6">
+          <h2 className="rotulo">Seu cadastro</h2>
+          <Link
+            href={`/p/agora/${token}/ficha`}
+            className="mt-3 flex items-center justify-between gap-4 rounded-cartao border border-linha bg-folha px-5 py-4 transition-colors hover:bg-folha2"
+          >
+            <span>
+              <span className="text-[14.5px] text-tinta">Conferir os seus dados</span>
+              <span className="mt-0.5 block text-[12px] leading-relaxed text-tinta3">
+                Nome, nascimento, contato e como prefere ser avisada. Nenhuma
+                pergunta sobre você.
+              </span>
+            </span>
+            <span className="shrink-0 text-[12.5px] font-medium text-vaga">abrir</span>
+          </Link>
+        </section>
+      )}
+
       {visto.estado === "aberta" && (
         <p className="mt-10 border-t border-linha pt-5 text-[12.5px] leading-relaxed text-tinta3">
           {fraseDaJanela()}
@@ -169,11 +200,17 @@ export default async function PaginaDoPaciente({
       )}
 
       {/* O mesmo rodapé das outras duas páginas de `/p/`, e ele é a promessa
-          que o desenho cumpre: a página não pede login, não pede cadastro, não
-          guarda nada de quem abre, e não mostra nada além do que está acima. */}
+          que o desenho cumpre: a página não pede login, não pede cadastro e não
+          guarda nada de quem abre.
+
+          A frase mudou nesta build, e a mudança é honestidade: com a pré-ficha,
+          a página passou a **pedir** uma coisa — os dados do cadastro. Deixar
+          escrito "não pede nada" ao lado de um formulário seria a promessa que
+          o software não cumpre, ao contrário. */}
       <p className="mt-4 text-[12px] leading-relaxed text-tinta3">
-        Esta página existe só para você e só enquanto houver algo em aberto. Ela
-        não pede nem mostra mais nada.
+        Esta página existe só para você e só enquanto houver algo em aberto. O
+        único dado que ela pede é o do seu cadastro, e ela não mostra nada além
+        do que está aqui.
       </p>
     </main>
   );

@@ -51,6 +51,15 @@ const PUBLICAS = new Set([
   // para `/entrar`, e `/entrar` está no `Disallow` do `robots.txt`: a build
   // inteira de SEO apontando para uma porta fechada.
   "/blog",
+
+  // A tela de sem conexão (B47). Ela é pré-carregada no cache do aparelho pelo
+  // `sw.js` e servida quando a navegação falha — e a navegação falha, por
+  // definição, **sem rede**: se ela estivesse atrás do login, o proxy nem seria
+  // consultado no momento em que ela é servida, mas o pré-carregamento (que
+  // acontece com rede, e às vezes sem sessão ainda) receberia um 307 para
+  // `/entrar` e guardaria a tela de login no lugar dela. É o mesmo 307 mudo de
+  // sempre, e desta vez ele só apareceria no dia sem sinal.
+  "/offline",
 ]);
 
 const PREFIXOS_PUBLICOS = [

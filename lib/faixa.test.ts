@@ -97,7 +97,7 @@ describe("nivelDaFaixa — nem cedo demais, nem tarde demais", () => {
 describe("as frases — dizem o que NÃO muda antes de qualquer outra coisa", () => {
   it("plano sem faixa não gera frase de estado", () => {
     expect(fraseDaFaixa(calcular(null, 1, 42))).toBe("");
-    expect(fraseDoRestante(calcular(null, 1, 42))).toMatch(/não tem faixa/);
+    expect(fraseDoRestante(calcular(null, 1, 42))).toMatch(/não conta sessões/);
   });
 
   it("no meio do mês diz o número, sem drama", () => {
@@ -106,7 +106,9 @@ describe("as frases — dizem o que NÃO muda antes de qualquer outra coisa", ()
 
   it("uma só, no singular", () => {
     expect(fraseDaFaixa(gratis(1))).toBe("1 de 8 sessão este mês.");
-    expect(fraseDoRestante(gratis(7))).toBe("Falta 1 sessão para o fim da faixa deste mês.");
+    expect(fraseDoRestante(gratis(7))).toBe(
+      "Falta 1 sessão para as que o seu plano inclui neste mês.",
+    );
   });
 
   it("acima da faixa, a frase mais importante é a do que continua funcionando", () => {

@@ -162,7 +162,13 @@ export function fraseDasDuasColunas(p: Painel): string {
   );
 }
 
-/** O que o sistema trouxe de volta. Vazio quando não trouxe nada — sem enfeite. */
+/**
+ * O que voltou para o mês. Vazio quando não voltou nada — sem enfeite.
+ *
+ * Não é "o sistema trouxe de volta": metade disto é a fila preenchendo o
+ * horário, que o sistema faz, e a outra metade é falta cobrada — e desde a 0058
+ * quem cobra falta é ela, na caixa "A decidir". O software não cobra ninguém.
+ */
 export function fraseDoRecuperado(p: Painel): string {
   const total = somar(p.recuperado.centavosEncaixes, p.recuperado.centavosFaltas);
   if (total === 0) return "";
@@ -175,7 +181,7 @@ export function fraseDoRecuperado(p: Painel): string {
   }
   if (p.recuperado.faltas > 0) {
     partes.push(
-      `${p.recuperado.faltas} falta${p.recuperado.faltas > 1 ? "s" : ""} que a política cobrou`,
+      `${p.recuperado.faltas} falta${p.recuperado.faltas > 1 ? "s" : ""} que você decidiu cobrar`,
     );
   }
   return `${formatar(total)} — ${partes.join(" e ")}.`;

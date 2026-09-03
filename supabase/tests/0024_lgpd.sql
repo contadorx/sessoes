@@ -119,11 +119,14 @@ begin
 
   -- ---------------------------------------------------------------- 7
   falhou := false;
-  begin perform public.arquivar_paciente(maria, 'ok');
+  -- O tipo vai preenchido de propósito: sem ele, o que reprovaria seria a
+  -- assinatura, e o teste passaria pelo motivo errado. O que se verifica aqui
+  -- é a recusa do encerramento curto demais.
+  begin perform public.arquivar_paciente(maria, 'ok', 'alta');
   exception when others then falhou := true; end;
   if not falhou then raise exception '7 FUROU: arquivou sem encerramento'; end if;
 
-  select public.arquivar_paciente(maria, 'Alta por objetivos alcançados, combinada em sessão.') into r;
+  select public.arquivar_paciente(maria, 'Alta por objetivos alcançados, combinada em sessão.', 'alta') into r;
   if r <> 'arquivada' then raise exception '7 FUROU: %', r; end if;
 
   -- ---------------------------------------------------------------- 8

@@ -196,6 +196,50 @@ export async function listarAusencias(): Promise<Ausencia[]> {
   return (linhas ?? []) as unknown as Ausencia[];
 }
 
+/**
+ * As mensalidades que deixaram de bater com a conta do mês.
+ *
+ * `agendar_mensalidades` roda no dia do mês e **congela** o valor na cobrança.
+ * Uma pausa registrada depois disso não volta atrás sozinha — e não deve: o
+ * produto não reescreve cobrança sem ela saber. O que ele faz é mostrar a
+ * diferença.
+ *
+ * Degrada para lista vazia como todo o resto desta tela: a caixa é conveniência,
+ * e uma agenda que não abre porque a conferência falhou seria a inversão exata
+ * da prioridade.
+ */
+export type MensalidadeARever = {
+  cobranca: string;
+  paciente: string;
+  competencia: string;
+  valor_cobrado: string;
+  valor_agora: string;
+};
+
+export async function mensalidadesARever(): Promise<MensalidadeARever[]> {
+  const supabase = await supabaseSessao();
+  const dia = hoje();
+  // Do mês passado ao mês que vem: é o alcance em que uma pausa recém-marcada
+  // pode encontrar cobrança aberta.
+  const de = dia.slice(0, 8) + "01";
+  const ate = (() => {
+    const d = new Date(`${de}T12:00:00Z`);
+    d.setUTCMonth(d.getUTCMonth() + 1);
+    return d.toISOString().slice(0, 10);
+  })();
+
+  try {
+    const linhas = await db(
+      "mensalidades.a_rever",
+      supabase.rpc("mensalidades_a_rever", { p_de: de, p_ate: ate }),
+    );
+    return (linhas ?? []) as unknown as MensalidadeARever[];
+  } catch (e) {
+    console.error("[mensalidades] falhou a conferência", e);
+    return [];
+  }
+}
+
 /** Agrupa por dia civil de São Paulo — não pelo dia do servidor. */
 export function porDia(sessoes: SessaoLinha[]): [string, SessaoLinha[]][] {
   const mapa = new Map<string, SessaoLinha[]>();

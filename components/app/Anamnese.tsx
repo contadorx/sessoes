@@ -35,8 +35,8 @@ function Botao({ rotulo, destaque }: { rotulo: string; destaque?: boolean }) {
       disabled={pending}
       className={
         destaque
-          ? "rounded-full bg-cheia px-4 py-1.5 text-[12.5px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-45"
-          : "rounded-full border border-linha2 px-4 py-1.5 text-[12.5px] font-medium text-tinta2 transition-colors hover:bg-folha2 disabled:opacity-45"
+          ? "min-h-11 rounded-full bg-cheia px-5 py-2 text-[12.5px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-45"
+          : "min-h-11 rounded-full border border-linha2 px-5 py-2 text-[12.5px] font-medium text-tinta2 transition-colors hover:bg-folha2 disabled:opacity-45"
       }
     >
       {pending ? "…" : rotulo}
@@ -214,7 +214,7 @@ export function PainelAnamnese({
                     setSecoes(c);
                   }}
                   maxLength={200}
-                  className="w-full bg-transparent text-[12px] font-semibold text-tinta2 focus:outline-none"
+                  className="w-full rounded-[3px] bg-transparent text-[12px] font-semibold text-tinta2"
                 />
                 <textarea
                   value={s.texto}

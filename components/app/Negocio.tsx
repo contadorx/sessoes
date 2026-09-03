@@ -80,19 +80,19 @@ export function PainelNegocio({
         <h1 className="text-[21px] font-semibold text-tinta">O negócio</h1>
         <Link
           href="/negocio/custos"
-          className="text-[12.5px] text-tinta2 underline decoration-linha2 underline-offset-4 hover:text-vaga"
+          className="toque text-[12.5px] text-tinta2 underline decoration-linha2 underline-offset-4 hover:text-vaga"
         >
           custos e preço por mensagem
         </Link>
         <Link
           href="/negocio/retencao"
-          className="text-[12.5px] text-tinta2 underline decoration-linha2 underline-offset-4 hover:text-vaga"
+          className="toque text-[12.5px] text-tinta2 underline decoration-linha2 underline-offset-4 hover:text-vaga"
         >
           quem saiu e a régua
         </Link>
         <Link
           href="/negocio/blog"
-          className="text-[12.5px] text-tinta2 underline decoration-linha2 underline-offset-4 hover:text-vaga"
+          className="toque text-[12.5px] text-tinta2 underline decoration-linha2 underline-offset-4 hover:text-vaga"
         >
           o blog
         </Link>
@@ -198,7 +198,7 @@ export function PainelNegocio({
                             quando eu queria saber "o quê". */}
                         <Link
                           href={`/negocio/${c.conta_id}`}
-                          className="font-medium text-tinta underline decoration-linha2 underline-offset-4 hover:text-vaga"
+                          className="toque font-medium text-tinta underline decoration-linha2 underline-offset-4 hover:text-vaga"
                         >
                           {c.nome}
                         </Link>

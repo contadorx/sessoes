@@ -77,7 +77,7 @@ export default async function DocumentoDoPaciente({
       <div className="nao-imprime">
         <Link
           href={`/p/agora/${token}`}
-          className="text-[13px] font-medium text-tinta2 underline decoration-linha2 underline-offset-4 transition-colors hover:text-vaga"
+          className="toque text-[13px] font-medium text-tinta2 underline decoration-linha2 underline-offset-4 transition-colors hover:text-vaga"
         >
           ← voltar
         </Link>

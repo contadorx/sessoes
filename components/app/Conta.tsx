@@ -411,8 +411,8 @@ export function FormRegua({
             ))}
           </select>
           <p className="mt-1.5 text-[11.5px] leading-relaxed text-tinta3">
-            Três é o teto, e é do banco, não da tela. Uma régua com sete degraus
-            não é lembrete — é perseguição, e o produto existe para tirar o
+            Três é o teto, e é do banco, não da tela. Sete lembretes seguidos
+            não são lembrete — são perseguição, e o produto existe para tirar o
             constrangimento da relação, não para trocá-lo de lado.
           </p>
         </div>

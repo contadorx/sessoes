@@ -22,7 +22,15 @@
      peso, que é onde ela deveria estar desde o começo. */
   --color-tinta3: #616B67;
   --color-linha: #D9DED6;
-  --color-linha2: #C0C7BC;
+  /* Escurecido em 03/09/2026 (de #C0C7BC). O tom antigo dava 1,73:1 sobre o
+     branco, e o mínimo da WCAG para **contorno de componente** é 3:1 — a borda
+     do campo não é enfeite: é a única coisa que diz onde o campo começa.
+
+     O valor não foi escolhido por gosto: é o mais claro que passa dos 3:1 nos
+     três fundos do produto ao mesmo tempo — papel 3,10 · folha 3,62 ·
+     folha2 3,32. `testes/o-contraste-se-calcula.test.ts` recalcula isso a cada
+     rodada, então mexer aqui reprova sozinho se descer de novo. */
+  --color-linha2: #7F8982;
 
   /* rosa profundo: exclusivo da hora vazia. nunca decorativo */
   --color-vaga: #AB2758;
@@ -76,12 +84,113 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* O rótulo do campo.
+ *
+ * Era 10,5 px, em maiúsculas, com 0,1em de espaçamento, na cor mais apagada do
+ * produto — a combinação de quatro coisas que atrapalham a leitura, todas de uma
+ * vez, no elemento que diz o que escrever. Um formulário de quinze campos
+ * rotulado assim, lido de pé entre uma sessão e outra, é o pior caso do produto.
+ *
+ * Maiúscula não é ênfase: ela tira a silhueta da palavra, que é por onde se lê
+ * sem soletrar. E leitor de tela às vezes soletra. Some. */
 .rotulo {
-  font-size: 10.5px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.02em;
   font-weight: 600;
-  color: var(--color-tinta3);
+  color: var(--color-tinta2);
+}
+
+/* ------------------------------------------------------- o dedo e o teclado
+ *
+ * Três regras, e as três são sobre o aparelho em que ela usa isto: de pé, com
+ * uma mão, entre uma sessão e outra.
+ */
+
+/* 1 · O alvo de toque.
+ *
+ * Nenhum botão do produto chegava a 44 px — os piores tinham 17. O conserto não
+ * é uma lista de botões: é aqui, porque a lista de botões esquece o botão que
+ * for escrito amanhã (lei 7). `button` cobre tudo o que é ação; o `<a>` em meio
+ * a um parágrafo não entra aqui, porque esticá-lo empurraria a linha de texto —
+ * para esse caso existe a `.toque` abaixo.
+ *
+ * `pointer: coarse` junto com a largura: um tablet com dedo também é dedo. */
+@media (max-width: 640px), (pointer: coarse) {
+  button,
+  summary,
+  [type="button"],
+  [type="submit"] {
+    min-height: 44px;
+  }
+}
+
+/* 2 · O zoom do iPhone.
+ *
+ * O Safari dá zoom em qualquer campo com menos de 16 px ao receber o foco — e
+ * 195 dos 253 campos do produto estavam abaixo disso. O zoom não volta sozinho:
+ * ela termina de digitar e a tela ficou grande, com a barra de baixo fora de
+ * vista.
+ *
+ * O que **não** se faz: `maximum-scale=1` no viewport. Resolve o mesmo sintoma
+ * e tira o zoom de quem precisa ampliar para enxergar. Trocar acessibilidade
+ * por conveniência é o negócio que este produto não faz. */
+@media (max-width: 640px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
+/* 3 · O linkzinho dentro do parágrafo.
+ *
+ * "revisar", "ver", "editar" — 17 a 19 px de altura no meio de uma frase.
+ * Esticar o elemento quebraria a entrelinha do texto, então o alvo cresce por
+ * fora, num pseudo-elemento que não ocupa espaço nenhum no layout.
+ *
+ * E ele **não** chega aos 44 px de propósito: a partir de ~40 px o retângulo
+ * invadiria a linha de cima, e roubar o toque do texto vizinho seria trocar um
+ * erro por outro. Onde o controle é uma linha inteira, o caminho certo é
+ * `min-h-11` no próprio elemento, não isto. */
+.toque {
+  position: relative;
+}
+.toque::after {
+  content: "";
+  position: absolute;
+  inset: -10px -6px;
+}
+
+/* 4 · O teclado sobe e a barra fixa senta em cima do "Guardar".
+ *
+ * A barra de baixo é `fixed bottom-0`. No celular, o teclado empurra o conteúdo
+ * para cima e a barra vem junto — em cima do botão que ela estava tentando
+ * alcançar. Ela digita a evolução da sessão, procura "Guardar", e o que está ali
+ * é "Agenda".
+ *
+ * Enquanto o cursor está num campo de texto, a barra sai — e o rodapé pegajoso
+ * desce para o lugar que ela deixou. Caixa e rádio ficam de fora: eles não
+ * abrem teclado, e sumir a navegação ao marcar um checkbox seria a tela piscando
+ * sem motivo.
+ */
+@media (max-width: 640px) {
+  body:has(
+      textarea:focus,
+      select:focus,
+      input:focus:not([type="checkbox"], [type="radio"], [type="button"], [type="submit"])
+    )
+    .barra-do-dedo {
+    display: none;
+  }
+
+  body:has(
+      textarea:focus,
+      select:focus,
+      input:focus:not([type="checkbox"], [type="radio"], [type="button"], [type="submit"])
+    )
+    .rodape-de-acao {
+    bottom: 0;
+  }
 }
 
 @keyframes pulsa {

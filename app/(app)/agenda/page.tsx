@@ -6,6 +6,7 @@ import {
   respostaDasConfirmacoes,
   resumoDaSemana,
   listarAusencias,
+  mensalidadesARever,
   horizonte,
   pacientesParaEncaixe,
   cobrancasDaSemana,
@@ -32,6 +33,7 @@ import { prazosDoMes } from "@/app/(app)/prazos";
 import { pendencias, fraseDasPendencias } from "@/lib/navegacao";
 import { FaixaDePendencias } from "@/components/app/Navegacao";
 import { estadoInicial } from "@/app/(app)/comecar/page";
+import { faltando, fraseDoQueFalta } from "@/lib/comecar";
 
 export const metadata = { title: "Agenda" };
 
@@ -51,12 +53,14 @@ export default async function Agenda({
   const referencia = /^\d{4}-\d{2}-\d{2}$/.test(pedida ?? "") ? pedida! : hojeStr;
   const semana = semanaDe(referencia);
 
-  const [sessao, sessoes, ausencias, ate, pacientes, retorno, prazos, comeco, confirmacoes, decisoes,
-         naMao, resumoManual] =
+  const [sessao, sessoes, ausencias, aRever, ate, pacientes, retorno, prazos, comeco, confirmacoes,
+         decisoes, naMao, resumoManual] =
     await Promise.all([
       sessaoAtual(),
       sessoesDaSemana(semana.inicio),
       listarAusencias(),
+      // A conferência da B36: cobrança de mensalidade que a pausa deixou para trás.
+      mensalidadesARever(),
       horizonte(),
       pacientesParaEncaixe(),
       retornoDoMes(hojeStr),
@@ -105,19 +109,32 @@ export default async function Agenda({
   // agora daqui, que é onde ela já está. Item de navegação para uma lista de
   // três tarefas que se fazem uma vez é entulho permanente por um trabalho
   // temporário.
-  const comecando =
-    comeco.pacientes === 0 || comeco.na_fila === 0 || comeco.vagas_abertas === 0;
+  //
+  // Duas coisas mudaram aqui, e as duas eram defeito. A condição exigia
+  // `vagas_abertas > 0`, que só acontece quando **uma paciente desmarca de
+  // verdade**: numa conta bem configurada e sem cancelamento, a faixa ficava
+  // para sempre. E ela ignorava `janelas`, então quem pulasse o passo 1 e
+  // fizesse os outros perdia a única porta para `/comecar` — a rota não está em
+  // `destinos()` nem em `SECOES`, e esta faixa é o caminho.
+  //
+  // A conta agora mora em `lib/comecar.ts`, no mesmo lugar de onde a página tira
+  // a dela. Enquanto eram duas, esta faixa dizia "três passos" e a página se
+  // chamava "cinco passos".
+  const faltam = faltando(comeco);
 
   return (
     <div>
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h1 className="font-serif text-[28px] leading-tight tracking-[-0.015em]">
-          {sessao.nome ? `Boa, ${sessao.nome.split(" ")[0]}.` : "Sua semana"}
+          {/* "Boa, Renata." não tem "tarde" nem "noite" atrás: sem a hora do
+              dia, a frase lê como elogio — e a regra da casa é que nada aqui
+              elogia. O arquivo já trazia a alternativa escrita. */}
+          Sua semana
         </h1>
 
-        <nav className="flex items-center gap-1">
+        <nav className="flex flex-wrap items-center gap-1">
           <Semaninha para={somarDias(semana.inicio, -7)} rotulo="←" />
-          <span className="min-w-[13rem] px-2 text-center text-[13px] text-tinta2">
+          <span className="px-2 text-center text-[13px] text-tinta2 sm:min-w-[13rem]">
             {rotuloSemana(semana)}
           </span>
           <Semaninha para={somarDias(semana.inicio, 7)} rotulo="→" />
@@ -129,7 +146,7 @@ export default async function Agenda({
           <Link
             href="/agenda"
             aria-current={ehSemanaAtual ? "page" : undefined}
-            className={`ml-2 rounded-full px-3 py-1 text-[12.5px] font-medium transition-colors ${
+            className={`ml-2 inline-flex min-h-11 items-center rounded-full px-3 text-[12.5px] font-medium transition-colors ${
               ehSemanaAtual
                 ? "border border-linha text-tinta3"
                 : "border border-vaga-linha text-vaga hover:bg-vaga-bg"
@@ -147,15 +164,13 @@ export default async function Agenda({
         <FaixaDePendencias itens={abertas} frase={fraseDasPendencias(abertas)} />
       </div>
 
-      {comecando && (
+      {faltam.length > 0 && (
         <Link
           href="/comecar"
-          className="mt-5 flex flex-wrap items-baseline gap-x-2 rounded-cartao border border-vaga-linha bg-vaga-bg px-4 py-2.5 text-[13px] text-tinta2 transition-opacity hover:opacity-90"
+          className="mt-5 flex min-h-11 flex-wrap items-baseline gap-x-2 rounded-cartao border border-vaga-linha bg-vaga-bg px-4 py-2.5 text-[13px] text-tinta2 transition-opacity hover:opacity-90"
         >
           <b className="font-medium text-vaga">Terminar de configurar</b>
-          <span className="text-[12.5px]">
-            faltam os pacientes, a fila e o primeiro horário — três passos, uma vez só
-          </span>
+          <span className="text-[12.5px]">{fraseDoQueFalta(comeco)}</span>
         </Link>
       )}
 
@@ -271,7 +286,7 @@ export default async function Agenda({
       </div>
 
       <div className="mt-10">
-        <Ausencias ausencias={ausencias} hoje={hojeStr} horizonte={ate} />
+        <Ausencias ausencias={ausencias} hoje={hojeStr} horizonte={ate} aRever={aRever} />
       </div>
     </div>
   );
@@ -288,7 +303,7 @@ function Semaninha({ para, rotulo }: { para: string; rotulo: string }) {
   return (
     <Link
       href={`/agenda?semana=${para}`}
-      className="rounded-full border border-linha2 px-3 py-1 font-mono text-[13px] text-tinta2 transition-colors hover:border-vaga hover:text-vaga"
+      className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-linha2 px-3 font-mono text-[13px] text-tinta2 transition-colors hover:border-vaga hover:text-vaga"
     >
       {rotulo}
     </Link>

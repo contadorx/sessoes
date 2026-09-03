@@ -8,11 +8,13 @@ import {
   linkDoPaciente,
 } from "../dados";
 import { NovoEnquadre } from "@/components/app/NovoEnquadre";
+import { Reajuste } from "@/components/app/Reajuste";
 import { rotuloHorario, rotuloPolitica } from "@/lib/enquadre";
 import { Lastro } from "@/components/app/Lastro";
 import { LinkDoPaciente } from "@/components/app/LinkDoPaciente";
 import { Pacote } from "@/components/app/Pacote";
 import { FilaEntrada } from "@/components/app/FilaEntrada";
+import { envioAutomaticoLigado } from "@/lib/promessa";
 import { rotuloModelo } from "@/lib/cobranca";
 import { hoje } from "@/lib/tempo-servidor";
 
@@ -87,6 +89,20 @@ export default async function Combinado({ params }: { params: Promise<{ id: stri
           </p>
         )}
 
+        {/* Duas portas, e a separação é do arquivo da B36. Reajustar tem data e
+            aviso — é uma conversa preparada. Mudar horário ou encerrar continua
+            sendo fechar hoje e abrir hoje, que é o que o `NovoEnquadre` faz
+            desde a B4. Empilhar as duas no mesmo formulário obrigaria a escolher
+            "por quê" antes de saber o que cada motivo faz. */}
+        {aberto && !paciente.arquivado_em && (
+          <Reajuste
+            pacienteId={paciente.id}
+            pacienteNome={paciente.nome}
+            aberto={aberto}
+            hoje={hoje()}
+          />
+        )}
+
         <NovoEnquadre pacienteId={paciente.id} aberto={aberto} />
       </section>
 
@@ -104,6 +120,7 @@ export default async function Combinado({ params }: { params: Promise<{ id: stri
               pacienteId={paciente.id}
               naFila={entrada.naFila}
               desde={entrada.desde}
+              envioAutomatico={envioAutomaticoLigado()}
             />
           </div>
         </section>
@@ -132,9 +149,9 @@ export default async function Combinado({ params }: { params: Promise<{ id: stri
       <section className="mt-8">
         <h2 className="rotulo">O combinado por escrito</h2>
         <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-tinta2">
-          É o que dá lastro à cobrança automática: quando o sistema cobra uma
-          falta, ele aplica uma regra que a pessoa leu e aceitou — com data e
-          hora, no texto que estava na tela naquele instante.
+          É o que dá base à cobrança de uma falta: quando você decide cobrar, a
+          regra aplicada é uma que a pessoa leu e aceitou — com data e hora, no
+          texto que estava na tela naquele instante.
         </p>
         <div className="mt-3">
           <Lastro
@@ -159,9 +176,22 @@ export default async function Combinado({ params }: { params: Promise<{ id: stri
         <h2 className="rotulo">A página dele</h2>
         <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-tinta2">
           Um link só, que mostra o que estiver esperando por ele: horário para
-          confirmar, pagamento em aberto e documentos dos últimos três meses.
-          Não mostra prontuário, não mostra histórico e não deixa cancelar
-          sessão — cancelar continua sendo conversa com você.
+          confirmar, pagamento em aberto, documentos dos últimos três meses e o
+          cadastro dele, para conferir. Não mostra prontuário, não mostra
+          histórico e não deixa cancelar sessão — cancelar continua sendo
+          conversa com você.
+        </p>
+
+        {/* De onde vieram esses dados.
+            
+            Não é enfeite de procedência: o que a própria pessoa escreveu tem
+            outra qualidade do que o que foi transcrito de um print de WhatsApp
+            às onze da noite — inclusive para o CPF, que é o campo que trava a
+            linha na importação do Carnê-Leão. */}
+        <p className="mt-2 text-[12.5px] leading-relaxed text-tinta3">
+          {paciente.ficha_em
+            ? `Ele mesmo preencheu o cadastro em ${new Date(paciente.ficha_em).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}.`
+            : "O cadastro ainda não foi preenchido por ele — mandar o link poupa você de transcrever nome, nascimento e CPF."}
         </p>
         <div className="mt-3">
           <LinkDoPaciente

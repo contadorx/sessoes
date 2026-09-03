@@ -256,14 +256,14 @@ export function BlogEditor({
                   <button
                     type="button"
                     onClick={() => setEscolhendo("capa")}
-                    className="text-[11.5px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
+                    className="toque text-[11.5px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
                   >
                     trocar
                   </button>
                   <button
                     type="button"
                     onClick={() => setCapa({ url: "", alt: "", largura: null, altura: null })}
-                    className="text-[11.5px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
+                    className="toque text-[11.5px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
                   >
                     tirar
                   </button>
@@ -307,7 +307,7 @@ export function BlogEditor({
           <button
             type="button"
             onClick={() => setLista([...lista, { rotulo: "", url: "" }])}
-            className="mt-2 text-[12px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
+            className="toque mt-2 text-[12px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
           >
             mais um link
           </button>
@@ -393,7 +393,7 @@ export function BlogEditor({
               <button
                 type="button"
                 onClick={() => setEscolhendo(null)}
-                className="ml-auto text-[12px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
+                className="toque ml-auto text-[12px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
               >
                 deixa
               </button>
@@ -486,7 +486,7 @@ export function AcoesDoPost({ post }: { post: Post }) {
             <button
               type="button"
               onClick={() => setConfirmando(true)}
-              className="text-[12px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
+              className="toque text-[12px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
             >
               apagar
             </button>

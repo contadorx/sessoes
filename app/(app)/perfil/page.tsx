@@ -8,6 +8,7 @@ import { Sair } from "@/components/app/Sair";
 import { FormPix, FormRitmo, FormAssinatura, FormRegua, FormRegime } from "@/components/app/Conta";
 import type { Regime } from "@/lib/receitasaude";
 import { FaixaNaConta } from "@/components/app/Faixa";
+import { nomeDoPlano } from "@/lib/planos";
 import { Avaliacao } from "@/components/app/Avaliacao";
 import { faixaDaConta, avaliacaoPendente } from "@/app/(app)/encaixes/dados";
 
@@ -15,6 +16,7 @@ export const metadata = { title: "Perfil" };
 
 type ContaLinha = {
   nome: string;
+  plano: string;
   pix_chave: string | null;
   pix_nome: string | null;
   pix_cidade: string | null;
@@ -47,7 +49,7 @@ export default async function Perfil() {
     supabase
       .from("contas")
       .select(
-        "nome, pix_chave, pix_nome, pix_cidade, cobranca_atraso_min, lembrete_horas, " +
+        "nome, plano, pix_chave, pix_nome, pix_cidade, cobranca_atraso_min, lembrete_horas, " +
           "silencio_inicio, silencio_fim, retencao_anos, cidade, regua_ativa, regua_dias, " +
           "mensalidade_dia, cobra_sessao, regime",
       )
@@ -142,7 +144,16 @@ export default async function Perfil() {
             E ele **não** morde: passar da faixa não trava nada, não para
             mensagem nenhuma e não gera cobrança extra. */}
         <div className="mt-3 rounded-cartao border border-linha bg-folha px-5 py-4">
-          <FaixaNaConta faixa={faixa} />
+          {/* O nome do plano, que esta tela nunca escreveu.
+              `nomeDoPlano` existe em `lib/planos.ts` desde sempre e não era
+              chamada em tela nenhuma: o Perfil mostrava só a barra de uso, e
+              quem quisesse saber em que plano está tinha de deduzir pelo
+              tamanho do número. E é o **nome** que aparece, nunca o código
+              (`gratis`, `solo`, `pro`) — a regra da OP10. */}
+          <p className="text-[15px] font-semibold text-tinta">{nomeDoPlano(conta.plano)}</p>
+          <div className="mt-2.5">
+            <FaixaNaConta faixa={faixa} />
+          </div>
         </div>
       </section>
 
@@ -267,9 +278,9 @@ export default async function Perfil() {
         <h2 className="rotulo">O combinado por escrito</h2>
         <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-tinta2">
           Um texto só, escrito uma vez, que vira o documento de cada pessoa com
-          os números dela dentro — e que a pessoa aceita com data e hora. É o
-          lastro da cobrança automática: sem ele, a regra de falta é um combinado
-          de boca que você precisa relembrar na hora mais difícil.
+          os números dela dentro — e que a pessoa aceita com data e hora. É o que
+          dá base à cobrança de uma falta: sem ele, a regra é um combinado de boca
+          que você precisa relembrar na hora mais difícil.
         </p>
         <Link
           href="/perfil/contrato"

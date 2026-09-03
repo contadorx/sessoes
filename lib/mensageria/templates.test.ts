@@ -285,13 +285,24 @@ describe("as regras da Meta (reprovar aqui é barato; lá custa dias)", () => {
 });
 
 describe("o horário é sempre de São Paulo (lei nº 3)", () => {
-  // Duas famílias ficam de fora, por motivos opostos. O lembrete de pagamento
-  // cobre vários horários de uma vez, então não nomeia nenhum — é a mesma
-  // decisão que faz dele uma mensagem só em vez de três. A oferta de vaga fixa
-  // não fala de um instante: fala de "às terças, 15h", que se repete. Uma data
-  // ali seria a promessa errada.
-  const SEM_INSTANTE = ["lembrete_de_pagamento", "oferta_de_vaga_fixa"];
-  const COM_HORARIO = FAMILIAS.filter((f) => !SEM_INSTANTE.includes(f));
+  /**
+   * Quais famílias falam de **um instante** — descoberto, não listado.
+   *
+   * Nem todas falam. O lembrete de pagamento cobre vários horários de uma vez,
+   * então não nomeia nenhum; a oferta de vaga fixa fala de "às terças, 15h",
+   * que se repete; e as duas do B36 falam de um período, não de uma sessão.
+   *
+   * A versão anterior disto era `SEM_INSTANTE = [...]`, escrita à mão — e ela
+   * envelheceu na primeira build que acrescentou família: as duas novas caíram
+   * na regra errada e o teste cobrou horário de uma mensagem que não tem
+   * horário. A pergunta certa não é "quais são as exceções", é **"o texto muda
+   * quando o instante muda?"**. Isso o teste pode perguntar sozinho.
+   */
+  const COM_HORARIO = FAMILIAS.filter((f) => {
+    const a = renderizar(f, { nome: "Maria", inicio: INICIO }).texto;
+    const b = renderizar(f, { nome: "Maria", inicio: "2026-03-04T18:00:00.000Z" }).texto;
+    return a !== b;
+  });
 
   it.each(COM_HORARIO)("%s mostra 15:00, não 18:00 UTC", (familia) => {
     const r = renderizar(familia, { nome: "Maria", inicio: INICIO });
@@ -404,10 +415,14 @@ describe("a sétima família: o horário que se repete", () => {
  * unitário — o sandbox nem alcança o Supabase —, então a defesa é o espelho:
  * quem acrescentar template de um lado só reprova do outro.
  */
-describe("as oito famílias são as mesmas do banco", () => {
+describe("as famílias são as mesmas do banco", () => {
   const NO_BANCO = [
     "aviso_de_cobranca",
     "aviso_de_desmarque",
+    // As duas do B36 (migração 0073). Elas entraram no banco e aqui na mesma
+    // build, que é a única forma de este espelho servir para alguma coisa.
+    "aviso_de_pausa",
+    "aviso_de_reajuste",
     "confirmacao_de_sessao",
     "encaixe_confirmado",
     "lembrete_de_pagamento",

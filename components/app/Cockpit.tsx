@@ -69,26 +69,51 @@ export function Cockpit({
         <span className="text-[11.5px] text-tinta3">{mes}</span>
         <Link
           href="/fechamento/livro"
-          className="ml-auto text-[11.5px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-tinta2"
+          className="toque ml-auto text-[11.5px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-tinta2"
         >
           o mês inteiro
         </Link>
       </div>
 
-      {/* Os quatro. Nunca um. */}
-      <dl className="mt-3 grid grid-cols-2 gap-px overflow-hidden rounded-cartao border border-linha bg-linha lg:grid-cols-4">
-        {numeros.map((n) => (
-          <div key={n.chave} className="bg-folha2 px-4 py-3">
-            <dt className="text-[11.5px] text-tinta3">{n.rotulo}</dt>
-            <dd className="mt-0.5 font-mono text-[19px] tabular-nums text-tinta">{n.valor}</dd>
-            <p className="mt-1 text-[11px] leading-snug text-tinta3">{n.nota}</p>
-          </div>
-        ))}
-      </dl>
+      {/*
+        Sem semana declarada, a frase vem **antes** e os quatro números não vêm.
 
-      <p className="mt-3 max-w-[68ch] text-[12.5px] leading-relaxed text-tinta2">
-        {fraseDoCockpit(c)}
-      </p>
+        O que a conta nova via era isto, nesta ordem: quatro caixas com três
+        travessões e um R$ 0,00, e a explicação três parágrafos abaixo. A frase
+        estava certa desde sempre; ela é que chegava tarde. Quem abre o produto
+        pela primeira vez lê os travessões como "o sistema não está funcionando",
+        e não rola para descobrir que não é isso.
+
+        Os números não somem por vergonha do vazio — somem porque não existem:
+        `semJanela` quer dizer que não há denominador, e um percentual sem
+        denominador não é zero, é nada. Mostrar a casa vazia da conta é pedir
+        para ela conferir um número que ninguém calculou.
+      */}
+      {c.semJanela ? (
+        <p className="mt-3 max-w-[68ch] text-[13px] leading-relaxed text-tinta2">
+          {fraseDoCockpit(c)}{" "}
+          <Link href="/perfil/horarios" className="toque text-vaga hover:underline">
+            declarar a semana
+          </Link>
+        </p>
+      ) : (
+        <>
+          {/* Os quatro. Nunca um. */}
+          <dl className="mt-3 grid grid-cols-2 gap-px overflow-hidden rounded-cartao border border-linha bg-linha lg:grid-cols-4">
+            {numeros.map((n) => (
+              <div key={n.chave} className="bg-folha2 px-4 py-3">
+                <dt className="text-[11.5px] text-tinta3">{n.rotulo}</dt>
+                <dd className="mt-0.5 font-mono text-[19px] tabular-nums text-tinta">{n.valor}</dd>
+                <p className="mt-1 text-[11px] leading-snug text-tinta3">{n.nota}</p>
+              </div>
+            ))}
+          </dl>
+
+          <p className="mt-3 max-w-[68ch] text-[12.5px] leading-relaxed text-tinta2">
+            {fraseDoCockpit(c)}
+          </p>
+        </>
+      )}
 
       {alem && (
         <p className="mt-2 max-w-[68ch] text-[12px] leading-relaxed text-aviso">{alem}</p>
@@ -128,7 +153,7 @@ export function Cockpit({
                     onClick={() => {
                       void usarAlerta(p.causa);
                     }}
-                    className="ml-auto text-[11.5px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
+                    className="toque ml-auto text-[11.5px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
                   >
                     {acao.rotulo}
                   </Link>

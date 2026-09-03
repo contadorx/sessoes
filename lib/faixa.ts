@@ -141,15 +141,24 @@ export function fraseDoConvite(f: Faixa): string {
   return "Se o mês que vem for parecido, vale olhar o plano seguinte — a mudança só valeria a partir do próximo ciclo.";
 }
 
-/** Quantas faltam, sem exagerar nem minimizar. */
+/**
+ * Quantas faltam, sem exagerar nem minimizar.
+ *
+ * A palavra "faixa" saiu daqui. Ela queria dizer duas coisas ao mesmo tempo no
+ * produto — cota do plano, nestas frases, e bloco de horário, no `Horarios.tsx`
+ * e na tela de começar —, e as duas apareciam para a mesma pessoa na mesma
+ * semana. O sentido de horário é português comum e fica; o de cota é jargão do
+ * sistema, e o Manual da casa manda escrever a consequência no lugar dele: o
+ * que o plano inclui.
+ */
 export function fraseDoRestante(f: Faixa): string {
-  if (!f.tem_faixa) return "Seu plano não tem faixa de sessões.";
-  if (f.e_fair_use) return "Seu plano não tem faixa de sessões.";
+  if (!f.tem_faixa) return "Seu plano não conta sessões.";
+  if (f.e_fair_use) return "Seu plano não conta sessões.";
   if (f.acima) return "";
   const r = f.restantes ?? 0;
-  if (r === 0) return "Você está no limite da faixa deste mês.";
-  if (r === 1) return "Falta 1 sessão para o fim da faixa deste mês.";
-  return `Faltam ${r} sessões para o fim da faixa deste mês.`;
+  if (r === 0) return "Você chegou às sessões que o seu plano inclui neste mês.";
+  if (r === 1) return "Falta 1 sessão para as que o seu plano inclui neste mês.";
+  return `Faltam ${r} sessões para as que o seu plano inclui neste mês.`;
 }
 
 /**

@@ -47,6 +47,8 @@ export type PacienteLinha = {
   contato_esquecido_em: string | null;
   arquivado_em: string | null;
   encerramento: string | null;
+  /** Quando a própria pessoa preencheu a pré-ficha pelo link (PR4). */
+  ficha_em: string | null;
   enquadres: EnquadreLinha[];
 };
 
@@ -57,7 +59,7 @@ const CAMPOS_ENQUADRE =
 
 const CAMPOS_PACIENTE =
   "id, nome, telefone, email, cpf, estado, msg_canal, msg_modo, observacao, criado_em, " +
-  "restricao_judicial, contato_esquecido_em, arquivado_em, encerramento";
+  "restricao_judicial, contato_esquecido_em, arquivado_em, encerramento, ficha_em";
 
 /**
  * Nenhuma destas consultas filtra por conta_id — quem filtra é a RLS. Se ela

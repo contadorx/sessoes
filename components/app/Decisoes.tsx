@@ -13,6 +13,7 @@ import {
 } from "@/lib/politica";
 import { rotuloPolitica } from "@/lib/enquadre";
 import { formatar, paraCentavos, deCentavos } from "@/lib/dinheiro";
+import { paraCampo } from "@/lib/formato";
 
 const INICIAL: Resultado = { estado: "inicial" };
 
@@ -86,7 +87,7 @@ function Botao({ rotulo, destaque }: { rotulo: string; destaque: "cobrar" | "per
     <button
       type="submit"
       disabled={pending}
-      className={`rounded-full border px-4 py-2 text-[12.5px] font-medium transition-colors disabled:opacity-45 ${cor}`}
+      className={`min-h-11 rounded-full border px-4 py-2 text-[12.5px] font-medium transition-colors disabled:opacity-45 ${cor}`}
     >
       {pending ? "…" : rotulo}
     </button>
@@ -149,7 +150,7 @@ function UmaDecisao({ d }: { d: DecisaoPendente }) {
             <button
               type="button"
               onClick={() => setAjustando((x) => !x)}
-              className="text-[12px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-tinta2"
+              className="toque text-[12px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-tinta2"
             >
               {ajustando ? "deixa como estava" : "cobrar outro valor"}
             </button>
@@ -171,7 +172,7 @@ function UmaDecisao({ d }: { d: DecisaoPendente }) {
                   id={`valor-${d.id}`}
                   name="valor"
                   inputMode="decimal"
-                  defaultValue={deCentavos(sugerido)}
+                  defaultValue={paraCampo(sugerido)}
                   className="w-28 rounded-cartao border border-linha2 bg-folha px-2.5 py-1.5 font-mono text-[13px] tabular-nums text-tinta"
                 />
                 <Botao rotulo="Cobrar este valor" destaque="cobrar" />

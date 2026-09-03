@@ -188,7 +188,7 @@ export function Secao({ titulo, nota, children }: { titulo: string; nota?: strin
  */
 export function RodapeDeAcao({ children, nota }: { children: React.ReactNode; nota?: string }) {
   return (
-    <div className="sticky bottom-14 z-10 mt-6 border-t border-linha bg-folha/95 py-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:backdrop-blur-none">
+    <div className="rodape-de-acao sticky bottom-14 z-10 mt-6 border-t border-linha bg-folha/95 py-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:backdrop-blur-none">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">{children}</div>
       {nota && <p className="mt-2 text-[11.5px] leading-relaxed text-tinta3">{nota}</p>}
     </div>

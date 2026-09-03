@@ -35,9 +35,9 @@ export default async function Fechamento() {
       // Primeiro da lista porque é a pergunta que se faz ao fechar o mês, antes
       // de qualquer obrigação: o que aconteceu com as horas.
       href: "/fechamento/livro",
-      titulo: "O livro-razão",
+      titulo: "O que aconteceu com cada hora",
       linha:
-        "Quanto da sua capacidade virou receita, e por onde o resto foi. Cada hora em quatro eixos, e nenhum deles preenchido à mão.",
+        "Quanto da sua capacidade virou receita, e por onde o resto foi — hora por hora, sem nenhuma linha preenchida à mão.",
       chave: null,
     },
     {
@@ -69,8 +69,9 @@ export default async function Fechamento() {
         O fechamento do mês
       </h1>
       <p className="mt-3 max-w-[62ch] text-[14px] leading-relaxed text-tinta2">
-        O que precisa acontecer uma vez por mês, e o que tem prazo. Quando não
-        há nada vencendo, esta tela fica quieta — é para ser assim.
+        O que precisa acontecer uma vez por mês, e o que tem prazo. O prazo
+        aparece ao lado do caminho que está com ele correndo; quando não há
+        nenhum, os quatro ficam aqui sem aviso nenhum — é para ser assim.
       </p>
 
       <div className="mt-8 grid gap-px overflow-hidden rounded-cartao border border-linha bg-linha">

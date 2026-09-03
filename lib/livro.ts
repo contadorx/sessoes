@@ -152,7 +152,7 @@ export function acaoDaCausa(c: Causa): { rotulo: string; href: string } | null {
     case "reposta":
       return { rotulo: "rever a política", href: "/perfil" };
     case "atendida_nao_recebida":
-      return { rotulo: "ver a régua", href: "/recebimentos" };
+      return { rotulo: "ver quem está devendo", href: "/recebimentos" };
     case "abaixo_do_valor":
       return { rotulo: "ver os combinados", href: "/pacientes" };
     default:

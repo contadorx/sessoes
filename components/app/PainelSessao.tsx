@@ -55,7 +55,7 @@ function Acao({ rotulo, destaque }: { rotulo: string; destaque?: "vaga" | "cheia
     <button
       type="submit"
       disabled={pending}
-      className={`rounded-full border px-4 py-2 text-[12.5px] font-medium transition-colors disabled:opacity-45 ${cor}`}
+      className={`min-h-11 rounded-full border px-4 py-2 text-[12.5px] font-medium transition-colors disabled:opacity-45 ${cor}`}
     >
       {pending ? "…" : rotulo}
     </button>
@@ -256,6 +256,7 @@ function Cobranca({ cobranca }: { cobranca: CobrancaLinha }) {
   const [, pagar] = useActionState(marcarCobrancaPaga, INICIAL);
   const [rPix, gerar] = useActionState(gerarPix, INICIAL);
   const [rDesfazer, desfazer] = useActionState(desfazerRecebimento, INICIAL_FIN);
+  const [desfazendo, setDesfazendo] = useState(false);
 
   const valor = formatar(paraCentavos(cobranca.valor));
 
@@ -275,20 +276,52 @@ function Cobranca({ cobranca }: { cobranca: CobrancaLinha }) {
           <b className="font-semibold text-cheia">{valor}</b> recebidos.
         </p>
         {/* Desfazer existe porque um clique errado num painel de dinheiro vira
-            recibo errado — e recibo errado leva o nome dela. */}
+            recibo errado — e recibo errado leva o nome dela.
+
+            E ele acontecia no primeiro toque, calado. A ação devolve **dois
+            desfechos materialmente diferentes** — "a cobrança voltou a ficar em
+            aberto" e "nada foi cobrado de ninguém, o registro só saiu do caixa"
+            —, e nenhum dos dois chegava aqui: o componente só desenhava o erro.
+            Pior: assim que dá certo, o estado da cobrança muda e este bloco
+            inteiro deixa de existir, então a frase de sucesso **não tem onde
+            aparecer**. A informação tem de vir antes, e é o que a segunda etapa
+            faz — é o mesmo padrão de `Cancelar`, aqui em cima. */}
         {cobranca.motivo === "sessao_realizada" && cobranca.sessao_id && (
-          <form action={desfazer} className="mt-2">
-            <input type="hidden" name="sessao" value={cobranca.sessao_id} />
-            <button
-              type="submit"
-              className="text-[12px] text-tinta3 underline underline-offset-2 hover:text-tinta2"
-            >
-              não recebi ainda
-            </button>
+          <div className="mt-2">
+            {!desfazendo ? (
+              <button
+                type="button"
+                onClick={() => setDesfazendo(true)}
+                className="toque text-[12.5px] text-tinta3 underline underline-offset-2 hover:text-tinta2"
+              >
+                não recebi ainda
+              </button>
+            ) : (
+              <form action={desfazer}>
+                <input type="hidden" name="sessao" value={cobranca.sessao_id} />
+                <p className="text-[12.5px] leading-relaxed text-tinta2">
+                  Os {valor} saem do caixa e a cobrança volta a ficar em aberto. O
+                  recibo emitido, se houver, não é cancelado por aqui.
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <Acao rotulo="Sim, tirar do caixa" destaque="vaga" />
+                  <button
+                    type="button"
+                    onClick={() => setDesfazendo(false)}
+                    className="min-h-11 rounded-full border border-linha2 px-4 py-2 text-[12.5px] font-medium text-tinta2 transition-colors hover:bg-folha2"
+                  >
+                    deixa
+                  </button>
+                </div>
+              </form>
+            )}
             {rDesfazer.estado === "erro" && (
               <p className="mt-2 text-[12px] leading-relaxed text-vaga">{rDesfazer.erros[0]}</p>
             )}
-          </form>
+            {rDesfazer.estado === "ok" && (
+              <p className="mt-2 text-[12px] leading-relaxed text-cheia">{rDesfazer.mensagem}</p>
+            )}
+          </div>
         )}
       </div>
     );

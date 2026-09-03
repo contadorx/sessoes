@@ -10,6 +10,7 @@ import {
   mascaraCpf,
   mascaraDocumento,
   mascaraTelefone,
+  paraCampo,
 } from "@/lib/formato";
 
 /**
@@ -171,5 +172,31 @@ describe("como CPF e CNPJ aparecem prontos", () => {
   it("digitos joga fora tudo que não é número", () => {
     expect(digitos("(11) 98765-4321")).toBe("11987654321");
     expect(digitos(null)).toBe("");
+  });
+});
+
+/**
+ * O campo de dinheiro nasce em português.
+ *
+ * `deCentavos` põe ponto porque é assim que o número vai para o banco — e era
+ * ela que preenchia o campo "cobrar quanto" da caixa "A decidir". Ela lia
+ * `200.00` num campo que ia decidir quanto cobrar de uma paciente, e `200.00`
+ * em português é duzentos mil.
+ */
+describe("o valor inicial do campo se lê em português", () => {
+  it("põe vírgula nos centavos e ponto no milhar", () => {
+    expect(paraCampo(20000)).toBe("200,00");
+    expect(paraCampo(120050)).toBe("1.200,50");
+    expect(paraCampo(100000000)).toBe("1.000.000,00");
+    expect(paraCampo(5)).toBe("0,05");
+    expect(paraCampo(0)).toBe("0,00");
+    expect(paraCampo(-12345)).toBe("-123,45");
+  });
+
+  /** A volta tem de fechar: o que o campo mostra, o parser aceita. */
+  it("o que ele escreve, `lerCentavos` lê de volta", () => {
+    for (const c of [0, 5, 99, 100, 20000, 120050, 999999, 100000000]) {
+      expect(lerCentavos(paraCampo(c)), `${c} → ${paraCampo(c)}`).toBe(c);
+    }
   });
 });

@@ -133,7 +133,12 @@ declare
   v_hoje date;
 
   v_templates  text[];
+  -- Dez desde a 0073 (B36): 'aviso_de_pausa' e 'aviso_de_reajuste' entraram
+  -- junto com os renderizadores em lib/mensageria/templates.ts. As duas metades
+  -- deste espelho mudam na mesma build ou uma delas reprova — foi assim que
+  -- 'confirmacao_de_sessao' ficou meses no banco sem renderizador.
   v_esperados  text[] := array['aviso_de_cobranca', 'aviso_de_desmarque',
+                               'aviso_de_pausa', 'aviso_de_reajuste',
                                'confirmacao_de_sessao', 'encaixe_confirmado',
                                'lembrete_de_pagamento', 'lembrete_de_sessao',
                                'oferta_de_vaga', 'oferta_de_vaga_fixa'];

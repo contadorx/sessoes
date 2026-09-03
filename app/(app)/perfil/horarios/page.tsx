@@ -149,11 +149,6 @@ export default async function HorariosDeclarados() {
           </dl>
         )}
 
-        <p className="mt-3 max-w-[60ch] text-[11.5px] leading-relaxed text-tinta3">
-          Ainda não há ocupação aqui, e é de propósito: ela precisa do outro lado
-          da conta — quanto dessas horas virou sessão e quanto virou dinheiro —,
-          que é a próxima peça a ser construída.
-        </p>
       </section>
 
       <div className="mt-8">

@@ -179,11 +179,19 @@ export function EncerrarConta({
             className="mt-2 w-full max-w-md rounded-cartao border border-linha2 bg-folha px-3 py-2 text-[13px] text-tinta placeholder:text-tinta3 focus:border-tinta3 focus:outline-none disabled:opacity-45"
           />
 
+          {/* A lista do que some estava incompleta, e conferi no banco antes de
+              mexer: `eliminar_conta` não apaga por lista escrita — ela varre o
+              `information_schema` atrás de toda tabela de `public` com
+              `conta_id` (lei 7). Entre elas estão `assinaturas`, `faturas`,
+              `avisos_assinatura` e `eventos_pagamento`, que a frase não citava.
+              Quem lê "pacientes, sessões, cobranças" e encerra fica achando que
+              a assinatura continua de pé em algum lugar — e o histórico de
+              faturas é o que ela levaria para o contador dela. */}
           <p className="mt-3 max-w-[62ch] text-[12.5px] leading-relaxed text-tinta2">
             Ao encerrar, tudo o que é desta conta é apagado do banco em produção:
-            pacientes, sessões, combinados, cobranças, documentos, mensagens e a
-            trilha de acesso. O seu login também. As cópias de segurança expiram
-            em até 7 dias.
+            pacientes, sessões, combinados, cobranças, documentos, mensagens, a
+            trilha de acesso e também a sua assinatura e o histórico de faturas.
+            O seu login some junto. As cópias de segurança expiram em até 7 dias.
           </p>
 
           <div className="mt-3">
@@ -191,11 +199,25 @@ export function EncerrarConta({
           </div>
         </fieldset>
 
-        {!recente && exportacao.estado === "ok" && (
+        {/* A trava das 24h se explicava **só** quando a leitura da exportação
+            dava certo. No estado `indisponivel` sobrava um campo cinza, sem
+            nada escrito ao lado: ela via um formulário desabilitado e nenhuma
+            razão. É o pior lugar do produto para deixar alguém adivinhando, e
+            a diferença entre "você não exportou" e "eu não consegui perguntar"
+            é justamente a que essa tela existe para não apagar. */}
+        {!recente && (
           <p className="mt-3 max-w-[62ch] text-[12.5px] leading-relaxed text-tinta3">
             O campo acima abre depois de uma exportação das últimas 24 horas. O
             prazo é curto de propósito: é o que faz a cópia ser a cópia do que
             existia.
+            {exportacao.estado === "indisponivel" && (
+              <>
+                {" "}
+                Agora ele está fechado porque não consegui verificar a sua última
+                exportação — não porque ela não exista. Tente de novo em alguns
+                minutos, ou exporte outra vez.
+              </>
+            )}
           </p>
         )}
 

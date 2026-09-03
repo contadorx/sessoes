@@ -19,13 +19,47 @@
  * Então: se a requisição não for um GET de arquivo estático da mesma origem, o
  * service worker não faz nada — deixa a rede responder, como se ele não
  * existisse.
+ *
+ * ------------------------------------------------------------------ a exceção
+ *
+ * Há **uma** página no cache, e ela é vazia: `/offline`.
+ *
+ * Instalada na tela inicial, a PWA não tem barra de endereço. Ficar sem sinal
+ * entregava a tela de erro do navegador dentro de uma janela sem recarregar,
+ * sem voltar e sem sair — o único caminho era fechar o aplicativo. A tela de
+ * sem conexão devolve o botão.
+ *
+ * O que **não** muda: nenhuma navegação é guardada. A resposta da rede passa
+ * intacta e nada dela entra no cache; a página vazia só é servida quando o
+ * `fetch` falha, que é a definição de estar sem rede. Cachear a agenda seria
+ * deixar prontuário no aparelho, e continua fora de questão.
  */
 
-const CACHE = "sessoes-estaticos-v1";
+// v2: a versão muda porque o `install` agora pré-carrega uma página. Sem
+// trocar o nome, o cache antigo sobrevive ao `activate` e a `/offline` nunca
+// entra nele.
+const CACHE = "sessoes-estaticos-v2";
 
-self.addEventListener("install", () => {
-  // Nada é pré-carregado: o cache se enche sozinho, com o que for pedido.
-  self.skipWaiting();
+const SEM_CONEXAO = "/offline";
+
+self.addEventListener("install", (evento) => {
+  // O resto do cache continua se enchendo sozinho, com o que for pedido. Só a
+  // tela de sem conexão é pré-carregada: ela precisa estar lá **antes** de
+  // fazer falta, e a hora em que faz falta é a hora em que não dá para buscar.
+  evento.waitUntil(
+    (async () => {
+      try {
+        const cache = await caches.open(CACHE);
+        await cache.add(new Request(SEM_CONEXAO, { cache: "reload" }));
+      } catch {
+        // Falhou o pré-carregamento: o service worker instala do mesmo jeito.
+        // Sem a página, a navegação offline volta a ser a tela do navegador —
+        // que é ruim, mas é o que já era. Derrubar a instalação por causa dela
+        // custaria o cache de estáticos inteiro.
+      }
+      await self.skipWaiting();
+    })(),
+  );
 });
 
 self.addEventListener("activate", (evento) => {
@@ -52,9 +86,29 @@ function ehEstatico(url) {
 self.addEventListener("fetch", (evento) => {
   const req = evento.request;
 
-  // Navegação, POST, API, outra origem: passa direto. Não tocar é a resposta
-  // certa para tudo que pode conter dado de alguém.
+  // POST, API, outra origem: passa direto. Não tocar é a resposta certa para
+  // tudo que pode conter dado de alguém.
   if (req.method !== "GET") return;
+
+  // Navegação: a rede responde, sempre, e a resposta **não** é guardada. O
+  // service worker só entra quando o `fetch` levanta — sem rede — e aí entrega
+  // a página vazia no lugar da tela de erro do navegador.
+  if (req.mode === "navigate") {
+    evento.respondWith(
+      (async () => {
+        try {
+          return await fetch(req);
+        } catch (erro) {
+          const guardada = await caches.match(SEM_CONEXAO);
+          if (guardada) return guardada;
+          // Sem a página no cache não há o que servir: devolve o erro
+          // original, que é o comportamento de antes desta build.
+          throw erro;
+        }
+      })(),
+    );
+    return;
+  }
 
   const url = new URL(req.url);
   if (!ehEstatico(url)) return;

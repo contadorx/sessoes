@@ -191,7 +191,7 @@ export function Lastro({
               />
               <p className="mt-2 text-[11.5px] leading-relaxed text-tinta3">
                 Revogar encerra a validade daqui para a frente. O registro fica —
-                apagá-lo tiraria o lastro das cobranças que já foram feitas sob
+                apagá-lo tiraria a base das cobranças que já foram feitas sob
                 ele, e essas aconteceram.
               </p>
               <div className="mt-2">
@@ -297,7 +297,7 @@ export function Lastro({
                 <p className="mt-2 text-[11.5px] leading-relaxed text-tinta3">
                   Fica registrado com a data e a hora de agora, marcado como
                   presencial. Não há campo de data: um aceite que se antedata não
-                  serve de lastro para nada.
+                  dá base a nada.
                 </p>
                 <div className="mt-2">
                   <Botao>Registrar o aceite</Botao>

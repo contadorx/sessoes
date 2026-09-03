@@ -158,7 +158,7 @@ export function Entrar() {
                 setReenviado(false);
                 setModo("cadastrar");
               }}
-              className="text-[12px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
+              className="toque text-[12px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
             >
               usar outro e-mail
             </button>
@@ -180,7 +180,7 @@ export function Entrar() {
               setConfirmar(null);
               setModo("entrar");
             }}
-            className="underline decoration-linha2 underline-offset-4 hover:text-vaga"
+            className="toque underline decoration-linha2 underline-offset-4 hover:text-vaga"
           >
             entrar agora
           </button>

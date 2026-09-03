@@ -293,7 +293,7 @@ export function Biblioteca({
                   <button
                     type="button"
                     onClick={() => tirar(f.id)}
-                    className="text-[11.5px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
+                    className="toque text-[11.5px] text-tinta3 underline decoration-linha2 underline-offset-4 hover:text-vaga"
                   >
                     tirar
                   </button>

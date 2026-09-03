@@ -63,7 +63,7 @@ export function SubNavegacao() {
   const secoes = SECOES[destino];
 
   return (
-    <nav className="mb-6 flex flex-wrap gap-x-5 gap-y-1 border-b border-linha pb-3 text-[13px]">
+    <nav className="mb-6 flex flex-wrap gap-x-5 border-b border-linha pb-1 text-[13px]">
       {secoes.map((s) => {
         const aqui = caminho === s.href;
         return (
@@ -71,7 +71,9 @@ export function SubNavegacao() {
             key={s.href}
             href={s.href}
             aria-current={aqui ? "page" : undefined}
-            className={aqui ? "font-medium text-tinta" : "text-tinta3 transition-colors hover:text-vaga"}
+            className={`inline-flex min-h-11 items-center ${
+              aqui ? "font-medium text-tinta" : "text-tinta3 transition-colors hover:text-vaga"
+            }`}
           >
             {s.rotulo}
           </Link>
@@ -130,11 +132,34 @@ export function FaixaDePendencias({ itens, frase }: { itens: Pendencia[]; frase:
   );
 }
 
-// ============================================ o botão Novo
-
-export function BotaoNovo({ acoes }: { acoes: AcaoNova[] }) {
+/**
+ * Abrir e fechar um menu, uma vez só.
+ *
+ * Havia dois menus no cabeçalho e duas cópias desta lógica, e elas já tinham
+ * divergido: o **Novo** fechava com Escape, o **do perfil** não — registrava só
+ * `mousedown`. Quem abre com o teclado ficava preso no menu, tendo que sair
+ * clicando fora, que é justamente o que não se faz com o teclado.
+ *
+ * E nenhum dos dois devolvia o foco ao botão ao fechar. Sem isso o foco volta
+ * para o começo do documento, e a pessoa reatravessa o cabeçalho inteiro para
+ * chegar onde já estava.
+ *
+ * Duas cópias de uma regra são duas oportunidades de a segunda ficar para trás.
+ * Aqui é uma.
+ */
+function useMenu() {
   const [aberto, setAberto] = useState(false);
   const caixa = useRef<HTMLDivElement>(null);
+  const botao = useRef<HTMLButtonElement>(null);
+
+  // O foco volta para o botão que abriu — e só quando o menu estava aberto,
+  // para não roubar o foco de quem nunca abriu nada.
+  const fechar = (devolverFoco: boolean) => {
+    setAberto((estava) => {
+      if (estava && devolverFoco) botao.current?.focus();
+      return false;
+    });
+  };
 
   useEffect(() => {
     if (!aberto) return;
@@ -142,7 +167,7 @@ export function BotaoNovo({ acoes }: { acoes: AcaoNova[] }) {
       if (caixa.current && !caixa.current.contains(e.target as Node)) setAberto(false);
     };
     const esc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setAberto(false);
+      if (e.key === "Escape") fechar(true);
     };
     document.addEventListener("mousedown", fora);
     document.addEventListener("keydown", esc);
@@ -152,11 +177,20 @@ export function BotaoNovo({ acoes }: { acoes: AcaoNova[] }) {
     };
   }, [aberto]);
 
+  return { aberto, alternar: () => setAberto((v) => !v), fechar, caixa, botao };
+}
+
+// ============================================ o botão Novo
+
+export function BotaoNovo({ acoes }: { acoes: AcaoNova[] }) {
+  const { aberto, alternar, fechar, caixa, botao } = useMenu();
+
   return (
     <div ref={caixa} className="relative">
       <button
+        ref={botao}
         type="button"
-        onClick={() => setAberto((v) => !v)}
+        onClick={alternar}
         aria-expanded={aberto}
         aria-haspopup="menu"
         className="rounded-full bg-vaga px-3.5 py-1.5 text-[12.5px] font-semibold text-white transition-opacity hover:opacity-90"
@@ -173,7 +207,7 @@ export function BotaoNovo({ acoes }: { acoes: AcaoNova[] }) {
               key={a.href}
               href={a.href}
               role="menuitem"
-              onClick={() => setAberto(false)}
+              onClick={() => fechar(false)}
               className="block px-4 py-2.5 text-[13px] text-tinta2 transition-colors hover:bg-folha2 hover:text-vaga"
             >
               {a.rotulo}
@@ -224,7 +258,7 @@ export function Busca() {
         type="search"
         autoComplete="off"
         placeholder="Buscar"
-        className="w-32 rounded-full border border-linha bg-folha2 px-3.5 py-1.5 text-[12.5px] text-tinta placeholder:text-tinta3 focus:w-48 focus:border-vaga-linha focus:outline-none sm:w-36 sm:focus:w-56"
+        className="w-32 rounded-full border border-linha bg-folha2 px-3.5 py-1.5 text-[12.5px] text-tinta placeholder:text-tinta3 focus:w-48 focus:border-vaga focus:outline-none sm:w-36 sm:focus:w-56"
       />
     </form>
   );
@@ -237,7 +271,7 @@ export function BarraDoCelular({ acessos }: { acessos: Acessos }) {
   const itens = barraDoCelular(acessos);
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-flow-col border-t border-linha bg-folha/95 backdrop-blur sm:hidden">
+    <nav className="barra-do-dedo fixed inset-x-0 bottom-0 z-20 grid grid-flow-col border-t border-linha bg-folha/95 backdrop-blur sm:hidden">
       {itens.map((i) => {
         const aberto = destinoAtivo(caminho, i.href);
         return (
@@ -245,7 +279,7 @@ export function BarraDoCelular({ acessos }: { acessos: Acessos }) {
             key={i.href}
             href={i.href}
             aria-current={aberto ? "page" : undefined}
-            className={`px-1 py-2.5 text-center text-[11.5px] ${
+            className={`flex min-h-11 items-center justify-center px-1 text-center text-[11.5px] ${
               aberto ? "font-semibold text-vaga" : "text-tinta2"
             }`}
           >
@@ -269,23 +303,14 @@ export function MenuDoPerfil({
   operador: boolean;
   children: React.ReactNode;
 }) {
-  const [aberto, setAberto] = useState(false);
-  const caixa = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!aberto) return;
-    const fora = (e: MouseEvent) => {
-      if (caixa.current && !caixa.current.contains(e.target as Node)) setAberto(false);
-    };
-    document.addEventListener("mousedown", fora);
-    return () => document.removeEventListener("mousedown", fora);
-  }, [aberto]);
+  const { aberto, alternar, fechar, caixa, botao } = useMenu();
 
   return (
     <div ref={caixa} className="relative">
       <button
+        ref={botao}
         type="button"
-        onClick={() => setAberto((v) => !v)}
+        onClick={alternar}
         aria-expanded={aberto}
         aria-haspopup="menu"
         className="rounded-full border border-linha px-3 py-1.5 text-[12.5px] text-tinta2 transition-colors hover:border-vaga hover:text-vaga"
@@ -302,7 +327,7 @@ export function MenuDoPerfil({
               key={s.href}
               href={s.href}
               role="menuitem"
-              onClick={() => setAberto(false)}
+              onClick={() => fechar(false)}
               className="block px-4 py-2.5 text-[13px] text-tinta2 transition-colors hover:bg-folha2 hover:text-vaga"
             >
               {s.rotulo}
@@ -311,7 +336,7 @@ export function MenuDoPerfil({
           <Link
             href="/perfil#privacidade"
             role="menuitem"
-            onClick={() => setAberto(false)}
+            onClick={() => fechar(false)}
             className="block px-4 py-2.5 text-[13px] text-tinta2 transition-colors hover:bg-folha2 hover:text-vaga"
           >
             Privacidade e dados
@@ -324,7 +349,7 @@ export function MenuDoPerfil({
             <Link
               href="/negocio"
               role="menuitem"
-              onClick={() => setAberto(false)}
+              onClick={() => fechar(false)}
               className="block border-t border-linha px-4 py-2.5 text-[13px] text-tinta3 transition-colors hover:bg-folha2 hover:text-vaga"
             >
               Painel do negócio

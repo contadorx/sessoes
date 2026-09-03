@@ -57,10 +57,10 @@ export default async function Contratos() {
 
       <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-tinta2">
         Um texto só, escrito uma vez, que vira o documento de cada pessoa com os
-        números dela dentro. <b className="font-semibold text-tinta">É o lastro
-        da cobrança automática</b>: quando o sistema cobra uma falta, ele está
-        aplicando uma regra que a pessoa leu e aceitou com data e hora — não um
-        combinado de boca que agora precisa ser relembrado por você.
+        números dela dentro. <b className="font-semibold text-tinta">É o que dá base
+        à cobrança de uma falta</b>: quando você decide cobrar, a regra aplicada é
+        uma que a pessoa leu e aceitou com data e hora — não um combinado de boca
+        que agora precisa ser relembrado por você.
       </p>
 
       <EditorDeContrato
@@ -125,8 +125,9 @@ export default async function Contratos() {
           </li>
           <li>
             <b className="font-medium text-tinta">Não bloqueia nada.</b> Sem
-            aceite, o sistema continua agendando, atendendo e cobrando. Ele
-            registra que não há lastro e mostra na ficha. Condicionar
+            aceite, o sistema continua agendando, atendendo e registrando
+            cobrança. Ele anota que o combinado não foi aceito e mostra na ficha.
+            Condicionar
             atendimento a um clique seria transformar isto aqui em porteiro de
             uma relação clínica.
           </li>

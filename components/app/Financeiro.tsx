@@ -141,7 +141,7 @@ export function PainelFinanceiro({
       {/* ----------------------------------------------------- o que voltou */}
       {recuperado && (
         <p className="mt-4 rounded-cartao border border-vaga-linha bg-vaga-bg px-5 py-3 text-[13px] leading-relaxed text-vaga">
-          <b className="font-semibold">O sistema trouxe de volta:</b> {recuperado}
+          <b className="font-semibold">Voltou para o mês:</b> {recuperado}
         </p>
       )}
 

@@ -106,12 +106,12 @@ describe("as duas colunas", () => {
   });
 });
 
-describe("o que o sistema trouxe de volta", () => {
+describe("o que voltou para o mês", () => {
   it("soma encaixe realizado e falta paga", () => {
     const f = fraseDoRecuperado(lerPainel(BRUTO));
     expect(f).toContain(formatar(30000));
     expect(f).toContain("1 hora que a fila preencheu");
-    expect(f).toContain("1 falta que a política cobrou");
+    expect(f).toContain("1 falta que você decidiu cobrar");
   });
 
   it("sem nada recuperado, não inventa frase", () => {
@@ -128,7 +128,7 @@ describe("o que o sistema trouxe de volta", () => {
       recuperado: { encaixes: 3, valor_encaixes: "600.00", faltas: 2, valor_faltas: "200.00" },
     });
     expect(fraseDoRecuperado(p)).toContain("3 horas que a fila preencheu");
-    expect(fraseDoRecuperado(p)).toContain("2 faltas que a política cobrou");
+    expect(fraseDoRecuperado(p)).toContain("2 faltas que você decidiu cobrar");
   });
 });
 

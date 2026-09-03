@@ -104,6 +104,28 @@ export function lerValor(bruto: string): number | null {
  * Trunca em 11 dígitos em vez de recusar a tecla — recusar tecla em campo de
  * documento é o jeito mais rápido de fazer alguém achar que o campo travou.
  */
+/**
+ * Centavos para o texto que ela lê **dentro de um campo**.
+ *
+ * `deCentavos` de `lib/dinheiro.ts` continua existindo e continua certa: ela é a
+ * forma de mandar dinheiro para o banco, e o banco quer ponto. O que ela não
+ * pode ser é o valor inicial de um campo — o campo "cobrar quanto" nascia com
+ * `200.00` escrito, que em português é duzentos mil, e o primeiro reflexo de
+ * quem for corrigir aquilo é apagar e digitar de novo.
+ *
+ * `lerCentavos` aceita as duas escritas, então nada quebra na volta. O que muda
+ * é o que ela vê antes de decidir cobrar alguém.
+ */
+export function paraCampo(centavos: number): string {
+  const negativo = centavos < 0;
+  const abs = Math.abs(Math.trunc(centavos));
+  const inteiros = Math.trunc(abs / 100)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  const texto = `${inteiros},${String(abs % 100).padStart(2, "0")}`;
+  return negativo ? `-${texto}` : texto;
+}
+
 export function mascaraCpf(bruto: string): string {
   const d = digitos(bruto).slice(0, 11);
   if (d.length <= 3) return d;

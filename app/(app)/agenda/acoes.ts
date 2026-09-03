@@ -71,6 +71,34 @@ export async function criarAusencia(_anterior: Resultado, form: FormData): Promi
   return { estado: "ok", mensagem: "Registrado. As sessões do período saíram da agenda." };
 }
 
+/**
+ * Põe uma mensalidade aberta no valor que a conta do mês dá hoje.
+ *
+ * Uma por vez, e sempre pedida. A alternativa — o gatilho da exceção sair
+ * corrigindo cobrança sozinho — é o antipadrão "o default que decide por ela",
+ * e sobre dinheiro ele é pior: ela descobriria pela diferença no extrato.
+ */
+export async function reverMensalidade(
+  _anterior: Resultado,
+  form: FormData,
+): Promise<Resultado> {
+  const id = String(form.get("cobranca") ?? "");
+  if (!id) return { estado: "erro", erros: ["Cobrança não identificada."] };
+
+  const supabase = await supabaseSessao();
+
+  try {
+    await db("mensalidades.rever", supabase.rpc("rever_mensalidade", { p_cobranca: id }));
+  } catch (e) {
+    console.error("[mensalidades] falhou rever", e);
+    return { estado: "erro", erros: ["Não consegui atualizar esta cobrança agora."] };
+  }
+
+  revalidatePath("/agenda");
+  revalidatePath("/recebimentos");
+  return { estado: "ok", mensagem: "Atualizada." };
+}
+
 export async function removerAusencia(_anterior: Resultado, form: FormData): Promise<Resultado> {
   const id = String(form.get("id") ?? "");
   if (!id) return { estado: "erro", erros: ["Não identifiquei o registro."] };
@@ -214,22 +242,6 @@ function traduzir(e: unknown): string {
   return "Não consegui completar agora. Tente de novo em instantes.";
 }
 
-/** Estende a janela rolante. É o que o cron vai chamar todo dia. */
-export async function estenderJanela(): Promise<Resultado> {
-  const supabase = await supabaseSessao();
-
-  try {
-    // Sem parâmetro de propósito: a função resolve a conta pelo `conta_atual()`
-    // do banco. Tenant nunca vem do cliente.
-    await db("agenda.materializar", supabase.rpc("materializar_conta"));
-  } catch (e) {
-    console.error("[agenda] falhou materializar", e);
-    return { estado: "erro", erros: ["Não consegui estender a agenda."] };
-  }
-
-  revalidatePath("/agenda");
-  return { estado: "ok", mensagem: "Agenda estendida." };
-}
 
 /**
  * Perdoar.

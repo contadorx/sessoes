@@ -75,7 +75,7 @@ export function FaixaNaConta({ faixa }: { faixa: Faixa }) {
   if (!faixa.tem_faixa || faixa.e_fair_use) {
     return (
       <p className="text-[12.5px] text-tinta2">
-        Seu plano não tem faixa de sessões.{" "}
+        Seu plano não conta sessões.{" "}
         <span className="text-tinta3">
           As mensagens das suas pacientes saem sem teto, em qualquer plano.
         </span>
@@ -107,7 +107,7 @@ export function FaixaNaConta({ faixa }: { faixa: Faixa }) {
       <p className="mt-1.5 text-[11.5px] leading-relaxed text-tinta3">
         {fraseDoQueConta()}{" "}
         <b className="font-medium text-tinta2">
-          Passar da faixa não trava nada e não gera cobrança extra
+          Passar desse número não trava nada e não gera cobrança extra
         </b>
         .
       </p>

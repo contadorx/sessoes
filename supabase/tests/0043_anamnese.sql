@@ -351,7 +351,7 @@ begin
   ) then raise exception '19 FUROU: o aviso ganhou campo de juízo sobre o paciente'; end if;
 
   -- ---------------------------------------------------------------- 17
-  perform public.arquivar_paciente(novo, 'Encerramento registrado para efeito de teste.');
+  perform public.arquivar_paciente(novo, 'Encerramento registrado para efeito de teste.', 'alta');
   j := public.aviso_de_anamnese(novo);
   if (j->>'mostrar')::boolean then
     raise exception '17 FUROU: avisou sobre ficha arquivada, onde não há o que fazer'; end if;

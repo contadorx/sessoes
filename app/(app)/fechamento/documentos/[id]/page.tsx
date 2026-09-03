@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { obterDocumento, type DocumentoLinha } from "../dados";
 import { Imprimir } from "@/components/app/Imprimir";
+import { CancelarDocumento } from "@/components/app/CancelarDocumento";
 import { formatar, paraCentavos } from "@/lib/dinheiro";
 import { documentoBr } from "@/lib/formato";
 
@@ -47,12 +48,23 @@ export default async function Documento({ params }: { params: Promise<{ id: stri
           ← documentos
         </Link>
 
-        {doc.cancelado_em && (
+        {doc.cancelado_em ? (
           <p className="mt-3 rounded-cartao border border-vaga-linha bg-vaga-bg px-4 py-3 text-[13px] leading-relaxed text-tinta2">
             <b className="font-semibold text-vaga">Cancelado</b> em{" "}
             {DIA.format(new Date(doc.cancelado_em))} — {doc.motivo_cancelamento}. O
             número {doc.numero} continua queimado.
           </p>
+        ) : (
+          /*
+            O botão que faltava desde a B17.
+
+            A ação `cancelarDocumento` existia e estava correta; a tela sabia
+            desenhar o resultado (o bloco acima, e o carimbo na cópia impressa
+            lá embaixo); e **nenhum arquivo .tsx importava a ação**. Um recibo
+            emitido com o valor errado — que leva o nome e o CRP dela — não
+            tinha como ser cancelado pela interface.
+          */
+          <CancelarDocumento documentoId={doc.id} numero={doc.numero} />
         )}
 
         {!ehDeclaracao && (

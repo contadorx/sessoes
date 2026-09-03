@@ -1,6 +1,6 @@
 # B34 · Pré-ficha administrativa
 
-**2 dias · migração: a definir · décima terceira da fila**
+**2 dias · migração: 0074 · décima terceira da fila**
 **Código:** PR4.
 
 ---
@@ -18,11 +18,11 @@ responsável (quando menor), como prefere ser avisada, e **CPF**.
 
 ## Pronto quando
 
-- [ ] a paciente preenche sem conta, sem senha e sem cadastro;
-- [ ] o que ela preenche cai no cadastro sem retrabalho de digitação;
-- [ ] **nenhuma pergunta clínica aparece no formulário**, verificado por teste
+- [x] a paciente preenche sem conta, sem senha e sem cadastro;
+- [x] o que ela preenche cai no cadastro sem retrabalho de digitação;
+- [x] **nenhuma pergunta clínica aparece no formulário**, verificado por teste
       que varre o conjunto de campos;
-- [ ] menor de idade exige responsável, e o cadastro de responsáveis da B13
+- [x] menor de idade exige responsável, e o cadastro de responsáveis da B13
       recebe o dado.
 
 ---

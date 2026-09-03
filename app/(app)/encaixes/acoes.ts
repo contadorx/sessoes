@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { db, ErroDeBanco } from "@/lib/db";
 import { caixaMarcada } from "@/lib/formato";
 import { supabaseSessao } from "@/lib/supabase/server";
@@ -225,11 +224,6 @@ export async function salvarRegras(_anterior: Resultado, form: FormData): Promis
 
   revalidatePath("/encaixes");
   return { estado: "ok", mensagem: "Regra salva." };
-}
-
-/** Atalho do painel da agenda: abre a vaga e leva para a cascata. */
-export async function irParaCascata(sessaoId: string): Promise<never> {
-  redirect(`/encaixes/${sessaoId}`);
 }
 
 function traduzir(e: unknown): string {
